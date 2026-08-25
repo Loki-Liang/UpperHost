@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-template:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore UpperHost.slnx
+
+      - name: Build
+        run: dotnet build UpperHost.slnx -c Release --no-restore
+
+      - name: Test
+        run: dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
