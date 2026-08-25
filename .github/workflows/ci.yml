@@ -43,6 +43,7 @@ jobs:
         run: |
           $packageDir = (Resolve-Path artifacts/packages).Path
           $templatePackage = (Get-ChildItem "$packageDir/UpperHost.Templates.*.nupkg" | Select-Object -First 1).FullName
+          $nugetSource = "https://api.nuget.org/v3/index.json"
           dotnet new install $templatePackage
 
           $smokeDir = Join-Path $env:RUNNER_TEMP "upperhost-template-smoke"
@@ -50,7 +51,7 @@ jobs:
           New-Item -ItemType Directory -Force $smokeDir | Out-Null
           Push-Location $smokeDir
           dotnet new upperhost -n SmokeDevice --transport simulator
-          dotnet restore SmokeDevice/SmokeDevice.csproj --source $packageDir --source https://api.nuget.org/v3/index.json
+          dotnet restore SmokeDevice/SmokeDevice.csproj --source "$packageDir" --source "$nugetSource"
           dotnet build SmokeDevice/SmokeDevice.csproj -c Release --no-restore
           Pop-Location
 
