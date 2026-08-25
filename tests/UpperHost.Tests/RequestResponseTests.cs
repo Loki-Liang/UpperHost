@@ -12,7 +12,7 @@ public sealed class RequestResponseTests
         await using var transport = new SimulatorTransport();
         await transport.OpenAsync();
 
-        transport.Sent += _ => _ = transport.InjectAsync(Encoding.UTF8.GetBytes("PONG\n"));
+        transport.Sent += _ => transport.InjectAsync(Encoding.UTF8.GetBytes("PONG\n")).AsTask().GetAwaiter().GetResult();
 
         var codec = new LineProtocolCodec();
         var client = new RequestResponseClient<string, string>(transport, codec, codec);
