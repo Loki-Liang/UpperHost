@@ -41,11 +41,16 @@ jobs:
       - name: Validate dotnet new template
         shell: pwsh
         run: |
-          dotnet new install (Get-ChildItem artifacts/packages/UpperHost.Templates.*.nupkg | Select-Object -First 1).FullName
-          New-Item -ItemType Directory -Force artifacts/template-smoke | Out-Null
-          Push-Location artifacts/template-smoke
+          $packageDir = (Resolve-Path artifacts/packages).Path
+          $templatePackage = (Get-ChildItem "$packageDir/UpperHost.Templates.*.nupkg" | Select-Object -First 1).FullName
+          dotnet new install $templatePackage
+
+          $smokeDir = Join-Path $env:RUNNER_TEMP "upperhost-template-smoke"
+          Remove-Item $smokeDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $smokeDir | Out-Null
+          Push-Location $smokeDir
           dotnet new upperhost -n SmokeDevice --transport simulator
-          dotnet restore SmokeDevice/SmokeDevice.csproj --source ../packages --source https://api.nuget.org/v3/index.json
+          dotnet restore SmokeDevice/SmokeDevice.csproj --source $packageDir --source https://api.nuget.org/v3/index.json
           dotnet build SmokeDevice/SmokeDevice.csproj -c Release --no-restore
           Pop-Location
 
