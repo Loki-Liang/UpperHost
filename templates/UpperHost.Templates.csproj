@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <PackageType>Template</PackageType>
+    <PackageId>UpperHost.Templates</PackageId>
+    <Title>UpperHost project templates</Title>
+    <Description>dotnet new templates for general-purpose UpperHost WPF device applications.</Description>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="UpperHost.Wpf/**" Exclude="UpperHost.Wpf/**/bin/**;UpperHost.Wpf/**/obj/**">
+      <Pack>true</Pack>
+      <PackagePath>content</PackagePath>
+    </Content>
+  </ItemGroup>
+</Project>

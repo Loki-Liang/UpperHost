@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Opinionated starters that make common UpperHost configurations one-call setup.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../UpperHost.Hosting/UpperHost.Hosting.csproj" />
+    <ProjectReference Include="../UpperHost.Transport.Serial/UpperHost.Transport.Serial.csproj" />
+    <ProjectReference Include="../UpperHost.Transport.Tcp/UpperHost.Transport.Tcp.csproj" />
+    <ProjectReference Include="../UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
+    <ProjectReference Include="../UpperHost.Workflows/UpperHost.Workflows.csproj" />
+    <ProjectReference Include="../UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
+  </ItemGroup>
+</Project>

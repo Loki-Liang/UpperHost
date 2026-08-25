@@ -1,0 +1,14 @@
+<Window x:Class="UpperHost.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UpperHost" Height="420" Width="760">
+    <Grid Margin="32">
+        <StackPanel>
+            <TextBlock FontSize="30" FontWeight="SemiBold" Text="UpperHost" />
+            <TextBlock Margin="0,12,0,0" FontSize="16" Text="General-purpose device application host is running." />
+            <TextBlock Margin="0,8,0,0" Text="Transport: __TRANSPORT__" />
+            <TextBlock Margin="0,24,0,0" TextWrapping="Wrap"
+                       Text="Implement your device capabilities, protocol and workflow; keep transport, diagnostics and application lifecycle in the platform." />
+        </StackPanel>
+    </Grid>
+</Window>
