@@ -1,6 +1,6 @@
 using System.Windows;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Transports;
 using UpperHost.Hosting;
 using UpperHost.Starters;
 using UpperHost.Transport.Serial;

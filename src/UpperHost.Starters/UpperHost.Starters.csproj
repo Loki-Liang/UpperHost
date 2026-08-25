@@ -9,5 +9,6 @@
     <ProjectReference Include="../UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
     <ProjectReference Include="../UpperHost.Workflows/UpperHost.Workflows.csproj" />
     <ProjectReference Include="../UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
+    <ProjectReference Include="../UpperHost.Storage.FileSystem/UpperHost.Storage.FileSystem.csproj" />
   </ItemGroup>
 </Project>

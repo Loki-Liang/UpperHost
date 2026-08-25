@@ -1,7 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
+using UpperHost.Abstractions.Storage;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Diagnostics;
 using UpperHost.Hosting;
+using UpperHost.Storage.FileSystem;
 using UpperHost.Transport.Serial;
 using UpperHost.Transport.Simulator;
 using UpperHost.Transport.Tcp;
@@ -37,6 +39,12 @@ public static class UpperHostStarterExtensions
     {
         builder.Services.AddSingleton(options);
         builder.Services.AddSingleton<ITransport, TcpTransport>();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddFileSystemStorage(this UpperHostApplicationBuilder builder, string directory)
+    {
+        builder.Services.AddSingleton<IKeyValueStore>(_ => new JsonFileKeyValueStore(directory));
         return builder;
     }
 }
