@@ -43,15 +43,27 @@ jobs:
         run: |
           $packageDir = (Resolve-Path artifacts/packages).Path
           $templatePackage = (Get-ChildItem "$packageDir/UpperHost.Templates.*.nupkg" | Select-Object -First 1).FullName
-          $nugetSource = "https://api.nuget.org/v3/index.json"
           dotnet new install $templatePackage
 
           $smokeDir = Join-Path $env:RUNNER_TEMP "upperhost-template-smoke"
           Remove-Item $smokeDir -Recurse -Force -ErrorAction SilentlyContinue
           New-Item -ItemType Directory -Force $smokeDir | Out-Null
           Push-Location $smokeDir
+
+          $escapedPackageDir = [System.Security.SecurityElement]::Escape($packageDir)
+          @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="upperhost-local" value="$escapedPackageDir" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+            </packageSources>
+          </configuration>
+          "@ | Set-Content -Path NuGet.Config -Encoding utf8
+
           dotnet new upperhost -n SmokeDevice --transport simulator
-          dotnet restore SmokeDevice/SmokeDevice.csproj --source "$packageDir" --source "$nugetSource"
+          dotnet restore SmokeDevice/SmokeDevice.csproj --configfile NuGet.Config
           dotnet build SmokeDevice/SmokeDevice.csproj -c Release --no-restore
           Pop-Location
 
