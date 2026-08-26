@@ -1,10 +1,7 @@
 using System.Windows;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using UpperHost.Hosting;
 using UpperHost.Starters;
-using UpperHost.Transport.Serial;
-using UpperHost.Transport.Tcp;
 
 namespace UpperHost.App;
 
@@ -16,8 +13,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHostDefaults();
-        ConfigureTransport(builder);
+        var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHostApplication();
         builder.Services.AddSingleton<MainWindow>();
 
         _host = builder.Build();
@@ -32,26 +28,5 @@ public partial class App : Application
         if (_host is not null)
             await _host.DisposeAsync();
         base.OnExit(e);
-    }
-
-    private static void ConfigureTransport(UpperHostApplicationBuilder builder)
-    {
-        const string selected = "__TRANSPORT__";
-        switch (selected)
-        {
-            case "serial":
-                builder.AddSerialTransport(new SerialTransportOptions(
-                    builder.Configuration["UpperHost:Transport:Serial:PortName"] ?? "COM1",
-                    builder.Configuration.GetValue("UpperHost:Transport:Serial:BaudRate", 115200)));
-                break;
-            case "tcp":
-                builder.AddTcpTransport(new TcpTransportOptions(
-                    builder.Configuration["UpperHost:Transport:Tcp:Host"] ?? "127.0.0.1",
-                    builder.Configuration.GetValue("UpperHost:Transport:Tcp:Port", 9000)));
-                break;
-            default:
-                builder.AddSimulatorTransport();
-                break;
-        }
     }
 }

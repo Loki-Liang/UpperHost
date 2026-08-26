@@ -1,7 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using UpperHost.Abstractions.Diagnostics;
+using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Storage;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Diagnostics;
+using UpperHost.Events;
 using UpperHost.Hosting;
 using UpperHost.Storage.FileSystem;
 using UpperHost.Transport.Serial;
@@ -16,8 +20,10 @@ public static class UpperHostStarterExtensions
     public static UpperHostApplicationBuilder AddUpperHostDefaults(this UpperHostApplicationBuilder builder)
     {
         builder.AddUpperHost();
-        builder.Services.AddSingleton<WorkflowRunner>();
-        builder.Services.AddSingleton<HealthService>();
+        builder.Services.TryAddSingleton<WorkflowRunner>();
+        builder.Services.TryAddSingleton<IEventBus, EventBus>();
+        builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
+        builder.Services.TryAddSingleton<HealthService>();
         return builder;
     }
 

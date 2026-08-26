@@ -11,6 +11,10 @@
     <Company>UpperHost</Company>
     <RepositoryUrl>https://github.com/Loki-Liang/UpperHost</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.1.0-alpha.1</Version>
   </PropertyGroup>
+  <ItemGroup Condition="'$(IsPackable)' != 'false' And Exists('$(MSBuildThisFileDirectory)README.md')">
+    <None Include="$(MSBuildThisFileDirectory)README.md" Pack="true" PackagePath="/" Link="README.md" Visible="false" />
+  </ItemGroup>
 </Project>

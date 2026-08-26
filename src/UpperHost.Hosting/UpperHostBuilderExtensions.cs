@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using UpperHost.Abstractions.Devices;
 using UpperHost.Hosting.Devices;
@@ -11,7 +12,9 @@ public static class UpperHostBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        builder.Services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
+        builder.Services.TryAddSingleton<IDeviceRegistry, DeviceRegistry>();
+        builder.Services.TryAddSingleton<IDeviceDiscoveryService, DeviceDiscoveryService>();
+        builder.Services.AddHostedService<DeviceRegistrationHostedService>();
         builder.Services.AddLogging(logging => logging.AddConsole());
         return builder;
     }
