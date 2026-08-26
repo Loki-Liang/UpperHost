@@ -5,6 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../UpperHost.Hosting/UpperHost.Hosting.csproj" />
     <ProjectReference Include="../UpperHost.Events/UpperHost.Events.csproj" />
+    <ProjectReference Include="../UpperHost.Resilience/UpperHost.Resilience.csproj" />
     <ProjectReference Include="../UpperHost.Transport.Serial/UpperHost.Transport.Serial.csproj" />
     <ProjectReference Include="../UpperHost.Transport.Tcp/UpperHost.Transport.Tcp.csproj" />
     <ProjectReference Include="../UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />

@@ -14,6 +14,7 @@ public static class UpperHostBuilderExtensions
 
         builder.Services.TryAddSingleton<IDeviceRegistry, DeviceRegistry>();
         builder.Services.TryAddSingleton<IDeviceDiscoveryService, DeviceDiscoveryService>();
+        builder.Services.TryAddSingleton<IDeviceManager, DeviceManager>();
         builder.Services.AddHostedService<DeviceRegistrationHostedService>();
         builder.Services.AddLogging(logging => logging.AddConsole());
         return builder;
