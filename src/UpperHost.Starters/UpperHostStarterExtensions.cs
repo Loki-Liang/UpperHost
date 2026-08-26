@@ -1,0 +1,56 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using UpperHost.Abstractions.Diagnostics;
+using UpperHost.Abstractions.Events;
+using UpperHost.Abstractions.Storage;
+using UpperHost.Abstractions.Transports;
+using UpperHost.Diagnostics;
+using UpperHost.Events;
+using UpperHost.Hosting;
+using UpperHost.Storage.FileSystem;
+using UpperHost.Transport.Serial;
+using UpperHost.Transport.Simulator;
+using UpperHost.Transport.Tcp;
+using UpperHost.Workflows;
+
+namespace UpperHost.Starters;
+
+public static class UpperHostStarterExtensions
+{
+    public static UpperHostApplicationBuilder AddUpperHostDefaults(this UpperHostApplicationBuilder builder)
+    {
+        builder.AddUpperHost();
+        builder.Services.TryAddSingleton<WorkflowRunner>();
+        builder.Services.TryAddSingleton<IEventBus, EventBus>();
+        builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
+        builder.Services.TryAddSingleton<HealthService>();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddSimulatorTransport(this UpperHostApplicationBuilder builder, string name = "default")
+    {
+        builder.Services.AddSingleton<SimulatorTransport>(_ => new SimulatorTransport(name));
+        builder.Services.AddSingleton<ITransport>(sp => sp.GetRequiredService<SimulatorTransport>());
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddSerialTransport(this UpperHostApplicationBuilder builder, SerialTransportOptions options)
+    {
+        builder.Services.AddSingleton(options);
+        builder.Services.AddSingleton<ITransport, SerialTransport>();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddTcpTransport(this UpperHostApplicationBuilder builder, TcpTransportOptions options)
+    {
+        builder.Services.AddSingleton(options);
+        builder.Services.AddSingleton<ITransport, TcpTransport>();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddFileSystemStorage(this UpperHostApplicationBuilder builder, string directory)
+    {
+        builder.Services.AddSingleton<IKeyValueStore>(_ => new JsonFileKeyValueStore(directory));
+        return builder;
+    }
+}

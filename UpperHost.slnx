@@ -1,0 +1,21 @@
+<Solution>
+  <Project Path="src/UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  <Project Path="src/UpperHost.Hosting/UpperHost.Hosting.csproj" />
+  <Project Path="src/UpperHost.Events/UpperHost.Events.csproj" />
+  <Project Path="src/UpperHost.Resilience/UpperHost.Resilience.csproj" />
+  <Project Path="src/UpperHost.Protocols/UpperHost.Protocols.csproj" />
+  <Project Path="src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+  <Project Path="src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
+  <Project Path="src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
+  <Project Path="src/UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
+  <Project Path="src/UpperHost.Modules/UpperHost.Modules.csproj" />
+  <Project Path="src/UpperHost.Transport.Serial/UpperHost.Transport.Serial.csproj" />
+  <Project Path="src/UpperHost.Transport.Tcp/UpperHost.Transport.Tcp.csproj" />
+  <Project Path="src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
+  <Project Path="src/UpperHost.Storage.FileSystem/UpperHost.Storage.FileSystem.csproj" />
+  <Project Path="src/UpperHost.Starters/UpperHost.Starters.csproj" />
+  <Project Path="src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj" />
+  <Project Path="src/UpperHost.Testing/UpperHost.Testing.csproj" />
+  <Project Path="tests/UpperHost.Tests/UpperHost.Tests.csproj" />
+  <Project Path="templates/UpperHost.Templates.csproj" />
+</Solution>

@@ -1,6 +1,8 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -25,3 +27,47 @@ jobs:
 
       - name: Test
         run: dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+
+      - name: Pack libraries
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/packages | Out-Null
+          Get-ChildItem src -Filter *.csproj -Recurse | ForEach-Object {
+            dotnet pack $_.FullName -c Release --no-build -o artifacts/packages
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          dotnet pack templates/UpperHost.Templates.csproj -c Release --no-build -o artifacts/packages
+
+      - name: Validate dotnet new template
+        shell: pwsh
+        run: |
+          $packageDir = (Resolve-Path artifacts/packages).Path
+          $templatePackage = (Get-ChildItem "$packageDir/UpperHost.Templates.*.nupkg" | Select-Object -First 1).FullName
+          dotnet new install $templatePackage
+
+          $smokeDir = Join-Path $env:RUNNER_TEMP "upperhost-template-smoke"
+          Remove-Item $smokeDir -Recurse -Force -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force $smokeDir | Out-Null
+          Push-Location $smokeDir
+
+          $escapedPackageDir = [System.Security.SecurityElement]::Escape($packageDir)
+          @"
+          <?xml version="1.0" encoding="utf-8"?>
+          <configuration>
+            <packageSources>
+              <clear />
+              <add key="upperhost-local" value="$escapedPackageDir" />
+              <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+            </packageSources>
+          </configuration>
+          "@ | Set-Content -Path NuGet.Config -Encoding utf8
+
+          dotnet new upperhost -n SmokeDevice --transport simulator
+          dotnet restore SmokeDevice/SmokeDevice.csproj --configfile NuGet.Config
+          dotnet build SmokeDevice/SmokeDevice.csproj -c Release --no-restore
+          Pop-Location
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: upperhost-packages
+          path: artifacts/packages/*.nupkg

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Small deterministic state-machine runtime for device and machine lifecycles.</Description>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Typed in-process event bus for decoupled UpperHost modules.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

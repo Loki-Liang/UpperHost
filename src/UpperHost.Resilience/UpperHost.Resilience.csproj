@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Reconnect and retry policies for UpperHost transports.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

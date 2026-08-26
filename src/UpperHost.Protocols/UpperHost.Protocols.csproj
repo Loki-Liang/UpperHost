@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Protocol codecs and request/response or streaming protocol runtimes for UpperHost.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/UpperHost.Hosting/UpperHost.Hosting.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Starters/UpperHost.Starters.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Events/UpperHost.Events.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Resilience/UpperHost.Resilience.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Protocols/UpperHost.Protocols.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
+    <ProjectReference Include="../../src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+  </ItemGroup>
+</Project>
