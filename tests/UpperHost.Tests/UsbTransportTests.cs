@@ -14,7 +14,7 @@ public sealed class UsbTransportTests
         await using var transport = new UsbTransport(backend, options);
 
         await transport.OpenAsync();
-        await transport.SendAsync([0xAA, 0x55]);
+        await transport.SendAsync(new byte[] { 0xAA, 0x55 });
 
         ReadOnlyMemory<byte> received = default;
         await foreach (var chunk in transport.ReceiveAsync())
@@ -36,7 +36,7 @@ public sealed class UsbTransportTests
     public async Task Send_requires_open_transport()
     {
         await using var transport = new UsbTransport(new FakeUsbByteChannel(), new UsbTransportOptions(1, 2));
-        await Assert.ThrowsAsync<InvalidOperationException>(async () => await transport.SendAsync([0x01]));
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await transport.SendAsync(new byte[] { 0x01 }));
     }
 
     private sealed class FakeUsbByteChannel : IUsbByteChannel
