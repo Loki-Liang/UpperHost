@@ -20,3 +20,14 @@ public interface ITransport : IAsyncDisposable
     ValueTask SendAsync(ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default);
     IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IMessageTransport<TMessage> : IAsyncDisposable
+{
+    TransportEndpoint Endpoint { get; }
+    TransportState State { get; }
+
+    Task OpenAsync(CancellationToken cancellationToken = default);
+    Task CloseAsync(CancellationToken cancellationToken = default);
+    ValueTask SendAsync(TMessage message, CancellationToken cancellationToken = default);
+    IAsyncEnumerable<TMessage> ReceiveAsync(CancellationToken cancellationToken = default);
+}
