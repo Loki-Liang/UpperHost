@@ -21,6 +21,7 @@
     <ProjectReference Include="../../src/UpperHost.Control/UpperHost.Control.csproj" />
     <ProjectReference Include="../../src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
     <ProjectReference Include="../../src/UpperHost.Transport.Usb/UpperHost.Transport.Usb.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Transport.Can/UpperHost.Transport.Can.csproj" />
     <ProjectReference Include="../../src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
     <ProjectReference Include="../../src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
     <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
