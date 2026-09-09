@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>UpperHost.Sample.DeviceControl</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Hosting/UpperHost.Hosting.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Protocols/UpperHost.Protocols.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
+  </ItemGroup>
+</Project>
