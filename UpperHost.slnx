@@ -13,6 +13,7 @@
   <Project Path="src/UpperHost.Transport.Serial/UpperHost.Transport.Serial.csproj" />
   <Project Path="src/UpperHost.Transport.Tcp/UpperHost.Transport.Tcp.csproj" />
   <Project Path="src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
+  <Project Path="src/UpperHost.Transport.Usb/UpperHost.Transport.Usb.csproj" />
   <Project Path="src/UpperHost.Storage.FileSystem/UpperHost.Storage.FileSystem.csproj" />
   <Project Path="src/UpperHost.Starters/UpperHost.Starters.csproj" />
   <Project Path="src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj" />
