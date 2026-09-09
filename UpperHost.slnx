@@ -19,6 +19,7 @@
   <Project Path="src/UpperHost.Testing/UpperHost.Testing.csproj" />
   <Project Path="samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.DeviceControl.csproj" />
   <Project Path="samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj" />
+  <Project Path="samples/UpperHost.Sample.DataAcquisition/UpperHost.Sample.DataAcquisition.csproj" />
   <Project Path="tests/UpperHost.Tests/UpperHost.Tests.csproj" />
   <Project Path="templates/UpperHost.Templates.csproj" />
 </Solution>
