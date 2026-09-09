@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>UpperHost.Sample.DataAcquisition</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+  </ItemGroup>
+</Project>
