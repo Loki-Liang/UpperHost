@@ -18,6 +18,7 @@
     <ProjectReference Include="../../src/UpperHost.Resilience/UpperHost.Resilience.csproj" />
     <ProjectReference Include="../../src/UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
     <ProjectReference Include="../../src/UpperHost.Protocols/UpperHost.Protocols.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Control/UpperHost.Control.csproj" />
     <ProjectReference Include="../../src/UpperHost.Transport.Simulator/UpperHost.Transport.Simulator.csproj" />
     <ProjectReference Include="../../src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
     <ProjectReference Include="../../src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
