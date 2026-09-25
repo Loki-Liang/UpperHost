@@ -102,7 +102,7 @@ UpperHost 脚手架负责：
 
 ## 当前路线图
 
-平台按 GitHub Flow 分阶段推进：
+脚手架基础能力此前按 GitHub Flow 分阶段推进：
 
 - P0：中英文零基础文档、Device Control Sample。
 - P1：Command Runtime、Interlock/Guard、Parameter Read/Write/Readback、AutomationStation Sample。
