@@ -23,9 +23,12 @@ public static class UpperHostObservabilityExtensions
         ArgumentNullException.ThrowIfNull(builder);
 
         var options = new UpperHostObservabilityOptions();
-        builder.Configuration
-            .GetSection(UpperHostObservabilityOptions.SectionName)
-            .Bind(options);
+        var section = builder.Configuration
+            .GetSection(UpperHostObservabilityOptions.SectionName);
+
+        section.Bind(options);
+        section.GetSection("Logging:File").Bind(options.FileLogging);
+        section.GetSection("Otlp").Bind(options.Otlp);
 
         return builder.AddUpperHostObservability(options);
     }
