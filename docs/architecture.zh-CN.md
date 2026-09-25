@@ -25,7 +25,7 @@ Transport (Serial / TCP / USB / CAN / BLE / Vendor SDK / ...)
 Hardware
 ```
 
-横切能力包括 Configuration、Hosting/DI、Dataflow、Persistence、Alarm、Diagnostics、Plugin 和 Testing。
+脚手架/Runtime 横切能力包括 Configuration、Hosting/DI、Dataflow、Persistence、Alarm、Diagnostics、Plugin 和 Testing。
 
 ## 架构风格：模块化单体
 
