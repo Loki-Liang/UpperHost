@@ -125,8 +125,10 @@ public sealed class ConnectionManager : IConnectionManager
             }
             finally
             {
+                // Lease transport views can still finish in-flight I/O after manager shutdown.
+                // Keep the per-entry gate alive until the entry itself becomes unreachable so
+                // those completions cannot race with a disposed synchronization primitive.
                 entry.Gate.Release();
-                entry.Gate.Dispose();
             }
         }
 
@@ -395,7 +397,7 @@ public sealed class ConnectionManager : IConnectionManager
             }
             catch (Exception ex)
             {
-                MarkRuntimeFault("send", ex);
+                await MarkRuntimeFaultAsync("send", ex).ConfigureAwait(false);
                 throw;
             }
         }
@@ -426,7 +428,7 @@ public sealed class ConnectionManager : IConnectionManager
                 }
                 catch (Exception ex)
                 {
-                    MarkRuntimeFault("receive", ex);
+                    await MarkRuntimeFaultAsync("receive", ex).ConfigureAwait(false);
                     throw;
                 }
 
@@ -438,13 +440,27 @@ public sealed class ConnectionManager : IConnectionManager
             }
         }
 
-        private void MarkRuntimeFault(string operation, Exception exception)
+        private async ValueTask MarkRuntimeFaultAsync(string operation, Exception exception)
         {
-            _entry.State = ConnectionState.Faulted;
-            Record(operation, _entry, "faulted", exception.GetType().FullName);
+            await _entry.Gate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (_entry.LeaseCount > 0 &&
+                    _entry.State is not ConnectionState.Closed and
+                    not ConnectionState.Closing)
+                {
+                    _entry.State = ConnectionState.Faulted;
+                }
 
-            using var activity = StartActivity(operation, _entry);
-            MarkFailure(activity, exception, $"connection_{operation}_fault");
+                Record(operation, _entry, "faulted", exception.GetType().FullName);
+
+                using var activity = StartActivity(operation, _entry);
+                MarkFailure(activity, exception, $"connection_{operation}_fault");
+            }
+            finally
+            {
+                _entry.Gate.Release();
+            }
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
