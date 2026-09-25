@@ -337,7 +337,7 @@ public sealed class ConnectionManager : IConnectionManager
         {
             _owner = owner;
             _entry = entry;
-            _view = new LeaseTransportView(this, entry.Transport);
+            _view = new LeaseTransportView(this, entry, entry.Transport);
         }
 
         public ConnectionDefinition Definition => _entry.Definition;
@@ -358,11 +358,13 @@ public sealed class ConnectionManager : IConnectionManager
     private sealed class LeaseTransportView : ITransport
     {
         private readonly ConnectionLease _lease;
+        private readonly Entry _entry;
         private readonly ITransport _inner;
 
-        public LeaseTransportView(ConnectionLease lease, ITransport inner)
+        public LeaseTransportView(ConnectionLease lease, Entry entry, ITransport inner)
         {
             _lease = lease;
+            _entry = entry;
             _inner = inner;
         }
 
