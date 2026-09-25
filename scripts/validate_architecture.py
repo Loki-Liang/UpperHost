@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOTS = ("src", "samples", "tests", "templates")
+PROJECT_ROOTS = ("src", "apps", "samples", "tests", "templates")
 
 
 def project_files() -> list[Path]:
@@ -90,11 +90,22 @@ for project in projects:
         continue
     for target in graph[project]:
         target_rel = rel(target)
-        if target_rel.startswith(("samples/", "tests/", "templates/")):
+        if target_rel.startswith(("apps/", "samples/", "tests/", "templates/")):
             errors.append(f"{project_rel} must not depend on {target_rel}")
 
 
-# Rule 4: Starters is a composition module; production modules must not depend back on it.
+# Rule 4: application composition roots may depend on src projects, but not samples/tests/templates.
+for project in projects:
+    project_rel = rel(project)
+    if not project_rel.startswith("apps/"):
+        continue
+    for target in graph[project]:
+        target_rel = rel(target)
+        if target_rel.startswith(("samples/", "tests/", "templates/", "apps/")):
+            errors.append(f"{project_rel} application root must not depend on {target_rel}")
+
+
+# Rule 5: Starters is a composition module; production modules must not depend back on it.
 for project in projects:
     if not rel(project).startswith("src/") or name(project) == "UpperHost.Starters":
         continue
@@ -103,7 +114,7 @@ for project in projects:
             errors.append(f"{rel(project)} must not depend on UpperHost.Starters")
 
 
-# Rule 5: Presentation is an outer adapter. No non-presentation production module may depend on it.
+# Rule 6: Presentation is an outer adapter. No non-presentation production module may depend on it.
 for project in projects:
     project_name = name(project)
     if not rel(project).startswith("src/") or project_name.startswith("UpperHost.Presentation."):
@@ -113,7 +124,7 @@ for project in projects:
             errors.append(f"{rel(project)} must not depend on presentation project {rel(target)}")
 
 
-# Rule 6: Presentation adapters may depend only on stable contracts/hosting.
+# Rule 7: Presentation adapters may depend only on stable contracts/hosting.
 for project in projects:
     if not name(project).startswith("UpperHost.Presentation."):
         continue
@@ -133,4 +144,4 @@ if errors:
     sys.exit(1)
 
 print(f"Architecture validation passed for {len(projects)} projects.")
-print("No ProjectReference cycles or forbidden modular-monolith dependency directions found.")
+print("No ProjectReference cycles or forbidden modular-monolith/application dependency directions found.")
