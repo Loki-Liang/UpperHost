@@ -1,0 +1,115 @@
+<Window x:Class="UpperHost.Workbench.Wpf.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:UpperHost.Presentation.Wpf.Controls;assembly=UpperHost.Presentation.Wpf"
+        Title="UpperHost Workbench"
+        Width="1180"
+        Height="760"
+        MinWidth="940"
+        MinHeight="620">
+    <DockPanel Background="#FFF7F7F7">
+        <Border DockPanel.Dock="Top" Padding="18,14" Background="White" BorderBrush="#FFE0E0E0" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <TextBlock FontSize="26" FontWeight="SemiBold" Text="UpperHost Workbench" />
+                    <TextBlock Margin="0,4,0,0" Foreground="#666"
+                               Text="Device application workspace · one shared UpperHost runtime · no visual workflow orchestration" />
+                </StackPanel>
+                <TextBlock x:Name="RuntimeSummaryText"
+                           Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Foreground="#555"
+                           Text="Runtime starting..." />
+            </Grid>
+        </Border>
+
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock x:Name="StatusText" Text="Ready" />
+            </StatusBarItem>
+        </StatusBar>
+
+        <TabControl x:Name="WorkspaceTabs" Margin="14">
+            <TabItem Header="Project">
+                <Grid Margin="20">
+                    <StackPanel>
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Project" />
+                        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                                   Text="Project persistence, schema versioning and migration are delivered by Issue #20." />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Devices">
+                <Grid Margin="12">
+                    <controls:DeviceList x:Name="DeviceListControl" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Connections">
+                <Grid Margin="20">
+                    <StackPanel>
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Connections" />
+                        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                                   Text="Connection ownership and device binding are delivered by Issue #21." />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Control">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <GroupBox Header="Commands" Padding="8">
+                        <controls:CommandPanel x:Name="CommandPanelControl" />
+                    </GroupBox>
+                    <GroupBox Grid.Row="1" Header="Parameters" Margin="0,12,0,0" Padding="8">
+                        <controls:ParameterEditor x:Name="ParameterEditorControl" />
+                    </GroupBox>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Data">
+                <Grid Margin="20">
+                    <StackPanel>
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Data" />
+                        <TextBlock Margin="0,10,0,0" TextWrapping="Wrap"
+                                   Text="Streaming monitor and waveform are delivered by Issue #24. No node/flow editor is planned." />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Alarms">
+                <Grid Margin="12">
+                    <controls:AlarmPanel x:Name="AlarmPanelControl" />
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Logs">
+                <Grid Margin="20">
+                    <StackPanel>
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Logs" />
+                        <TextBlock Margin="0,10,0,0" Text="Workbench uses the platform logging pipeline; product log browsing will be added incrementally." />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="Diagnostics">
+                <Grid Margin="20">
+                    <StackPanel>
+                        <TextBlock FontSize="22" FontWeight="SemiBold" Text="Diagnostics" />
+                        <Button Width="140" Margin="0,14,0,0" HorizontalAlignment="Left"
+                                Click="RefreshDiagnostics_Click" Content="Refresh health" />
+                        <TextBlock x:Name="HealthText" Margin="0,12,0,0" TextWrapping="Wrap" Text="Health not checked." />
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
