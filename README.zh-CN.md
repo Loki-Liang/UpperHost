@@ -82,7 +82,7 @@ dotnet run
 
 然后继续阅读：[零基础入门：从 0 到第一台设备](docs/getting-started.zh-CN.md)。
 
-## 平台与产品的边界
+## 脚手架与产品的边界
 
 UpperHost 负责：
 
