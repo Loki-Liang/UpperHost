@@ -4,6 +4,19 @@
 
 UpperHost 已加入 OpenHands V1 / Agent Canvas 的仓库级配置。OpenHands 只作为开发工具，不是 UpperHost 的运行时依赖。
 
+## 默认开发策略
+
+对于常规功能开发、缺陷修复、重构、测试、文档和架构实现，**OpenHands 是 UpperHost 默认的实际开发执行器**。根目录 `AGENTS.md` 是仓库总控规则，`.openhands/skills/repo.md` 是 OpenHands 专用执行细则。
+
+标准交付链路：
+
+```text
+Issue/Task -> OpenHands -> Focused Validation -> .openhands/pre-commit.sh
+          -> Pull Request -> Windows GitHub Actions -> Review -> Squash Merge -> main
+```
+
+其他助手可以负责任务调度、现状检查、Review 和 CI 排查，但生产实现默认留在 OpenHands；只有 `AGENTS.md` 明确的备用场景才允许切换执行器。
+
 ## 已接入内容
 
 - `.openhands/skills/repo.md`：OpenHands 自动加载的仓库规则，包含架构边界、目录职责、开发流程和验证要求。
