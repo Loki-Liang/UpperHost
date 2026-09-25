@@ -21,11 +21,29 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | First time using UpperHost | [Getting Started](docs/getting-started.md) |
 | Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
 | Understand architecture boundaries | [Architecture](docs/architecture.md) |
+| Understand built-in DI, configuration, logging and secondary-development seams | [Secondary-development foundation](docs/secondary-development.md) |
 | Configure logging, metrics, tracing and health | [Observability](docs/observability.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
 | Chinese documentation | [简体中文 README](README.zh-CN.md) |
+
+## Built-in engineering foundation
+
+UpperHost is not only a device abstraction library. A product starts with a reusable application engineering baseline already wired into the scaffold:
+
+| Foundation | Default | How product code extends it |
+| --- | --- | --- |
+| Hosting / lifecycle | .NET Generic Host with Start / Stop / Dispose | `AddHostedService<T>()` for long-running product services |
+| Dependency injection | Microsoft.Extensions.DependencyInjection | Register product services/devices through `builder.Services`; use constructor injection |
+| Configuration | Generic Host configuration + typed Options/fail-fast validation | Add product sections through `builder.Configuration` and Options Pattern |
+| Logging | `Microsoft.Extensions.Logging` contract, console, optional Serilog rolling JSON file | Inject `ILogger<T>`; add/replace providers only at the composition root |
+| Metrics / tracing | .NET Meter / ActivitySource, optional OpenTelemetry OTLP | Add product instrumentation/backends without leaking them into Core contracts |
+| Health | `IHealthProbe` + `HealthService` | Register product/device health probes |
+| Background work | Generic Host hosted services | Put discovery/heartbeat/synchronization loops in hosted services, not UI timers |
+| Testing baseline | Simulator + fault-injection infrastructure | Verify protocol/control/fault paths before hardware-only validation |
+
+The product composition root is `app/UpperHost.App/App.xaml.cs`. Product code should use these defaults instead of creating another DI container, logging abstraction, lifecycle framework or configuration system. See [Secondary-development foundation](docs/secondary-development.md) for copyable examples and extension rules.
 
 ## Scaffold capabilities
 
