@@ -84,7 +84,7 @@ dotnet run
 
 ## 脚手架与产品的边界
 
-UpperHost 负责：
+UpperHost 脚手架负责：
 
 - 应用生命周期、配置、DI、日志。
 - 设备注册与发现。
