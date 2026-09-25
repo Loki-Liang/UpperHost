@@ -2,7 +2,7 @@
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific industrial upper-computer applications. It is not a finished universal Workbench/HMI, a low-code product, or a framework tied to one industry, hardware category or acquisition workload.
+UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific industrial upper-computer applications while keeping product semantics and UI in the consuming application.
 
 ## Stable platform boundary
 
@@ -190,4 +190,4 @@ The simulator transport is a production-grade development seam, not a demo short
 
 Typed package configuration is represented by `DeviceConfigurationSchema<TConfiguration>`. Schema metadata is inspectable, while validation remains strongly typed and supports required/range/allowed-value rules plus explicit cross-field validation. Secret-bearing fields use reference metadata only.
 
-Catalog conflict resolution is deterministic: one active descriptor exists per package id, the highest package version is active, and an ambiguous same-id/same-version registration is rejected. The catalog has no download/install responsibility and does not create a Workbench, visual node graph or generic low-code boundary.
+Catalog conflict resolution is deterministic: one active descriptor exists per package id, the highest package version is active, and an ambiguous same-id/same-version registration is rejected. The catalog is limited to in-process descriptor discovery and registration; package acquisition, device integration and product UI remain responsibilities of the consuming application and its extension packages.
