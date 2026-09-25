@@ -142,6 +142,23 @@ UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部�
 9. WPF 只是 Adapter，不进入 Core。
 10. 软件 Guard/Interlock 不得宣称替代认证硬件安全机制。
 
+## 企业级基础设施质量门禁
+
+任何将横切组件标记为“企业级基础设施”的 Issue/PR，都必须按生产运行契约评审，禁止只按“接入了哪些 NuGet/组件”验收。合并前必须按实际风险覆盖以下维度：
+
+1. API 与模块边界：稳定契约、依赖方向、扩展接缝。
+2. 可靠性：故障模式、重试/恢复、确定性关闭、局部故障语义。
+3. 性能：热路径开销、分配、阻塞 I/O、有界资源使用。
+4. 背压/丢失：Queue/Buffer 必须有界，明确过载行为，并暴露 Drop/Loss 信号。
+5. 安全/隐私：Secret 处理、脱敏、诊断信息泄漏和最小数据暴露。
+6. 配置/生命周期：Typed Configuration、Fail Fast、默认值、启动与释放。
+7. 可观测语义：Metric 低基数、标准 Trace/Error 语义、Health 含义和基础设施自观测。
+8. 可扩展性：第一方/第三方 Provider 走同一个 Composition Seam，禁止复制横切 Wrapper。
+9. 验证：Unit + Boundary/Integration + Fault Path 测试必须证明运行不变量，不能只证明“服务已注册”。
+10. 文档/兼容性：公共行为、默认值、迁移影响必须记录，并同步中英文文档。
+
+Metrics 中，Command/Session/Connection/Request 等逐次变化 ID 默认禁止作为 Metric Attribute，除非有明确且可证明的有界基数设计；关联 ID 应进入 Log/Trace。Logging/Streaming 禁止无界缓冲，并且必须能观测过载和丢失。
+
 ## 验证权威
 
 OpenHands 通常运行在 Linux Sandbox，提交 PR 前使用 `.openhands/setup.sh` 和 `.openhands/pre-commit.sh` 做快速验证。
