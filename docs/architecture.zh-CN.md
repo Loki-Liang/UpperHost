@@ -2,7 +2,7 @@
 
 简体中文 | [English](architecture.md)
 
-UpperHost 是**通用设备应用平台**，不是某个行业、某类硬件或某种采集场景的专用框架。
+UpperHost 是**通用设备应用平台**，不是某个行业、某类硬件或某种采集场景的专用框架。面向最终用户的主要产品入口是 UpperHost Workbench；Workbench 复用同一套 Runtime，并明确不引入可视化工作流编排或通用低代码引擎。
 
 ## 稳定平台边界
 

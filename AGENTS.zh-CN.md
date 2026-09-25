@@ -84,6 +84,16 @@ Squash Merge 到 main
 - 公共架构边界或扩展方式变化时必须更新架构/扩展文档。
 - 验收条件要求测试或文档时，只有代码完成不能视为任务闭环。
 
+## 产品边界：Workbench，不做可视化编排
+
+UpperHost Workbench 是面向最终用户的主要产品入口，在同一 Runtime 之上提供 Project、Device、Connection、Command、Parameter、Streaming、Waveform、Alarm、Log、Diagnostics 等设备应用能力。
+
+常规 UpperHost 开发中**禁止引入**可视化 Workflow Editor、节点图、拖拽连线编程界面、通用低代码 Flow Engine、可视化 DAG 编辑或从流程图生成业务代码。
+
+`UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在；没有新的明确产品决策时，禁止把它们演化为第二套图形化编排产品。
+
+详见 `docs/workbench.zh-CN.md`。
+
 ## 架构基线：模块化单体
 
 UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部署应用/进程，由边界清晰的模块和 Adapter 组合而成。禁止为了“分层”而擅自引入微服务、远程 RPC、重复的服务私有模型或分布式一致性。任何分布式边界都必须有独立 Issue/ADR 和明确的运维收益依据。

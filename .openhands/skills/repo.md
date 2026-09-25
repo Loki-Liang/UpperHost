@@ -10,6 +10,8 @@ OpenHands is the default implementation executor for normal UpperHost feature, f
 
 UpperHost is a general-purpose .NET device-application platform. Control, automation, and acquisition are equal first-class paths. Do not turn the platform into a domain-specific, medical-only, acquisition-only, PLC-only, or vendor-specific framework.
 
+The primary end-user product is **UpperHost Workbench**. Read `docs/workbench.md` before implementing Workbench/product-facing features. Do not add a visual workflow editor, node graph, drag-and-drop flow programming, generic low-code engine, or graph-to-code system. Existing Workflow/StateMachine modules remain code/API runtime capabilities only.
+
 ## Required architecture boundaries
 
 UpperHost is a **modular monolith by default**. Before adding a project, cross-module reference, framework, or distributed boundary, apply the module/dependency rules in `AGENTS.md` and `docs/architecture.md`. Run `python scripts/validate_architecture.py` after changing project references.
