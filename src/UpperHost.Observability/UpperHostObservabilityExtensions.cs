@@ -1,6 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -20,39 +21,10 @@ public static class UpperHostObservabilityExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new UpperHostObservabilityOptions
-        {
-            ServiceName = Value(builder, "UpperHost:Observability:ServiceName", "UpperHost.Application"),
-            ServiceVersion = Value(
-                builder,
-                "UpperHost:Observability:ServiceVersion",
-                UpperHostTelemetry.InstrumentationVersion)
-        };
-
-        options.FileLogging.Enabled =
-            Boolean(builder, "UpperHost:Observability:Logging:File:Enabled", false);
-        options.FileLogging.Path =
-            Value(builder, "UpperHost:Observability:Logging:File:Path", "logs/upperhost-.json");
-        options.FileLogging.FileSizeLimitBytes =
-            PositiveLong(
-                builder,
-                "UpperHost:Observability:Logging:File:FileSizeLimitBytes",
-                50 * 1024 * 1024);
-        options.FileLogging.RetainedFileCountLimit =
-            PositiveInt(
-                builder,
-                "UpperHost:Observability:Logging:File:RetainedFileCountLimit",
-                14);
-        options.FileLogging.MinimumLevel =
-            LogLevelValue(
-                builder,
-                "UpperHost:Observability:Logging:File:MinimumLevel",
-                LogLevel.Information);
-
-        options.Otlp.Enabled =
-            Boolean(builder, "UpperHost:Observability:Otlp:Enabled", false);
-        options.Otlp.Endpoint =
-            builder.Configuration["UpperHost:Observability:Otlp:Endpoint"];
+        var options = new UpperHostObservabilityOptions();
+        builder.Configuration
+            .GetSection(UpperHostObservabilityOptions.SectionName)
+            .Bind(options);
 
         return builder.AddUpperHostObservability(options);
     }
@@ -66,6 +38,8 @@ public static class UpperHostObservabilityExtensions
         options.Validate();
 
         builder.Services.TryAddSingleton(options);
+        builder.Services.TryAddSingleton<IOptions<UpperHostObservabilityOptions>>(
+            Options.Create(options));
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHealthProbe, TransportHealthProbe>());
 
@@ -82,17 +56,26 @@ public static class UpperHostObservabilityExtensions
         UpperHostApplicationBuilder builder,
         UpperHostFileLoggingOptions options)
     {
+        var monitor = new AsyncLogBufferMonitor();
+        builder.Services.AddSingleton(monitor);
+        builder.Services.AddSingleton<IHealthProbe>(monitor);
+
         var logger = new LoggerConfiguration()
             .MinimumLevel.Is(ToSerilogLevel(options.MinimumLevel))
             .Enrich.FromLogContext()
-            .WriteTo.File(
-                new JsonFormatter(renderMessage: true),
-                options.Path,
-                rollingInterval: RollingInterval.Day,
-                fileSizeLimitBytes: options.FileSizeLimitBytes,
-                rollOnFileSizeLimit: true,
-                retainedFileCountLimit: options.RetainedFileCountLimit,
-                shared: false)
+            .Enrich.With<SensitiveDataRedactionEnricher>()
+            .WriteTo.Async(
+                sink => sink.File(
+                    new JsonFormatter(renderMessage: true),
+                    options.Path,
+                    rollingInterval: RollingInterval.Day,
+                    fileSizeLimitBytes: options.FileSizeLimitBytes,
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: options.RetainedFileCountLimit,
+                    shared: false),
+                bufferSize: options.AsyncBufferSize,
+                blockWhenFull: options.BlockWhenFull,
+                monitor: monitor)
             .CreateLogger();
 
         builder.Services.AddLogging(logging => logging.AddSerilog(logger, dispose: true));
@@ -110,6 +93,8 @@ public static class UpperHostObservabilityExtensions
                 options.ServiceName,
                 serviceVersion: options.ServiceVersion))
             .WithTracing(tracing => tracing
+                .SetSampler(new ParentBasedSampler(
+                    new TraceIdRatioBasedSampler(options.Otlp.TraceSampleRatio)))
                 .AddSource(UpperHostTelemetry.InstrumentationName)
                 .AddOtlpExporter(exporter => exporter.Endpoint = endpoint))
             .WithMetrics(metrics => metrics
@@ -128,69 +113,4 @@ public static class UpperHostObservabilityExtensions
         LogLevel.None => LogEventLevel.Fatal,
         _ => LogEventLevel.Information
     };
-
-    private static string Value(
-        UpperHostApplicationBuilder builder,
-        string key,
-        string fallback)
-    {
-        var raw = builder.Configuration[key];
-        return string.IsNullOrWhiteSpace(raw) ? fallback : raw.Trim();
-    }
-
-    private static bool Boolean(
-        UpperHostApplicationBuilder builder,
-        string key,
-        bool fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw))
-            return fallback;
-        return bool.TryParse(raw, out var value)
-            ? value
-            : throw new InvalidOperationException(
-                $"UpperHost configuration '{key}' must be true or false.");
-    }
-
-    private static int PositiveInt(
-        UpperHostApplicationBuilder builder,
-        string key,
-        int fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw))
-            return fallback;
-        return int.TryParse(raw, out var value) && value > 0
-            ? value
-            : throw new InvalidOperationException(
-                $"UpperHost configuration '{key}' must be a positive integer.");
-    }
-
-    private static long PositiveLong(
-        UpperHostApplicationBuilder builder,
-        string key,
-        long fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw))
-            return fallback;
-        return long.TryParse(raw, out var value) && value > 0
-            ? value
-            : throw new InvalidOperationException(
-                $"UpperHost configuration '{key}' must be a positive integer.");
-    }
-
-    private static LogLevel LogLevelValue(
-        UpperHostApplicationBuilder builder,
-        string key,
-        LogLevel fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw))
-            return fallback;
-        return Enum.TryParse<LogLevel>(raw, ignoreCase: true, out var value)
-            ? value
-            : throw new InvalidOperationException(
-                $"UpperHost configuration '{key}' is not a valid Microsoft.Extensions.Logging.LogLevel.");
-    }
 }
