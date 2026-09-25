@@ -88,9 +88,7 @@ Squash Merge 到 main
 
 UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。仓库的职责是给工业上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Samples 和项目模板。
 
-UpperHost 不是已经完成的通用 Workbench/HMI，也不是低代码产品。具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。
-
-常规 UpperHost 开发中**禁止引入**可视化 Workflow Editor、节点图、拖拽连线编程界面、通用低代码 Flow Engine、可视化 DAG 编辑或从流程图生成业务代码。
+具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。仓库级功能必须增强可复用的 Runtime、Provider、Template、Sample、Testing 或 Presentation 能力，并明确服务于 Control、Automation 或 Acquisition 路线。
 
 `UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在。
 
