@@ -2,7 +2,7 @@
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is a **general-purpose .NET upper-computer / device-application development scaffold**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific upper-computer applications. It is not a finished universal Workbench/HMI, a low-code product, or a framework tied to one industry, hardware category or acquisition workload.
+UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific industrial upper-computer applications. It is not a finished universal Workbench/HMI, a low-code product, or a framework tied to one industry, hardware category or acquisition workload.
 
 ## Stable platform boundary
 
