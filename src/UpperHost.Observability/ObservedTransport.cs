@@ -59,29 +59,47 @@ public sealed class ObservedTransport : ITransport
     {
         using var activity = StartActivity("receive");
         var timer = Stopwatch.StartNew();
+        await using var enumerator = _inner
+            .ReceiveAsync(cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
+
         try
         {
-            await foreach (var chunk in _inner.ReceiveAsync(cancellationToken).ConfigureAwait(false))
+            while (true)
             {
+                bool hasItem;
+                ReadOnlyMemory<byte> chunk = default;
+
+                try
+                {
+                    hasItem = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    if (hasItem)
+                        chunk = enumerator.Current;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Unset);
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    Record("receive", "faulted", ex.GetType().FullName);
+                    MarkFailure(activity, ex, "transport_receive_fault");
+                    throw;
+                }
+
+                if (!hasItem)
+                {
+                    activity?.SetStatus(ActivityStatusCode.Ok);
+                    yield break;
+                }
+
                 Record("receive", "success");
                 UpperHostTelemetry.TransportBytes.Add(
                     chunk.Length,
                     UpperHostTelemetry.CreateMetricTags(MetricContext("receive", "success")));
                 yield return chunk;
             }
-
-            activity?.SetStatus(ActivityStatusCode.Ok);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            activity?.SetStatus(ActivityStatusCode.Unset);
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Record("receive", "faulted", ex.GetType().FullName);
-            MarkFailure(activity, ex, "transport_receive_fault");
-            throw;
         }
         finally
         {
