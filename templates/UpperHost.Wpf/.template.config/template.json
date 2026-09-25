@@ -3,7 +3,7 @@
   "author": "UpperHost Contributors",
   "classifications": ["WPF", "Upper Computer", "Device", "Scaffold", "UpperHost"],
   "identity": "UpperHost.Templates.Wpf",
-  "name": "UpperHost WPF Upper-Computer Scaffold",
+  "name": "UpperHost Industrial WPF Upper-Computer Scaffold",
   "shortName": "upperhost",
   "sourceName": "UpperHost.App",
   "preferNameDirectory": true,
