@@ -16,7 +16,13 @@ public sealed class UpperHostObservabilityOptions
     public UpperHostLoggingOptions Logging { get; set; } = new();
     public UpperHostOtlpOptions Otlp { get; set; } = new();
 
-    public UpperHostFileLoggingOptions FileLogging => Logging.File;
+    public UpperHostFileLoggingOptions FileLogging
+    {
+        get => Logging.File;
+        set => Logging.File = value ?? new UpperHostFileLoggingOptions();
+    }
+
+    public void Validate() => UpperHostObservabilityOptionsValidator.ValidateAndThrow(this);
 }
 
 public sealed class UpperHostLoggingOptions
