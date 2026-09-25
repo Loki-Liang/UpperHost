@@ -84,15 +84,17 @@ Squash Merge 到 main
 - 公共架构边界或扩展方式变化时必须更新架构/扩展文档。
 - 验收条件要求测试或文档时，只有代码完成不能视为任务闭环。
 
-## 产品边界：Workbench，不做可视化编排
+## 产品定位：上位机开发脚手架
 
-UpperHost Workbench 是面向最终用户的主要产品入口，在同一 Runtime 之上提供 Project、Device、Connection、Command、Parameter、Streaming、Waveform、Alarm、Log、Diagnostics 等设备应用能力。
+UpperHost 是**通用 .NET 上位机开发脚手架**。仓库的职责是给上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Samples 和项目模板。
+
+UpperHost 不是已经完成的通用 Workbench/HMI，也不是低代码产品。具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。
 
 常规 UpperHost 开发中**禁止引入**可视化 Workflow Editor、节点图、拖拽连线编程界面、通用低代码 Flow Engine、可视化 DAG 编辑或从流程图生成业务代码。
 
-`UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在；没有新的明确产品决策时，禁止把它们演化为第二套图形化编排产品。
+`UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在。
 
-详见 `docs/workbench.zh-CN.md`。
+详见 `docs/scaffold.zh-CN.md`。
 
 ## 架构基线：模块化单体
 
