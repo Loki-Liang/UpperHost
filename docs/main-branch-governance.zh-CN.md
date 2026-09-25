@@ -11,6 +11,7 @@
 
 - `openhands-config`
 - `architecture-governance`
+- `linux-runtime-contract`
 - `build-test-template`
 
 `scripts/validate_main_governance.py` 在 `openhands-config` 中执行；如果合同与
@@ -55,7 +56,7 @@
 ## #31 关闭前必须保留的验证证据
 
 - Active ruleset 确实命中 `main`。
-- 三个 canonical required checks 已配置。
+- 四个 canonical required checks 已配置。
 - strict/freshness 已启用。
 - required check 失败的 PR 无法合并。
 - required check 缺失的 PR 无法合并。
