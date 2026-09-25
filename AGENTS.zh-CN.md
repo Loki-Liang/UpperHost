@@ -84,6 +84,39 @@ Squash Merge 到 main
 - 公共架构边界或扩展方式变化时必须更新架构/扩展文档。
 - 验收条件要求测试或文档时，只有代码完成不能视为任务闭环。
 
+## 架构基线：模块化单体
+
+UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部署应用/进程，由边界清晰的模块和 Adapter 组合而成。禁止为了“分层”而擅自引入微服务、远程 RPC、重复的服务私有模型或分布式一致性。任何分布式边界都必须有独立 Issue/ADR 和明确的运维收益依据。
+
+### 模块依赖规则
+
+1. `UpperHost.Abstractions` 是稳定依赖根，禁止引用仓库内其他 Project。
+2. Control、Protocols、Dataflow、Workflows、StateMachines、Events、Resilience、Diagnostics、Testing 等平台模块必须暴露窄公共契约，禁止依赖 Presentation、Samples、Tests、Templates。
+3. `UpperHost.Transport.*`、Storage/Provider 属于基础设施 Adapter，只能向内依赖稳定契约，禁止把 Vendor/Native 概念反向塞进 Core。
+4. `UpperHost.Presentation.*` 是最外层 Adapter；任何生产模块禁止反向依赖 Presentation。
+5. `UpperHost.Starters` 是 Composition/Convenience 模块；其他生产模块禁止反向依赖 Starters。
+6. `samples/`、`tests/`、`templates/` 可以组合生产模块；生产模块绝不能引用它们。
+7. 禁止 ProjectReference 环依赖。
+8. 跨模块协作必须通过公开 Capability/Contract/Event；禁止访问其他模块内部实现、通过反射绕过边界或建立隐藏静态耦合。
+9. 公共 API 必须最小化；除非跨模块真实需要，否则类型默认保持 internal/private。
+10. 新建模块必须说明职责、所有权边界、允许依赖和对应测试；禁止为了移动文件而机械拆 Project。
+
+`scripts/validate_architecture.py` 是可执行的 ProjectReference 架构门禁，并进入 pre-commit/CI。
+
+## 工程实现规则
+
+- **DI/组合根：**依赖在 Application/Hosting/Starters 组合根装配；Domain/平台逻辑禁止可变全局单例和 Service Locator。
+- **Async/I/O：**I/O 链路全程异步；有取消语义时必须接收 `CancellationToken`；禁止 `.Result`/`.Wait()` 和无人管理的 fire-and-forget Task。
+- **资源所有权：**Socket、Stream、Native Handle、Subscription 必须有明确 Owner 并确定性释放。
+- **错误处理：**禁止吞异常；Vendor/Infrastructure 错误在模块边界转换且保留可诊断上下文；有状态组件在需要时进入明确 Fault 状态。
+- **配置：**使用 Typed Options/Configuration 并 Fail Fast；禁止在平台代码散落环境变量读取、机器路径和魔法字符串。
+- **可观测性：**关键边界使用结构化日志、Health、Metrics；禁止记录密钥或敏感凭据。
+- **并发：**共享可变状态必须有明确同步/所有权模型；Queue/Channel 默认必须有界，无界设计需要明确理由。
+- **依赖：**新增 NuGet/Native 依赖必须说明原因并放在正确模块；Core Abstractions 禁止 Vendor SDK 依赖。
+- **兼容性：**Public Contract 和 Template 视为版本化接口；Breaking Change 必须提供迁移说明、文档和测试。
+- **代码形态：**优先小而内聚、职责单一的类型；禁止 God Class、Utility 垃圾桶、重复协议逻辑和复制粘贴 Provider。
+- **测试：**模块自己承担行为单测；模块/Provider 边界补 Integration/Contract Test；依赖硬件的行为优先用 Simulator/Fault Injection 覆盖。
+
 ## 架构硬约束
 
 1. Core 必须保持行业无关。
