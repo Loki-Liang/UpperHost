@@ -23,6 +23,34 @@ Implement `ITransport`. Keep the following out of the transport implementation:
 
 New USB, CAN, BLE or vendor SDK connectivity should be delivered as independent provider/starter packages.
 
+## Reuse the provider contract and fault test kit
+
+Hardware-dependent providers should reuse `UpperHost.Testing` rather than inventing per-product test harnesses.
+
+Wrap a transport with a deterministic fault profile:
+
+```csharp
+var transport = new SimulatorTransport()
+    .UseFaultProfile(new TransportFaultProfile(
+        "disconnect-after-first-send",
+        Seed: 42,
+        DisconnectAfterSend: 1,
+        FailReconnectAttempts: 1));
+```
+
+Profiles are operation-count/seed based and support deterministic latency, timeout, send/receive failure, command rejection, disconnect/reconnect failure, dropped input, corruption and receive fragmentation. Injected failures include profile name, seed, endpoint and operation index in diagnostics. Latency uses `TimeProvider`, so tests can advance virtual time instead of relying on `Thread.Sleep`.
+
+A first-party or third-party byte-stream provider should implement an `ITransportContractFixture` in its test project, then run the same contract:
+
+```csharp
+await TransportContractTestKit.VerifyAsync(
+    cancellationToken => CreateMyProviderFixtureAsync(cancellationToken));
+```
+
+The shared contract verifies open/close/reopen lifecycle, send/receive semantics, cancellation, deterministic disposal and resource ownership. UpperHost runs this same contract against Simulator, TCP loopback and Serial through its provider test seam. Simulator/loopback/fake-channel evidence is test evidence only; it must never be reported as real hardware validation.
+
+For Serial, `ISerialByteChannel` is the provider-specific seam used by `SerialTransport`. Product code normally uses the default `System.IO.Ports` adapter; tests can supply a deterministic in-memory channel without changing `UpperHost.Abstractions`.
+
 ## Add a protocol
 
 Implement `ICommandEncoder<TCommand>` and/or `IMessageDecoder<TMessage>`. The decoder owns framing state, so it must correctly handle fragmented input, multiple messages in one received chunk, half-frames, invalid frames and recovery after length/checksum failures.
