@@ -6,7 +6,7 @@ This guide is for developers who have never used UpperHost. The goal is to use t
 
 ## 1. What UpperHost is
 
-UpperHost is a general-purpose device application platform. It supports three equal application styles:
+UpperHost is a general-purpose .NET upper-computer development scaffold. It supplies a reusable runtime, project template and extension seams for three equal application styles:
 
 - **Control**: commands, parameters, readback, state, interlocks and diagnostics.
 - **Automation**: multi-device orchestration, workflows, state machines and alarms.
