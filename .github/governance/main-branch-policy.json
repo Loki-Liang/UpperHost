@@ -5,7 +5,7 @@
     "openhands-config",
     "architecture-governance",
     "linux-runtime-contract",
-    "build-test-template"
+    "build-test-scaffold"
   ],
   "strict_required_status_checks": true,
   "require_pull_request": true,
