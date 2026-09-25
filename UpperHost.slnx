@@ -9,6 +9,7 @@
   <Project Path="src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
   <Project Path="src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
   <Project Path="src/UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
+  <Project Path="src/UpperHost.Observability/UpperHost.Observability.csproj" />
   <Project Path="src/UpperHost.Modules/UpperHost.Modules.csproj" />
   <Project Path="src/UpperHost.Transport.Serial/UpperHost.Transport.Serial.csproj" />
   <Project Path="src/UpperHost.Transport.Tcp/UpperHost.Transport.Tcp.csproj" />
