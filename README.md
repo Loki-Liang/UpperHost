@@ -38,6 +38,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 - Generic workflow and state-machine runtimes.
 - Typed in-process event bus for module decoupling.
 - Alarm lifecycle service and health/transport diagnostics.
+- Enterprise observability baseline: structured logging scopes, rolling JSON file logs, metrics, tracing, transport health and optional OpenTelemetry OTLP export.
 - Trusted in-process module/plugin loading.
 - Storage abstractions plus safe JSON file-system provider.
 - WPF presentation adapter without coupling the core to WPF.
