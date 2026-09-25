@@ -7,6 +7,7 @@ using UpperHost.Abstractions.Transports;
 using UpperHost.Diagnostics;
 using UpperHost.Events;
 using UpperHost.Hosting;
+using UpperHost.Observability;
 using UpperHost.Storage.FileSystem;
 using UpperHost.Transport.Serial;
 using UpperHost.Transport.Simulator;
