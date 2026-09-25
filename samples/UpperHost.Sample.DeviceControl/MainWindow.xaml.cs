@@ -10,12 +10,17 @@ public partial class MainWindow : Window
 {
     private readonly TemperatureControllerDevice _device;
     private readonly IDeviceRegistry _registry;
+    private readonly IDevicePackageCatalog _catalog;
 
-    public MainWindow(TemperatureControllerDevice device, IDeviceRegistry registry)
+    public MainWindow(
+        TemperatureControllerDevice device,
+        IDeviceRegistry registry,
+        IDevicePackageCatalog catalog)
     {
         InitializeComponent();
         _device = device;
         _registry = registry;
+        _catalog = catalog;
         RefreshDeviceState();
     }
 
@@ -83,6 +88,11 @@ public partial class MainWindow : Window
     private void RefreshDeviceState()
     {
         var registered = _registry.TryGet(TemperatureControllerDevice.DeviceId, out _);
-        DeviceStateText.Text = $"{_device.State} / registry={(registered ? "registered" : "missing")}";
+        var packageRegistered = _catalog.TryGet(TemperatureControllerPackage.PackageId, out var package);
+        var packageState = packageRegistered
+            ? $"{package!.PackageId}@{package.PackageVersion}"
+            : "missing";
+        DeviceStateText.Text =
+            $"{_device.State} / registry={(registered ? "registered" : "missing")} / package={packageState}";
     }
 }
