@@ -2,7 +2,7 @@
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific industrial upper-computer applications while keeping product semantics and UI in the consuming application.
+UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and a runnable source application scaffold for building product-specific industrial upper-computer applications while keeping product semantics and UI in the consuming application.
 
 ## Stable platform boundary
 
@@ -34,7 +34,7 @@ UpperHost is a modular monolith by default. Modules are independently understand
 Dependency direction is inward:
 
 ```text
-Samples / Templates / Presentation
+Product App / Samples / Presentation
              |
           Starters
              |
@@ -52,7 +52,7 @@ This diagram describes dependency intent, not a requirement that every module re
 Hard rules:
 
 - `UpperHost.Abstractions` is the stable dependency root and references no repository project.
-- Production projects never reference Samples, Tests or Templates.
+- Reusable production modules never reference the product App, Samples or Tests.
 - Non-presentation production modules never reference `UpperHost.Presentation.*`.
 - Production modules never depend back on `UpperHost.Starters`; Starters composes modules.
 - Project reference cycles are forbidden.
@@ -186,7 +186,7 @@ The simulator transport is a production-grade development seam, not a demo short
 
 ## Device package extensibility
 
-`DevicePackageDescriptor` is the stable discovery surface for reusable device integrations. The contract lives in `UpperHost.Abstractions`; `UpperHost.Hosting` owns the in-process `IDevicePackageCatalog` implementation and startup registration lifecycle. This preserves the modular-monolith dependency direction while allowing samples, generated applications and product-specific tooling to discover installed capabilities without reaching into provider internals.
+`DevicePackageDescriptor` is the stable discovery surface for reusable device integrations. The contract lives in `UpperHost.Abstractions`; `UpperHost.Hosting` owns the in-process `IDevicePackageCatalog` implementation and startup registration lifecycle. This preserves the modular-monolith dependency direction while allowing the product application, samples and product-specific tooling to discover installed capabilities without reaching into provider internals.
 
 Typed package configuration is represented by `DeviceConfigurationSchema<TConfiguration>`. Schema metadata is inspectable, while validation remains strongly typed and supports required/range/allowed-value rules plus explicit cross-field validation. Secret-bearing fields use reference metadata only.
 
