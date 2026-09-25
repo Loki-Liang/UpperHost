@@ -32,7 +32,8 @@ public static class UpperHostStarterExtensions
     public static UpperHostApplicationBuilder AddSimulatorTransport(this UpperHostApplicationBuilder builder, string name = "default")
     {
         builder.Services.AddSingleton<SimulatorTransport>(_ => new SimulatorTransport(name));
-        builder.Services.AddSingleton<ITransport>(sp => sp.GetRequiredService<SimulatorTransport>());
+        builder.Services.AddSingleton<ITransport>(sp =>
+            new ObservedTransport(sp.GetRequiredService<SimulatorTransport>()));
         return builder;
     }
 
