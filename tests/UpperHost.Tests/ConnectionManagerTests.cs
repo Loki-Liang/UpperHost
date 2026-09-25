@@ -386,6 +386,106 @@ public sealed class ConnectionManagerTests
         Assert.Equal(1, raw.CloseCount);
     }
 
+    [Fact]
+    public async Task Cancellation_during_open_leaves_no_lease_or_physical_handle()
+    {
+        await using var manager = new ConnectionManager();
+        await using var raw = new CancellableOpenTransport();
+        var definition = ConnectionDefinition.FromEndpoint(
+            raw.Endpoint,
+            ConnectionSharingMode.Shared);
+        using var cancellation = new CancellationTokenSource();
+
+        var acquireTask = manager.AcquireAsync(
+            definition,
+            raw,
+            cancellation.Token).AsTask();
+
+        await raw.OpenStarted;
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => acquireTask);
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.LeaseCount);
+        Assert.Equal(TransportState.Closed, raw.State);
+    }
+
+    [Fact]
+    public async Task Disposing_managed_consumer_releases_last_lease_and_closes_handle()
+    {
+        await using var manager = new ConnectionManager();
+        await using var raw = new CountingTransport();
+        var managed = new ConnectionManagedTransport(
+            manager,
+            ConnectionDefinition.FromEndpoint(raw.Endpoint, ConnectionSharingMode.Shared),
+            raw);
+
+        await managed.OpenAsync();
+        await managed.DisposeAsync();
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.LeaseCount);
+        Assert.Equal(1, raw.CloseCount);
+    }
+
+    private sealed class CancellableOpenTransport : ITransport
+    {
+        private readonly TaskCompletionSource<bool> _openStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public TransportEndpoint Endpoint { get; } =
+            new("cancellable-open", "default");
+
+        public TransportState State { get; private set; } = TransportState.Closed;
+        public Task OpenStarted => _openStarted.Task;
+
+        public async Task OpenAsync(CancellationToken cancellationToken = default)
+        {
+            State = TransportState.Opening;
+            _openStarted.TrySetResult(true);
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                State = TransportState.Closed;
+                throw;
+            }
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            State = TransportState.Closed;
+            return Task.CompletedTask;
+        }
+
+        public ValueTask SendAsync(
+            ReadOnlyMemory<byte> data,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("transport never reaches open state in this test");
+
+        public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            yield break;
+        }
+
+        public ValueTask DisposeAsync()
+        {
+            State = TransportState.Closed;
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class DeferredSendFailureTransport : ITransport
     {
         private readonly TaskCompletionSource<bool> _sendStarted =
