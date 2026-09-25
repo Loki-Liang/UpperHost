@@ -10,7 +10,7 @@ OpenHands is the default implementation executor for normal UpperHost feature, f
 
 UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. Control, automation, and acquisition are equal first-class development paths. Read `docs/scaffold.md` before changing product positioning or developer experience.
 
-Product-specific device semantics, protocol behavior, control/interlock policy, workflow and UI belong to generated/consumer applications. Repository changes should extend reusable Runtime, Provider, Template, Sample, Testing or Presentation capabilities while keeping existing Workflow/StateMachine modules as code/API runtime capabilities.
+Product-specific device semantics, protocol behavior, control/interlock policy, workflow and UI belong to the source product application under `app/UpperHost.App`. Repository changes should extend reusable Runtime, Provider, Starter Application, Sample, Testing or Presentation capabilities while keeping existing Workflow/StateMachine modules as code/API runtime capabilities.
 
 ## Required architecture boundaries
 
@@ -39,9 +39,9 @@ UpperHost is a **modular monolith by default**. Before adding a project, cross-m
 - `src/UpperHost.Dataflow`: streaming fan-out/backpressure primitives.
 - `src/UpperHost.Workflows` and `src/UpperHost.StateMachines`: automation orchestration.
 - `src/UpperHost.Presentation.Wpf`: WPF adapter only.
+- `app/UpperHost.App`: canonical runnable product scaffold and secondary-development entry.
 - `samples/`: runnable Control / Automation / Acquisition examples.
 - `tests/UpperHost.Tests`: automated platform tests.
-- `templates/`: `dotnet new upperhost` template.
 - `docs/`: bilingual architecture and extension guidance.
 
 ## Development workflow
@@ -66,7 +66,7 @@ dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
 dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 ```
 
-The authoritative release gate remains the Windows GitHub Actions CI, which additionally packs all libraries and smoke-builds the generated WPF template. Never claim Windows runtime/UI validation from a Linux-only OpenHands run.
+The authoritative release gate remains the Windows GitHub Actions CI, which additionally packs reusable libraries and validates the source WPF scaffold application. Never claim Windows runtime/UI validation from a Linux-only OpenHands run.
 
 ## OpenHands hooks
 
