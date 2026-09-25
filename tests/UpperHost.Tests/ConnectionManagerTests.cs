@@ -7,6 +7,7 @@ using UpperHost.Abstractions.Observability;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Connections;
 using UpperHost.Hosting;
+using UpperHost.Resilience;
 using UpperHost.Starters;
 
 namespace UpperHost.Tests;
@@ -289,22 +290,177 @@ public sealed class ConnectionManagerTests
         Assert.Equal(0, transport.CloseCount);
     }
 
+    [Fact]
+    public async Task Managed_transport_serializes_open_close_race()
+    {
+        await using var manager = new ConnectionManager();
+        await using var raw = new CountingTransport();
+        await using var managed = new ConnectionManagedTransport(
+            manager,
+            ConnectionDefinition.FromEndpoint(raw.Endpoint, ConnectionSharingMode.Shared),
+            raw);
+
+        var openTask = managed.OpenAsync();
+        var closeTask = managed.CloseAsync();
+
+        await Task.WhenAll(openTask, closeTask);
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.LeaseCount);
+        Assert.Equal(1, raw.OpenCount);
+        Assert.Equal(1, raw.CloseCount);
+    }
+
+    [Fact]
+    public async Task Close_racing_with_inflight_send_failure_does_not_resurrect_faulted_state()
+    {
+        await using var manager = new ConnectionManager();
+        await using var raw = new DeferredSendFailureTransport();
+        var definition = ConnectionDefinition.FromEndpoint(
+            raw.Endpoint,
+            ConnectionSharingMode.Shared);
+        var lease = await manager.AcquireAsync(definition, raw);
+
+        var sendTask = lease.Transport.SendAsync(new byte[] { 1 }).AsTask();
+        await raw.SendStarted;
+
+        await lease.DisposeAsync();
+
+        Assert.Equal(ConnectionState.Closed, Assert.Single(manager.Connections).State);
+        raw.ReleaseSendFailure();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => sendTask);
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.LeaseCount);
+        Assert.Equal(1, raw.CloseCount);
+    }
+
+    [Fact]
+    public async Task Manager_shutdown_closes_active_connection_and_late_lease_dispose_is_safe()
+    {
+        var manager = new ConnectionManager();
+        await using var raw = new CountingTransport();
+        var definition = ConnectionDefinition.FromEndpoint(
+            raw.Endpoint,
+            ConnectionSharingMode.Shared);
+        var lease = await manager.AcquireAsync(definition, raw);
+
+        await manager.DisposeAsync();
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Closed, snapshot.State);
+        Assert.Equal(0, snapshot.LeaseCount);
+        Assert.Equal(1, raw.CloseCount);
+
+        await lease.DisposeAsync();
+        Assert.Equal(1, raw.CloseCount);
+    }
+
+    [Fact]
+    public async Task Reconnecting_transport_reopens_through_connection_manager()
+    {
+        await using var manager = new ConnectionManager();
+        await using var raw = new CountingTransport(failSendAttempts: 1);
+        var definition = ConnectionDefinition.FromEndpoint(
+            raw.Endpoint,
+            ConnectionSharingMode.Shared);
+        await using var managed = new ConnectionManagedTransport(manager, definition, raw);
+        await using var resilient = new ReconnectingTransport(
+            managed,
+            new ReconnectPolicy(
+                MaxAttempts: 1,
+                InitialDelay: TimeSpan.Zero,
+                BackoffFactor: 1,
+                MaximumDelay: TimeSpan.Zero));
+
+        await resilient.OpenAsync();
+        await resilient.SendAsync(new byte[] { 1 });
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Open, snapshot.State);
+        Assert.Equal(1, snapshot.LeaseCount);
+        Assert.Equal(2, raw.OpenCount);
+        Assert.Equal(1, raw.CloseCount);
+    }
+
+    private sealed class DeferredSendFailureTransport : ITransport
+    {
+        private readonly TaskCompletionSource<bool> _sendStarted =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<bool> _releaseFailure =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _closeCount;
+
+        public TransportEndpoint Endpoint { get; } =
+            new("deferred-failure", "default");
+
+        public TransportState State { get; private set; } = TransportState.Closed;
+        public Task SendStarted => _sendStarted.Task;
+        public int CloseCount => Volatile.Read(ref _closeCount);
+
+        public Task OpenAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            State = TransportState.Open;
+            return Task.CompletedTask;
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _closeCount);
+            State = TransportState.Closed;
+            return Task.CompletedTask;
+        }
+
+        public async ValueTask SendAsync(
+            ReadOnlyMemory<byte> data,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _sendStarted.TrySetResult(true);
+            await _releaseFailure.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+            throw new InvalidOperationException("planned deferred send failure");
+        }
+
+        public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation]
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await Task.Yield();
+            yield break;
+        }
+
+        public void ReleaseSendFailure() => _releaseFailure.TrySetResult(true);
+
+        public ValueTask DisposeAsync()
+        {
+            State = TransportState.Closed;
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class CountingTransport : ITransport
     {
         private int _openCount;
         private int _closeCount;
         private int _remainingOpenFailures;
-        private readonly bool _failSend;
+        private int _remainingSendFailures;
         private readonly bool _failReceive;
 
         public CountingTransport(
             int failOpenAttempts = 0,
             bool failSend = false,
             bool failReceive = false,
+            int failSendAttempts = 0,
             TransportEndpoint? endpoint = null)
         {
             _remainingOpenFailures = failOpenAttempts;
-            _failSend = failSend;
+            _remainingSendFailures = failSend ? int.MaxValue : failSendAttempts;
             _failReceive = failReceive;
             Endpoint = endpoint ?? new TransportEndpoint("counting", "default");
         }
@@ -346,8 +502,11 @@ public sealed class ConnectionManagerTests
             cancellationToken.ThrowIfCancellationRequested();
             if (State != TransportState.Open)
                 throw new InvalidOperationException("transport is not open");
-            if (_failSend)
+            if (Volatile.Read(ref _remainingSendFailures) > 0)
+            {
+                Interlocked.Decrement(ref _remainingSendFailures);
                 throw new InvalidOperationException("planned send failure");
+            }
             return ValueTask.CompletedTask;
         }
 
