@@ -20,9 +20,9 @@ Serilog/OpenTelemetry 类型不会进入 UpperHost.Abstractions 公共契约。
 
 禁止把 Password、Token、设备密钥、签名密钥或原始 Credential 写入这些字段。
 
-## 生成工程默认配置
+## 源码脚手架应用默认配置
 
-生成的上位机工程默认启用结构化滚动文件日志，OTLP 默认关闭。
+当前可运行源码脚手架应用默认启用结构化滚动文件日志，OTLP 默认关闭。
 
 ~~~json
 {
