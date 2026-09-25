@@ -91,6 +91,7 @@ UpperHost 脚手架负责：
 - Transport、Protocol 公共运行时。
 - Command/Streaming 的公共基础设施。
 - Workflow、State Machine、Event、Alarm、Diagnostics。
+- 企业级 Observability：结构化日志 Scope、滚动 JSON 文件日志、Metrics、Tracing、Transport Health、可选 OpenTelemetry OTLP。
 - Dataflow、Storage、Testing、Plugin 扩展点。
 
 业务产品负责：
