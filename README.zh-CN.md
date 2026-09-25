@@ -15,7 +15,7 @@
 | 你要做什么 | 推荐入口 |
 | --- | --- |
 | 第一次使用 UpperHost | [零基础入门](docs/getting-started.zh-CN.md) |
-| 理解最终用户 Workbench 产品边界 | [Workbench 产品边界](docs/workbench.zh-CN.md) |
+| 理解脚手架定位 | [UpperHost 脚手架定位](docs/scaffold.zh-CN.md) |
 | 控制 PLC、伺服、温控器、仪器等 | Device Control 路线 |
 | 做自动工站、测试台、设备序列控制 | Automation 路线 |
 | 做 EMG、DAQ、传感器、波形等实时采集 | Acquisition 路线 |
