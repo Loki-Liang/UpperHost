@@ -26,10 +26,10 @@ jobs:
           test -s docs/scaffold.md
           test -s docs/scaffold.zh-CN.md
           grep -Fq 'AGENTS.md' .openhands/skills/repo.md
-          grep -Fq 'upper-computer / device-application development scaffold' docs/scaffold.md
-          grep -Fq '上位机开发脚手架' docs/scaffold.zh-CN.md
-          grep -Fq 'development scaffold' AGENTS.md
-          grep -Fq '上位机开发脚手架' AGENTS.zh-CN.md
+          grep -Fq 'enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition' docs/scaffold.md
+          grep -Fq '面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架' docs/scaffold.zh-CN.md
+          grep -Fq 'enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition' AGENTS.md
+          grep -Fq '面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架' AGENTS.zh-CN.md
 
   architecture-governance:
     runs-on: ubuntu-latest
