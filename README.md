@@ -10,7 +10,7 @@ UpperHost treats three device-application styles as first-class peers:
 2. **Automation** — multi-device orchestration, workflows, state machines, alarms and recovery.
 3. **Acquisition** — continuous streams, dataflow, backpressure, storage, algorithms and presentation.
 
-Acquisition is one platform workload, not the center of the architecture.
+Acquisition is one scaffold workload, not the center of the architecture.
 
 The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. UpperHost is not a finished universal Workbench/HMI or a low-code platform; product-specific device semantics and UI stay in the generated application.
 
