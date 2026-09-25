@@ -21,6 +21,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | First time using UpperHost | [Getting Started](docs/getting-started.md) |
 | Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
 | Understand architecture boundaries | [Architecture](docs/architecture.md) |
+| Configure logging, metrics, tracing and health | [Observability](docs/observability.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
