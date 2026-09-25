@@ -1,5 +1,11 @@
 # UpperHost repository instructions
 
+## Authority and default executor
+
+`AGENTS.md` is the repository-level authority. Read it before implementation; this OpenHands skill adds execution detail and must not weaken or bypass it.
+
+OpenHands is the default implementation executor for normal UpperHost feature, fix, refactor, test, documentation, and architecture work. Repository orchestration may happen elsewhere, but implementation should stay in OpenHands unless a documented fallback condition from `AGENTS.md` applies.
+
 ## Purpose
 
 UpperHost is a general-purpose .NET device-application platform. Control, automation, and acquisition are equal first-class paths. Do not turn the platform into a domain-specific, medical-only, acquisition-only, PLC-only, or vendor-specific framework.
