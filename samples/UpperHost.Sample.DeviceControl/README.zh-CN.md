@@ -54,3 +54,7 @@ dotnet run --project samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.Dev
 - WPF 只是 Presentation Adapter。
 
 发送成功不等于物理动作完成；参数写入通过单独 Readback 验证设备真实值。
+
+## Device Package Catalog
+
+本示例同时为 Simulator 温控器发布 `DevicePackageDescriptor`。启动阶段会在 Device 构建前验证 `TemperatureControllerPackageOptions`，随后由 Host 生命周期把 Descriptor 注册进 Catalog；窗口通过 `IDevicePackageCatalog` 显示当前 active package/version。这是 Issue #22 的 Reference Sample 消费路径，不会把示例扩展成 Workbench 或 Package Manager。
