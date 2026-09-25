@@ -18,8 +18,12 @@ jobs:
       - name: Validate OpenHands repository hooks
         run: bash -n .openhands/setup.sh .openhands/pre-commit.sh
 
-      - name: Validate OpenHands repository skill
-        run: test -s .openhands/skills/repo.md
+      - name: Validate OpenHands repository governance
+        run: |
+          test -s AGENTS.md
+          test -s AGENTS.zh-CN.md
+          test -s .openhands/skills/repo.md
+          grep -Fq 'AGENTS.md' .openhands/skills/repo.md
 
   build-test-template:
     runs-on: windows-latest

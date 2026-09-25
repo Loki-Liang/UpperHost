@@ -4,6 +4,19 @@
 
 UpperHost includes repository-native configuration for OpenHands V1 / Agent Canvas. OpenHands is a development tool only; it is not an UpperHost runtime dependency.
 
+## Default development policy
+
+OpenHands is the **default implementation executor** for normal UpperHost feature, fix, refactor, test, documentation, and architecture work. `AGENTS.md` is the repository-level authority and `.openhands/skills/repo.md` is the OpenHands execution profile.
+
+The normal delivery chain is:
+
+```text
+Issue/Task -> OpenHands -> focused validation -> .openhands/pre-commit.sh
+          -> Pull Request -> Windows GitHub Actions -> review -> squash merge -> main
+```
+
+Other assistants may coordinate, inspect, or review work, but production implementation should remain in OpenHands unless a fallback condition documented in `AGENTS.md` applies.
+
 ## What is integrated
 
 - `.openhands/skills/repo.md`: automatically loaded repository guidance covering architecture, repository layout, workflow, and validation.
@@ -46,7 +59,7 @@ Do not place any OpenHands or model credential in this repository. Configure aut
 When assigning an issue to OpenHands, make the task concrete and require closure:
 
 ```text
-Implement this issue against the latest main. Read .openhands/skills/repo.md first.
+Implement this issue against the latest main. Read AGENTS.md and .openhands/skills/repo.md first.
 Keep the existing architecture boundaries. Add or update tests with the production change.
 Run focused validation, then the repository pre-commit gate. Review the final diff and
 leave the branch/PR in a merge-ready state; do not stop after only reporting findings.

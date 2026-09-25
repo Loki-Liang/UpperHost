@@ -22,6 +22,7 @@ The project applies the same idea that makes Spring Boot productive: a small sta
 | Understand platform boundaries | [Architecture](docs/architecture.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
+| AI development governance | [AGENTS.md](AGENTS.md) |
 | Chinese documentation | [简体中文 README](README.zh-CN.md) |
 
 ## Open-box platform capabilities
