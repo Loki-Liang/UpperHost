@@ -20,6 +20,7 @@
 | 做 EMG、DAQ、传感器、波形等实时采集 | Acquisition 路线 |
 | 增加 TCP/串口之外的新通信方式 | [Provider 设计与接入](docs/providers.zh-CN.md) |
 | 使用 OpenHands 开发仓库 | [OpenHands 接入](docs/openhands.zh-CN.md) |
+| AI 开发总控规则 | [AGENTS.zh-CN.md](AGENTS.zh-CN.md) |
 | 理解平台边界 | [架构说明](docs/architecture.zh-CN.md) |
 
 ## 核心架构
