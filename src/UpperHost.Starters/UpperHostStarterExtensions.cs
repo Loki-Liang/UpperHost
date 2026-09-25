@@ -31,26 +31,19 @@ public static class UpperHostStarterExtensions
 
     public static UpperHostApplicationBuilder AddSimulatorTransport(this UpperHostApplicationBuilder builder, string name = "default")
     {
-        builder.Services.AddSingleton<SimulatorTransport>(_ => new SimulatorTransport(name));
-        builder.Services.AddSingleton<ITransport>(sp =>
-            new ObservedTransport(sp.GetRequiredService<SimulatorTransport>()));
-        return builder;
+        return builder.AddUpperHostTransport(_ => new SimulatorTransport(name));
     }
 
     public static UpperHostApplicationBuilder AddSerialTransport(this UpperHostApplicationBuilder builder, SerialTransportOptions options)
     {
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport>(_ =>
-            new ObservedTransport(new SerialTransport(options)));
-        return builder;
+        return builder.AddUpperHostTransport(_ => new SerialTransport(options));
     }
 
     public static UpperHostApplicationBuilder AddTcpTransport(this UpperHostApplicationBuilder builder, TcpTransportOptions options)
     {
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport>(_ =>
-            new ObservedTransport(new TcpTransport(options)));
-        return builder;
+        return builder.AddUpperHostTransport(_ => new TcpTransport(options));
     }
 
     public static UpperHostApplicationBuilder AddFileSystemStorage(this UpperHostApplicationBuilder builder, string directory)
