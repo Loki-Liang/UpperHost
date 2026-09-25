@@ -142,6 +142,23 @@ The executable project-reference guard is `scripts/validate_architecture.py` and
 9. WPF is an adapter, not Core.
 10. Software guards/interlocks never claim to replace certified hardware safety mechanisms.
 
+## Enterprise infrastructure quality gate
+
+Any issue or PR that calls a cross-cutting component "enterprise-grade infrastructure" must be reviewed as an operational contract, not only as a package-integration checklist. Before merge, explicitly review and test the relevant dimensions:
+
+1. API and module boundary: stable contracts, dependency direction and extension seams.
+2. Reliability: failure modes, retry/recovery behavior, deterministic shutdown and partial-failure semantics.
+3. Performance: hot-path overhead, allocation, blocking I/O and bounded resource usage.
+4. Backpressure/loss: bounded queues or buffers, overload behavior and surfaced drop/loss signals.
+5. Security/privacy: secret handling, redaction, unsafe diagnostics and least data exposure.
+6. Configuration/lifecycle: typed configuration, fail-fast validation, defaults, startup and disposal.
+7. Observability semantics: low-cardinality metrics, standard trace/error semantics, health meaning and self-observability.
+8. Extensibility: first-party and third-party providers use one composition seam instead of copying cross-cutting wrappers.
+9. Verification: unit + boundary/integration + fault-path tests that prove the operational invariants, not merely object registration.
+10. Documentation/compatibility: public behavior, defaults and migration impact are documented in synchronized language variants.
+
+For metrics, per-execution identifiers such as command/session/connection/request IDs are forbidden as metric attributes unless an explicit bounded-cardinality proof is documented. Put correlation IDs in logs/traces instead. For logging or streaming, unbounded buffering is forbidden and overload/drop behavior must be observable.
+
 ## Validation authority
 
 OpenHands usually runs in a Linux sandbox and must use `.openhands/setup.sh` and `.openhands/pre-commit.sh` for fast pre-PR validation.
