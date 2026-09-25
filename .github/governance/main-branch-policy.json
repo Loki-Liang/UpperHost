@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "branch": "main",
+  "required_status_checks": [
+    "openhands-config",
+    "architecture-governance",
+    "build-test-template"
+  ],
+  "strict_required_status_checks": true,
+  "require_pull_request": true,
+  "block_direct_push": true,
+  "block_force_pushes": true,
+  "block_deletions": true,
+  "require_conversation_resolution": true,
+  "require_exact_head_validation": true,
+  "admin_application_required": true
+}
