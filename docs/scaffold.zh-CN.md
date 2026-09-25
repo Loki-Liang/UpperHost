@@ -43,7 +43,7 @@ UpperHost 同时服务三条一级开发路线：
 - 产品工作流；
 - 产品 UI。
 
-UpperHost 负责跨产品复用的 Runtime 契约、Provider、Template、Testing 接缝、Diagnostics 与 Presentation Adapter。
+UpperHost 负责跨产品复用的 Runtime 契约、Provider、Starter Application 约定、Testing 接缝、Diagnostics 与 Presentation Adapter。
 
 ## 主要开发体验
 
