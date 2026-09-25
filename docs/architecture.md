@@ -25,7 +25,7 @@ Transport (Serial / TCP / USB / CAN / BLE / Vendor SDK / ...)
 Hardware
 ```
 
-Cross-cutting scaffold/runtime capabilities are Configuration, Hosting/DI, Dataflow, Persistence providers, Alarms, Diagnostics, Plugins and Testing.
+Cross-cutting scaffold/runtime capabilities are Configuration, Hosting/DI, Observability (structured logging, metrics, tracing and health), Dataflow, Persistence providers, Alarms, Diagnostics, Plugins and Testing.
 
 ## Architecture style: modular monolith
 
