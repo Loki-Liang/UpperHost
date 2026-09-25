@@ -159,15 +159,14 @@ public sealed class CommandRuntime<TCommand, TResult>
         TimeSpan duration,
         Activity? activity)
     {
-        var context = new UpperHostTelemetryContext(
-            CommandId: executionId,
-            Operation: typeof(TCommand).Name,
-            Result: status.ToString(),
-            ErrorCode: code);
-        var tags = UpperHostTelemetry.CreateTags(context);
+        var tags = UpperHostTelemetry.CreateMetricTags(
+            new UpperHostMetricContext(
+                Operation: typeof(TCommand).Name,
+                Outcome: status.ToString(),
+                ErrorType: exception?.GetType().FullName));
 
         UpperHostTelemetry.CommandExecutions.Add(1, tags);
-        UpperHostTelemetry.CommandDurationMilliseconds.Record(duration.TotalMilliseconds, tags);
+        UpperHostTelemetry.CommandDurationSeconds.Record(duration.TotalSeconds, tags);
         if (status != CommandExecutionStatus.Succeeded)
             UpperHostTelemetry.CommandFailures.Add(1, tags);
 
@@ -177,7 +176,7 @@ public sealed class CommandRuntime<TCommand, TResult>
             activity.SetTag("upperhost.error.code", code);
             activity.SetTag("upperhost.elapsed_ms", duration.TotalMilliseconds);
             if (exception is not null)
-                activity.SetTag("upperhost.error.type", exception.GetType().FullName);
+                activity.SetTag("error.type", exception.GetType().FullName);
 
             activity.SetStatus(
                 status == CommandExecutionStatus.Succeeded
@@ -185,7 +184,7 @@ public sealed class CommandRuntime<TCommand, TResult>
                     : status == CommandExecutionStatus.Cancelled
                         ? ActivityStatusCode.Unset
                         : ActivityStatusCode.Error,
-                message);
+                code);
         }
 
         return new CommandExecutionResult<TResult>(
