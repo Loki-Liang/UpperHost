@@ -3,6 +3,7 @@ using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Hosting;
+using UpperHost.Observability;
 using UpperHost.Starters;
 using UpperHost.Transport.Simulator;
 
@@ -19,8 +20,10 @@ public sealed class AutoConfigurationTests
 
         await using var app = builder.Build();
         var transport = app.Services.GetRequiredService<ITransport>();
+        var simulator = app.Services.GetRequiredService<SimulatorTransport>();
 
-        Assert.IsType<SimulatorTransport>(transport);
+        Assert.IsType<ObservedTransport>(transport);
+        Assert.Equal(simulator.Endpoint, transport.Endpoint);
         Assert.NotNull(app.Services.GetRequiredService<IEventBus>());
         Assert.NotNull(app.Services.GetRequiredService<IAlarmService>());
     }
