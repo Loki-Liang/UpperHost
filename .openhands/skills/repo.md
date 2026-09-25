@@ -12,6 +12,8 @@ UpperHost is a general-purpose .NET device-application platform. Control, automa
 
 ## Required architecture boundaries
 
+UpperHost is a **modular monolith by default**. Before adding a project, cross-module reference, framework, or distributed boundary, apply the module/dependency rules in `AGENTS.md` and `docs/architecture.md`. Run `python scripts/validate_architecture.py` after changing project references.
+
 1. Keep Core industry-neutral.
 2. Model devices by capability composition, not a giant inheritance tree.
 3. Transport owns transfer mechanics; Protocol owns framing and semantic decoding.
