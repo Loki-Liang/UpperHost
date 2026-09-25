@@ -25,6 +25,14 @@ jobs:
           test -s .openhands/skills/repo.md
           grep -Fq 'AGENTS.md' .openhands/skills/repo.md
 
+  architecture-governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate modular-monolith project graph
+        run: python scripts/validate_architecture.py
+
   build-test-template:
     runs-on: windows-latest
     steps:

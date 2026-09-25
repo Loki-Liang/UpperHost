@@ -9,5 +9,6 @@ if ! command -v dotnet >/dev/null 2>&1; then
   exit 1
 fi
 
+python scripts/validate_architecture.py
 dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
 dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build

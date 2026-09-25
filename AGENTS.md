@@ -84,6 +84,39 @@ Do not continue from stale CI conclusions or an old branch assumption.
 - Update architecture or extension documentation when public boundaries change.
 - Do not mark a task complete when only implementation exists but tests/docs required by the acceptance criteria are missing.
 
+## Architecture baseline: modular monolith
+
+UpperHost is a **modular monolith by default**: one deployable application/process composed from strongly bounded modules and adapters. Do not introduce microservices, remote RPC boundaries, duplicated service-owned models, or distributed consistency merely to separate code. A distributed boundary requires an explicit issue/ADR with operational justification.
+
+### Module dependency rules
+
+1. `UpperHost.Abstractions` is the stable dependency root and must not reference another repository project.
+2. Platform modules such as Control, Protocols, Dataflow, Workflows, StateMachines, Events, Resilience, Diagnostics and Testing expose narrow public contracts and must not depend on Presentation, Samples, Tests or Templates.
+3. `UpperHost.Transport.*` and storage/provider packages are infrastructure adapters. They depend inward on stable contracts and must not push vendor/native concepts into Core.
+4. `UpperHost.Presentation.*` is an outer adapter. Production modules must never depend back on presentation projects.
+5. `UpperHost.Starters` is a composition/convenience module. Other production modules must not depend back on it.
+6. `samples/`, `tests/` and `templates/` may compose production modules; production modules never reference them.
+7. ProjectReference cycles are forbidden.
+8. Cross-module behavior uses public capabilities/contracts/events. Do not reach into another module's internals, use reflection to bypass boundaries, or create hidden static coupling.
+9. Keep public APIs minimal. Types are internal/private unless another module genuinely needs the contract.
+10. New modules require a clear responsibility, ownership boundary, allowed dependencies and matching tests; do not create a project only to move files.
+
+The executable project-reference guard is `scripts/validate_architecture.py` and is part of pre-commit/CI.
+
+## Engineering rules
+
+- **DI/composition:** construct dependencies at application/Hosting/Starters composition roots. Do not use mutable global singletons or service-locator calls in domain/platform logic.
+- **Async/I/O:** I/O paths are async end-to-end, accept `CancellationToken` where cancellation is meaningful, avoid `.Result`/`.Wait()`, and do not create unmanaged fire-and-forget tasks.
+- **Resources:** sockets, streams, native handles and subscriptions have explicit ownership and deterministic disposal.
+- **Errors:** never swallow failures. Translate vendor/infrastructure errors at module boundaries while preserving actionable context; stateful components enter an explicit fault state when appropriate.
+- **Configuration:** use typed options/configuration with fail-fast validation. No scattered magic environment-variable reads or machine-specific paths in platform code.
+- **Observability:** use structured logs, health and metrics at meaningful boundaries; never log secrets or raw sensitive credentials.
+- **Concurrency:** shared mutable state requires an explicit synchronization/ownership model. Queues/channels must be bounded unless an unbounded design is explicitly justified.
+- **Dependencies:** adding a NuGet/native dependency requires a reason and correct module placement. Core abstractions stay free of vendor SDK dependencies.
+- **Compatibility:** treat public contracts and templates as versioned surfaces. Breaking changes require explicit migration/documentation and corresponding tests.
+- **Code shape:** prefer cohesive small types and explicit responsibilities; reject God classes, utility dumping grounds, duplicated protocol logic and copy-pasted provider implementations.
+- **Testing:** each module owns unit tests for its behavior; add integration/contract tests for module/provider boundaries and simulator/fault tests for hardware-dependent behavior.
+
 ## Architecture invariants
 
 1. Core remains industry-neutral.

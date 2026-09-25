@@ -27,6 +27,41 @@ Hardware
 
 横切能力包括 Configuration、Hosting/DI、Dataflow、Persistence、Alarm、Diagnostics、Plugin 和 Testing。
 
+## 架构风格：模块化单体
+
+UpperHost 默认采用模块化单体。各模块应能独立理解、独立测试，但默认组合进同一个应用/进程；除非经过单独批准，否则不引入分布式边界。
+
+依赖方向总体向内：
+
+```text
+Samples / Templates / Presentation
+             |
+          Starters
+             |
+ Hosting / Application Composition
+             |
+平台模块（Control / Workflows / Dataflow / ...）
+             |
+ Protocols + Providers / Adapters
+             |
+        Abstractions
+```
+
+该图表达依赖方向意图，不代表每个模块必须逐层引用。
+
+硬规则：
+
+- `UpperHost.Abstractions` 是稳定依赖根，不引用仓库内其他 Project。
+- 生产 Project 禁止引用 Samples、Tests、Templates。
+- 非 Presentation 生产模块禁止引用 `UpperHost.Presentation.*`。
+- 生产模块禁止反向依赖 `UpperHost.Starters`；Starters 负责组合模块。
+- 禁止 ProjectReference 环依赖。
+- 跨模块行为通过公开 Contract/Capability/Event 完成，禁止共享可变全局状态或直接访问其他模块内部实现。
+- Provider/Adapter 自己持有 Vendor 依赖和基础设施细节。
+- 新 Project/Module 必须对应长期稳定职责边界，禁止仅为了“拆目录”而拆模块。
+
+这些规则由 `scripts/validate_architecture.py` 自动执行检查。
+
 ## 三条一级应用路线
 
 ### Control
