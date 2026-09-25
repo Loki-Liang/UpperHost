@@ -57,7 +57,7 @@ jobs:
       - name: Test ConnectionManager Linux contract
         run: dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~UpperHost.Tests.ConnectionManagerTests"
 
-  build-test-template:
+  build-test-scaffold:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
