@@ -59,7 +59,7 @@ Do not place any OpenHands or model credential in this repository. Configure aut
 When assigning an issue to OpenHands, make the task concrete and require closure:
 
 ```text
-Implement this issue against the latest main. Read .openhands/skills/repo.md first.
+Implement this issue against the latest main. Read AGENTS.md and .openhands/skills/repo.md first.
 Keep the existing architecture boundaries. Add or update tests with the production change.
 Run focused validation, then the repository pre-commit gate. Review the final diff and
 leave the branch/PR in a merge-ready state; do not stop after only reporting findings.
