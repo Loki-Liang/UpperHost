@@ -57,4 +57,4 @@ A successful send is not treated as physical completion. Parameter writes are ve
 
 ## Device package catalog
 
-The sample also publishes a `DevicePackageDescriptor` for the simulated temperature controller. Startup validates `TemperatureControllerPackageOptions` before device construction, registers the descriptor through the host lifecycle, and the window resolves `IDevicePackageCatalog` to show the active package/version. This is the reference consumption path for Issue #22; it does not turn the sample into a Workbench or package manager.
+The sample also publishes a `DevicePackageDescriptor` for the simulated temperature controller. Startup validates `TemperatureControllerPackageOptions` before device construction, registers the descriptor through the host lifecycle, and the window resolves `IDevicePackageCatalog` to show the active package/version. This is the reference consumption path for Issue #22 and demonstrates how an application composes reusable catalog infrastructure.
