@@ -168,6 +168,7 @@ Add new hardware without modifying the core:
 UpperHost.Transport.Usb
 UpperHost.Transport.Can
 UpperHost.Transport.Ble
+UpperHost.Transport.VendorSdk
 UpperHost.Protocol.Modbus
 UpperHost.Protocol.OpcUa
 UpperHost.Storage.Sqlite
