@@ -22,15 +22,24 @@ public static class UpperHostObservabilityExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new UpperHostObservabilityOptions();
         var section = builder.Configuration
             .GetSection(UpperHostObservabilityOptions.SectionName);
 
-        section.Bind(options);
-        section.GetSection("Logging:File").Bind(options.FileLogging);
-        section.GetSection("Otlp").Bind(options.Otlp);
+        builder.Services
+            .AddOptions<UpperHostObservabilityOptions>()
+            .Bind(section)
+            .ValidateOnStart();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<UpperHostObservabilityOptions>,
+                UpperHostObservabilityOptionsValidator>());
 
-        return builder.AddUpperHostObservability(options);
+        var options = section.Get<UpperHostObservabilityOptions>()
+            ?? new UpperHostObservabilityOptions();
+        UpperHostObservabilityOptionsValidator.ValidateAndThrow(options);
+
+        builder.Services.TryAddSingleton(options);
+        ConfigureObservabilityInfrastructure(builder, options);
+        return builder;
     }
 
     public static UpperHostApplicationBuilder AddUpperHostObservability(
@@ -39,11 +48,20 @@ public static class UpperHostObservabilityExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(options);
-        options.Validate();
+        UpperHostObservabilityOptionsValidator.ValidateAndThrow(options);
 
         builder.Services.TryAddSingleton(options);
         builder.Services.TryAddSingleton<IOptions<UpperHostObservabilityOptions>>(
             Options.Create(options));
+
+        ConfigureObservabilityInfrastructure(builder, options);
+        return builder;
+    }
+
+    private static void ConfigureObservabilityInfrastructure(
+        UpperHostApplicationBuilder builder,
+        UpperHostObservabilityOptions options)
+    {
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHealthProbe, TransportHealthProbe>());
 
@@ -52,8 +70,6 @@ public static class UpperHostObservabilityExtensions
 
         if (options.Otlp.Enabled)
             AddOpenTelemetry(builder, options);
-
-        return builder;
     }
 
     private static void AddFileLogging(
