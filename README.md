@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-**UpperHost is a general-purpose .NET upper-computer / device-application development scaffold.** It gives developers a reusable engineering baseline for building device control, automation and acquisition applications without rebuilding the same runtime, communication, testing and diagnostics infrastructure for every product.
+**UpperHost is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition.** It gives developers a reusable engineering baseline for industrial device-facing applications without rebuilding the same runtime, communication, testing, diagnostics, and extension infrastructure for every product.
 
 UpperHost treats three device-application styles as first-class peers:
 
