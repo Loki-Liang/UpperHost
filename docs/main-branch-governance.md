@@ -79,5 +79,4 @@ Before closing Issue #31, retain evidence that:
 - direct push / force push / deletion behavior matches the policy;
 - the documented check names match current workflow job IDs.
 
-Future release gates such as Source-Scaffold E2E and Public API Compatibility
-must be added to the policy and active ruleset when their issues are completed.
+Public API Compatibility is enforced inside the existing canonical `build-test-scaffold` job, so Issue #41 does not introduce a new required-check job ID. The active ruleset continues to require `build-test-scaffold`, which now contains the compatibility steps. Any future gate that introduces a new job ID (for example a separately modeled Source-Scaffold E2E gate) must be added to both the policy and the active GitHub ruleset.

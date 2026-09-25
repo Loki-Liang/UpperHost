@@ -24,6 +24,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | Understand built-in DI, configuration, logging and secondary-development seams | [Secondary-development foundation](docs/secondary-development.md) |
 | Configure logging, metrics, tracing and health | [Observability](docs/observability.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
+| Protect public APIs, configuration and source-scaffold compatibility | [Compatibility policy](docs/compatibility.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
 | Chinese documentation | [简体中文 README](README.zh-CN.md) |
@@ -66,7 +67,7 @@ The product composition root is `app/UpperHost.App/App.xaml.cs`. Product code sh
 - Fault-injection testing helpers.
 - Starter package for one-call common registration.
 - Runnable `app/UpperHost.App` WPF product scaffold.
-- Windows CI that builds, tests, packs reusable NuGet modules and validates the source scaffold application.
+- Windows CI that builds, tests, packs reusable NuGet modules, validates the source scaffold application, and enforces exact-base public API compatibility.
 
 ## Architecture
 

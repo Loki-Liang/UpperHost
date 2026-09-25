@@ -157,6 +157,18 @@ UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部�
 
 Metrics 中，Command/Session/Connection/Request 等逐次变化 ID 默认禁止作为 Metric Attribute，除非有明确且可证明的有界基数设计；关联 ID 应进入 Log/Trace。Logging/Streaming 禁止无界缓冲，并且必须能观测过载和丢失。
 
+## 兼容性门禁
+
+Runtime 公共 API、配置契约和 canonical Source Scaffold 都属于版本化接口。
+
+- `build-test-scaffold` 会校验 `eng/compatibility/source-scaffold-contract.json`，并使用微软 `Microsoft.DotNet.ApiCompat.Tool` 将当前所有可复用 NuGet 包与 PR **exact base SHA** 的包逐一比较。
+- Baseline 必须来自 exact base SHA 已成功 CI 的 artifact；禁止退回到更旧的“最近一次成功 main”掩盖差异。
+- 普通 ApiCompat 失败属于 Breaking Change：必须有明确 Issue、Migration、版本变更、测试，以及本 PR 新增/修改的 `eng/compatibility/breaking/<PackageId>.md` 批准记录。
+- Strict baseline validation 用于识别新增 Public API；有意新增公共表面时，本 PR 必须新增/修改 `eng/compatibility/api-additions/<PackageId>.md`，说明新增接口及其成为公共契约的理由。
+- 禁止通过删除 Baseline、关闭 Tool/Analyzer、削弱 Source-Scaffold Contract 或跳过 Gate 来让 CI 变绿。
+- pre-commit 本地校验 Source-Scaffold Contract；需要 exact-base artifact 的 Package Compatibility 继续由 PR/Windows CI 作为权威门禁。
+
+详见 `docs/compatibility.zh-CN.md`。
 ## 验证权威
 
 OpenHands 通常运行在 Linux Sandbox，提交 PR 前使用 `.openhands/setup.sh` 和 `.openhands/pre-commit.sh` 做快速验证。

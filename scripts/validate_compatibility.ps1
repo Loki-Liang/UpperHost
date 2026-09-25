@@ -86,7 +86,7 @@ function Require-Approval {
     $content = Get-Content -Raw $Path
     foreach ($field in $RequiredFields) {
         if ($content -notmatch "(?im)^\s*$([regex]::Escape($field))\s*:\s*\S+") {
-            throw "Compatibility approval '$normalized' must contain a non-empty '$field:' field."
+            throw "Compatibility approval '$normalized' must contain a non-empty '${field}:' field."
         }
     }
 }
