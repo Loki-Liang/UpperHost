@@ -2,7 +2,7 @@ using UpperHost.Abstractions.Devices;
 
 namespace UpperHost.Workbench.Wpf.Demo;
 
-internal sealed class WorkbenchSimulatorDevice :
+public sealed class WorkbenchSimulatorDevice :
     IDevice,
     IConnectable,
     IParameterProvider,
