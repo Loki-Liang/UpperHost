@@ -33,7 +33,7 @@ The scaffold includes:
 
 ## Product ownership boundary
 
-A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, templates, testing seams, diagnostics and presentation adapters shared across products.
+A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, starter-application conventions, testing seams, diagnostics and presentation adapters shared across products.
 
 ## Primary developer experience
 
@@ -57,7 +57,7 @@ build / test / package the product
 
 `app/UpperHost.App` is the canonical product entry point, `src/UpperHost.*` contains reusable infrastructure, and `samples/` contains reference implementations only.
 
-Product developers do not need to build UpperHost itself, pack a project template, or generate a second repository before starting. Repository-level framework build/test work belongs to contributors changing the reusable runtime.
+Product developers start from the runnable source scaffold directly. Repository-level framework build/test work belongs to contributors changing the reusable runtime.
 
 ## Architecture baseline
 
@@ -67,7 +67,7 @@ The scaffold must not introduce microservices, remote RPC, or distributed consis
 
 ## Presentation boundary
 
-WPF is the current default presentation adapter and project template, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
+WPF is the current default presentation adapter and starter-application UI stack, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
 
 Reference presentation applications may demonstrate the scaffold, but they consume the same UpperHost runtime contracts and remain examples of how a product composes the reusable modules.
 
