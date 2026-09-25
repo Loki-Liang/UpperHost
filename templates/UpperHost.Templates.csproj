@@ -4,8 +4,8 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <PackageType>Template</PackageType>
     <PackageId>UpperHost.Templates</PackageId>
-    <Title>UpperHost upper-computer development templates</Title>
-    <Description>dotnet new scaffolds for general-purpose .NET upper-computer and device-facing WPF applications.</Description>
+    <Title>UpperHost enterprise industrial upper-computer templates</Title>
+    <Description>dotnet new scaffolds for enterprise-grade .NET industrial upper-computer applications covering device control, automation, and data acquisition.</Description>
     <IncludeContentInPack>true</IncludeContentInPack>
     <NoDefaultExcludes>true</NoDefaultExcludes>
   </PropertyGroup>
