@@ -37,24 +37,27 @@ A product created with UpperHost owns its device semantics, protocol details, co
 
 ## Primary developer experience
 
-The preferred development path is:
+UpperHost uses a **source-first secondary-development** model. Developers clone the repository and continue developing it directly as their upper-computer product:
 
 ```text
-dotnet new upperhost
+git clone UpperHost
         |
         v
-generated upper-computer application
+run app/UpperHost.App
         |
         +-- product Device capabilities
         +-- product Protocol / Provider
-        +-- product control / acquisition behavior
+        +-- product Workflow / State
+        +-- product Acquisition
         +-- product UI
         |
         v
-build / test / package
+build / test / package the product
 ```
 
-Developers should extend the scaffold rather than fork or rewrite its runtime.
+`app/UpperHost.App` is the canonical product entry point, `src/UpperHost.*` contains reusable infrastructure, and `samples/` contains reference implementations only.
+
+Product developers do not need to build UpperHost itself, pack a project template, or generate a second repository before starting. Repository-level framework build/test work belongs to contributors changing the reusable runtime.
 
 ## Architecture baseline
 
