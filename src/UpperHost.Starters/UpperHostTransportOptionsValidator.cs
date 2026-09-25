@@ -1,3 +1,4 @@
+using System.IO.Ports;
 using Microsoft.Extensions.Options;
 
 namespace UpperHost.Starters;
@@ -60,8 +61,11 @@ internal sealed class UpperHostTransportOptionsValidator : IValidateOptions<Uppe
             failures.Add("UpperHost:Transport:Serial:DataBits must be in range 5..8.");
         if (!Enum.IsDefined(options.Parity))
             failures.Add("UpperHost:Transport:Serial:Parity is not a supported enum value.");
-        if (!Enum.IsDefined(options.StopBits))
-            failures.Add("UpperHost:Transport:Serial:StopBits is not a supported enum value.");
+        if (!Enum.IsDefined(options.StopBits) || options.StopBits == StopBits.None)
+        {
+            failures.Add(
+                "UpperHost:Transport:Serial:StopBits must be a supported non-None value.");
+        }
         if (options.ReadBufferSize <= 0)
             failures.Add("UpperHost:Transport:Serial:ReadBufferSize must be greater than zero.");
     }
@@ -88,8 +92,13 @@ internal sealed class UpperHostTransportOptionsValidator : IValidateOptions<Uppe
             failures.Add("UpperHost:Transport:Resilience:InitialDelayMs must be non-negative.");
         if (options.MaximumDelayMs < 0)
             failures.Add("UpperHost:Transport:Resilience:MaximumDelayMs must be non-negative.");
-        if (options.BackoffFactor < 1 || double.IsNaN(options.BackoffFactor))
-            failures.Add("UpperHost:Transport:Resilience:BackoffFactor must be greater than or equal to 1.");
+        if (options.BackoffFactor < 1 ||
+            double.IsNaN(options.BackoffFactor) ||
+            double.IsInfinity(options.BackoffFactor))
+        {
+            failures.Add(
+                "UpperHost:Transport:Resilience:BackoffFactor must be a finite number greater than or equal to 1.");
+        }
         if (options.MaximumDelayMs < options.InitialDelayMs)
         {
             failures.Add(
