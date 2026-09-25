@@ -86,7 +86,7 @@ Do not continue from stale CI conclusions or an old branch assumption.
 
 ## Product positioning: upper-computer development scaffold
 
-UpperHost is a **general-purpose .NET upper-computer / device-application development scaffold**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, samples and project templates for developers building product-specific upper-computer applications.
+UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, samples and project templates for developers building product-specific industrial upper-computer applications.
 
 UpperHost is not a finished universal Workbench/HMI and not a generic low-code product. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold.
 
