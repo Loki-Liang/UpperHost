@@ -30,7 +30,7 @@ UpperHost 同时服务三条一级开发路线：
 - 确定性 Simulator / Fault Injection；
 - 自动化测试和架构治理；
 - 可发布的 NuGet 模块；
-- `dotnet new upperhost` 工程模板；
+- 可直接二开的 `app/UpperHost.App` 产品工程；
 - 可运行 Reference Samples。
 
 ## 产品职责边界
