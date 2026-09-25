@@ -31,17 +31,9 @@ The scaffold includes:
 - `dotnet new upperhost` project templates;
 - runnable reference samples.
 
-## What UpperHost is not
+## Product ownership boundary
 
-UpperHost is **not**:
-
-- a finished universal end-user Workbench/HMI product;
-- a no-code or low-code platform;
-- a visual flow/node editor;
-- an industry-specific medical/PLC/robot framework;
-- a promise that every device works without a device/protocol/provider integration.
-
-A product created with UpperHost still owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI.
+A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, templates, testing seams, diagnostics and presentation adapters shared across products.
 
 ## Primary developer experience
 
@@ -74,7 +66,7 @@ The scaffold must not introduce microservices, remote RPC, or distributed consis
 
 WPF is the current default presentation adapter and project template, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
 
-A future reference shell or Workbench may demonstrate the scaffold, but it must remain a consumer of UpperHost rather than become a second runtime or redefine the repository as an end-user low-code product.
+Reference presentation applications may demonstrate the scaffold, but they consume the same UpperHost runtime contracts and remain examples of how a product composes the reusable modules.
 
 ## Delivery rule
 
