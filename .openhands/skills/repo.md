@@ -8,9 +8,9 @@ OpenHands is the default implementation executor for normal UpperHost feature, f
 
 ## Purpose
 
-UpperHost is a general-purpose .NET device-application platform. Control, automation, and acquisition are equal first-class paths. Do not turn the platform into a domain-specific, medical-only, acquisition-only, PLC-only, or vendor-specific framework.
+UpperHost is a **general-purpose .NET upper-computer / device-application development scaffold**. Control, automation, and acquisition are equal first-class development paths. Read `docs/scaffold.md` before changing product positioning or developer experience.
 
-The primary end-user product is **UpperHost Workbench**. Read `docs/workbench.md` before implementing Workbench/product-facing features. Do not add a visual workflow editor, node graph, drag-and-drop flow programming, generic low-code engine, or graph-to-code system. Existing Workflow/StateMachine modules remain code/API runtime capabilities only.
+Do not redefine the repository as a finished universal Workbench/HMI, a domain-specific framework, or a low-code product. Product-specific device semantics and UI belong to generated/consumer applications. Do not add a visual workflow editor, node graph, drag-and-drop flow programming, generic low-code engine, or graph-to-code system. Existing Workflow/StateMachine modules remain code/API runtime capabilities only.
 
 ## Required architecture boundaries
 
