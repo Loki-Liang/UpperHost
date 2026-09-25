@@ -55,6 +55,16 @@ Hardware
 - 软件联锁/安全策略只负责软件控制约束，不能替代硬件急停、安全 PLC 或认证安全回路。
 - 厂商 SDK、USB、CAN、BLE 等通过独立 Provider/Starter 扩展，不进入 `UpperHost.Abstractions`。
 
+## Workbench
+
+面向最终用户的桌面主产品位于 `apps/UpperHost.Workbench.Wpf`：
+
+```powershell
+dotnet run --project apps/UpperHost.Workbench.Wpf/UpperHost.Workbench.Wpf.csproj
+```
+
+当前 Shell 提供 Project、Devices、Connections、Control、Data、Alarms、Logs、Diagnostics 固定工作区并复用平台 WPF Controls；不提供可视化工作流编排。
+
 ## 创建第一个项目
 
 需要 .NET 10 SDK；WPF 项目需要 Windows。
