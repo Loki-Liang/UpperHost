@@ -5,7 +5,7 @@
     <Grid Margin="32">
         <StackPanel>
             <TextBlock FontSize="30" FontWeight="SemiBold" Text="UpperHost" />
-            <TextBlock Margin="0,12,0,0" FontSize="16" Text="UpperHost upper-computer development scaffold is running." />
+            <TextBlock Margin="0,12,0,0" FontSize="16" Text="UpperHost enterprise industrial upper-computer scaffold is running." />
             <TextBlock Margin="0,8,0,0" Text="Transport: __TRANSPORT__" />
             <TextBlock Margin="0,24,0,0" TextWrapping="Wrap"
                        Text="Build your product Device capabilities, Protocol/Provider, control or acquisition behavior, and UI on the reusable UpperHost runtime." />
