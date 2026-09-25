@@ -26,7 +26,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | AI development governance | [AGENTS.md](AGENTS.md) |
 | Chinese documentation | [简体中文 README](README.zh-CN.md) |
 
-## Open-box platform capabilities
+## Scaffold capabilities
 
 - `IDevice + Capability` composition instead of a giant device base class.
 - Automatic registration of DI-provided devices into the runtime registry.
