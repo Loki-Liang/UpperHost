@@ -29,36 +29,64 @@ public sealed class ObservedTransport : ITransport
         try
         {
             await _inner.SendAsync(data, cancellationToken).ConfigureAwait(false);
-            timer.Stop();
-            Record("send", "success", null);
+            Record("send", "success");
             UpperHostTelemetry.TransportBytes.Add(
                 data.Length,
-                UpperHostTelemetry.CreateTags(Context("send", "success")));
+                UpperHostTelemetry.CreateMetricTags(MetricContext("send", "success")));
             activity?.SetTag("upperhost.transport.bytes", data.Length);
-            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
             activity?.SetStatus(ActivityStatusCode.Ok);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            activity?.SetStatus(ActivityStatusCode.Unset);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Record("send", "faulted", ex.GetType().FullName);
+            MarkFailure(activity, ex, "transport_send_fault");
+            throw;
+        }
+        finally
         {
             timer.Stop();
-            Record("send", "faulted", "transport_send_fault");
             activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
-            activity?.SetTag("upperhost.error.type", ex.GetType().FullName);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
         }
     }
 
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var chunk in _inner.ReceiveAsync(cancellationToken).ConfigureAwait(false))
+        using var activity = StartActivity("receive");
+        var timer = Stopwatch.StartNew();
+        try
         {
-            Record("receive", "success", null);
-            UpperHostTelemetry.TransportBytes.Add(
-                chunk.Length,
-                UpperHostTelemetry.CreateTags(Context("receive", "success")));
-            yield return chunk;
+            await foreach (var chunk in _inner.ReceiveAsync(cancellationToken).ConfigureAwait(false))
+            {
+                Record("receive", "success");
+                UpperHostTelemetry.TransportBytes.Add(
+                    chunk.Length,
+                    UpperHostTelemetry.CreateMetricTags(MetricContext("receive", "success")));
+                yield return chunk;
+            }
+
+            activity?.SetStatus(ActivityStatusCode.Ok);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            activity?.SetStatus(ActivityStatusCode.Unset);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Record("receive", "faulted", ex.GetType().FullName);
+            MarkFailure(activity, ex, "transport_receive_fault");
+            throw;
+        }
+        finally
+        {
+            timer.Stop();
+            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -74,19 +102,24 @@ public sealed class ObservedTransport : ITransport
         try
         {
             await action(cancellationToken).ConfigureAwait(false);
-            timer.Stop();
-            Record(operation, "success", null);
-            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
+            Record(operation, "success");
             activity?.SetStatus(ActivityStatusCode.Ok);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            activity?.SetStatus(ActivityStatusCode.Unset);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Record(operation, "faulted", ex.GetType().FullName);
+            MarkFailure(activity, ex, $"transport_{operation}_fault");
+            throw;
+        }
+        finally
         {
             timer.Stop();
-            Record(operation, "faulted", $"transport_{operation}_fault");
             activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
-            activity?.SetTag("upperhost.error.type", ex.GetType().FullName);
-            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
-            throw;
         }
     }
 
@@ -94,23 +127,32 @@ public sealed class ObservedTransport : ITransport
         UpperHostTelemetry.StartActivity(
             $"upperhost.transport.{operation}",
             ActivityKind.Client,
-            Context(operation));
+            new UpperHostTelemetryContext(
+                Transport: Endpoint.Scheme,
+                Operation: operation));
 
-    private UpperHostTelemetryContext Context(
+    private UpperHostMetricContext MetricContext(
         string operation,
-        string? result = null,
-        string? errorCode = null) =>
+        string outcome,
+        string? errorType = null) =>
         new(
             Transport: Endpoint.Scheme,
             Operation: operation,
-            Result: result,
-            ErrorCode: errorCode);
+            Outcome: outcome,
+            ErrorType: errorType);
 
-    private void Record(string operation, string result, string? errorCode)
+    private void Record(string operation, string outcome, string? errorType = null)
     {
-        var tags = UpperHostTelemetry.CreateTags(Context(operation, result, errorCode));
+        var tags = UpperHostTelemetry.CreateMetricTags(MetricContext(operation, outcome, errorType));
         UpperHostTelemetry.TransportOperations.Add(1, tags);
-        if (errorCode is not null)
+        if (errorType is not null)
             UpperHostTelemetry.TransportFailures.Add(1, tags);
+    }
+
+    private static void MarkFailure(Activity? activity, Exception exception, string errorCode)
+    {
+        activity?.SetTag("error.type", exception.GetType().FullName);
+        activity?.SetTag("upperhost.error.code", errorCode);
+        activity?.SetStatus(ActivityStatusCode.Error, errorCode);
     }
 }
