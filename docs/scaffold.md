@@ -28,7 +28,7 @@ The scaffold includes:
 - deterministic Simulator/fault-injection support;
 - automated tests and architecture governance;
 - NuGet-ready modules;
-- `dotnet new upperhost` project templates;
+- runnable `app/UpperHost.App` product scaffold;
 - runnable reference samples.
 
 ## Product ownership boundary
