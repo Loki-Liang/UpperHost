@@ -15,7 +15,7 @@ public sealed class WorkbenchShellTests
         using var shell = new WorkbenchShellViewModel(registry, alarms);
 
         Assert.Equal(
-            ["project", "devices", "connections", "control", "data", "alarms", "logs", "diagnostics"],
+            new[] { "project", "devices", "connections", "control", "data", "alarms", "logs", "diagnostics" },
             shell.Sections.Select(section => section.Key).ToArray());
         Assert.Equal("project", shell.SelectedSectionKey);
         Assert.Equal(1, shell.DeviceCount);
