@@ -225,6 +225,51 @@ public sealed class ConnectionManagerTests
     }
 
     [Fact]
+    public async Task Send_failure_marks_connection_faulted_and_health_unhealthy()
+    {
+        await using var manager = new ConnectionManager();
+        await using var transport = new CountingTransport(failSend: true);
+        var definition = ConnectionDefinition.FromEndpoint(
+            transport.Endpoint,
+            ConnectionSharingMode.Shared);
+
+        await using var lease = await manager.AcquireAsync(definition, transport);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            lease.Transport.SendAsync([1, 2, 3]).AsTask());
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Faulted, snapshot.State);
+        Assert.Equal(1, snapshot.LeaseCount);
+
+        var report = await new ConnectionHealthProbe(manager).CheckAsync();
+        Assert.Equal(HealthStatus.Unhealthy, report.Status);
+    }
+
+    [Fact]
+    public async Task Receive_failure_marks_connection_faulted()
+    {
+        await using var manager = new ConnectionManager();
+        await using var transport = new CountingTransport(failReceive: true);
+        var definition = ConnectionDefinition.FromEndpoint(
+            transport.Endpoint,
+            ConnectionSharingMode.Shared);
+
+        await using var lease = await manager.AcquireAsync(definition, transport);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var _ in lease.Transport.ReceiveAsync())
+            {
+            }
+        });
+
+        var snapshot = Assert.Single(manager.Connections);
+        Assert.Equal(ConnectionState.Faulted, snapshot.State);
+        Assert.Equal(1, snapshot.LeaseCount);
+    }
+
+    [Fact]
     public async Task Lease_transport_cannot_bypass_manager_lifecycle()
     {
         await using var manager = new ConnectionManager();
@@ -249,12 +294,18 @@ public sealed class ConnectionManagerTests
         private int _openCount;
         private int _closeCount;
         private int _remainingOpenFailures;
+        private readonly bool _failSend;
+        private readonly bool _failReceive;
 
         public CountingTransport(
             int failOpenAttempts = 0,
+            bool failSend = false,
+            bool failReceive = false,
             TransportEndpoint? endpoint = null)
         {
             _remainingOpenFailures = failOpenAttempts;
+            _failSend = failSend;
+            _failReceive = failReceive;
             Endpoint = endpoint ?? new TransportEndpoint("counting", "default");
         }
 
@@ -295,6 +346,8 @@ public sealed class ConnectionManagerTests
             cancellationToken.ThrowIfCancellationRequested();
             if (State != TransportState.Open)
                 throw new InvalidOperationException("transport is not open");
+            if (_failSend)
+                throw new InvalidOperationException("planned send failure");
             return ValueTask.CompletedTask;
         }
 
@@ -305,7 +358,9 @@ public sealed class ConnectionManagerTests
             cancellationToken.ThrowIfCancellationRequested();
             if (State != TransportState.Open)
                 throw new InvalidOperationException("transport is not open");
-            await Task.CompletedTask;
+            await Task.Yield();
+            if (_failReceive)
+                throw new InvalidOperationException("planned receive failure");
             yield break;
         }
 
