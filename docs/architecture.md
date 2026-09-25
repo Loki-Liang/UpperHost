@@ -27,6 +27,41 @@ Hardware
 
 Cross-cutting platform capabilities are Configuration, Hosting/DI, Dataflow, Persistence providers, Alarms, Diagnostics, Plugins and Testing.
 
+## Architecture style: modular monolith
+
+UpperHost is a modular monolith by default. Modules are independently understandable and testable, but they compose into one application/process unless a separately approved distributed boundary is required.
+
+Dependency direction is inward:
+
+```text
+Samples / Templates / Presentation
+             |
+          Starters
+             |
+ Hosting / application composition
+             |
+ Platform modules (Control / Workflows / Dataflow / ...)
+             |
+ Protocols + Providers / Adapters
+             |
+        Abstractions
+```
+
+This diagram describes dependency intent, not a requirement that every module reference every layer.
+
+Hard rules:
+
+- `UpperHost.Abstractions` is the stable dependency root and references no repository project.
+- Production projects never reference Samples, Tests or Templates.
+- Non-presentation production modules never reference `UpperHost.Presentation.*`.
+- Production modules never depend back on `UpperHost.Starters`; Starters composes modules.
+- Project reference cycles are forbidden.
+- Cross-module behavior uses explicit public contracts/capabilities/events rather than shared mutable globals or another module's internal implementation.
+- Providers/adapters own vendor dependencies and infrastructure details.
+- A new project/module must represent a durable responsibility boundary, not merely a folder split.
+
+These rules are executable through `scripts/validate_architecture.py`.
+
 ## Three first-class application paths
 
 ### Control
