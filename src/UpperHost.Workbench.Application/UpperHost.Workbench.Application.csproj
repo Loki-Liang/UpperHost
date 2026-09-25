@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Application-layer state and navigation model for UpperHost Workbench.</Description>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
