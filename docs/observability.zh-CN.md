@@ -75,7 +75,7 @@ TransportHealthProbe 汇总注册 Transport：Faulted 为 Unhealthy；Opening �
 
 ## Transport 统一注册入口
 
-Starter Transport 和自定义 Provider 应通过 `AddUpperHostTransport<TTransport>()` 注册。该 Composition Seam 统一应用 Observed Transport Pipeline，禁止 Serial/TCP/CAN/BLE/厂商 SDK Provider 各自复制横切包装逻辑。
+Starter Transport 和自定义 Provider 应通过 `AddUpperHostTransport<TTransport>()` 注册。该 Composition Seam 先统一应用 ConnectionManager 物理连接所有权，再叠加可选 Resilience 与 Observed Transport Pipeline，禁止 Serial/TCP/CAN/BLE/厂商 SDK Provider 各自复制生命周期或横切包装逻辑。
 
 ## 自定义后端
 
