@@ -145,7 +145,10 @@ public sealed class ReconnectingTransport : ITransport
         var context = new UpperHostTelemetryContext(
             Transport: Endpoint.Scheme,
             Operation: "reconnect");
-        var tags = UpperHostTelemetry.CreateTags(context);
+        var tags = UpperHostTelemetry.CreateMetricTags(
+            new UpperHostMetricContext(
+                Transport: Endpoint.Scheme,
+                Operation: "reconnect"));
         tags.Add("upperhost.reconnect.attempt", attempt);
         UpperHostTelemetry.ReconnectAttempts.Add(1, tags);
 
@@ -177,8 +180,8 @@ public sealed class ReconnectingTransport : ITransport
         }
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            activity?.SetTag("upperhost.error.type", ex.GetType().FullName);
-            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, ex.Message);
+            activity?.SetTag("error.type", ex.GetType().FullName);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "transport_reconnect_fault");
             throw;
         }
         finally
