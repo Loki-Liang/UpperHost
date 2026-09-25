@@ -39,9 +39,8 @@ public sealed class AlarmService : IAlarmService
         _active[alarm.Id] = alarm;
         UpperHostTelemetry.ActiveAlarms.Add(
             1,
-            UpperHostTelemetry.CreateTags(new UpperHostTelemetryContext(
-                Operation: "alarm.raise",
-                Result: severity.ToString())));
+            UpperHostTelemetry.CreateMetricTags(
+                new UpperHostMetricContext(AlarmSeverity: severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(alarm);
     }
@@ -71,9 +70,8 @@ public sealed class AlarmService : IAlarmService
 
         UpperHostTelemetry.ActiveAlarms.Add(
             -1,
-            UpperHostTelemetry.CreateTags(new UpperHostTelemetryContext(
-                Operation: "alarm.clear",
-                Result: alarm.Severity.ToString())));
+            UpperHostTelemetry.CreateMetricTags(
+                new UpperHostMetricContext(AlarmSeverity: alarm.Severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(true);
     }
