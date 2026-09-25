@@ -31,4 +31,14 @@ UpperHost 不把所有通信方式强行伪装成 byte stream。Provider 必须�
 - `UpperHost.Transport.Ble`：实现 `IMessageTransport<BleMessage>`，保留 Service/Characteristic 与 Notification/Write 等 GATT 边界。
 - `UpperHost.Transport.VendorSdk`：提供字节型 Vendor SDK Adapter，同时明确“SDK 已经是领域 API”时应直接实现 Device Capability，而不是伪装 Transport。
 
+## Vendor SDK 统一决策模板
+
+写 Adapter 前先分类厂商 API：
+
+1. **有序原始字节** → 实现 `IVendorByteSession`，使用 `VendorSdkTransport`。
+2. **离散 Frame / Message API** → Provider 自己定义消息类型，实现 `IMessageTransport<TMessage>`。
+3. **领域 API** → 直接实现 Device Capability，禁止制造虚假的 Transport byte[]。
+
+厂商 Provider 包负责 Native DLL 引用、Handle 生命周期、Callback/线程亲和性规则以及厂商错误码映射；Core 始终保持厂商无关。可复制模板与检查表见 [UpperHost.Transport.VendorSdk](../src/UpperHost.Transport.VendorSdk/README.zh-CN.md)。
+
 每个 Provider 都按独立 GitHub Flow PR 交付，并以 Build/Test 证据闭环。
