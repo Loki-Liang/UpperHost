@@ -38,6 +38,15 @@ The following are therefore out of scope:
 
 If a future task proposes one of these capabilities, it requires a new product decision and explicit change to this boundary.
 
+## Application composition root
+
+The desktop product lives in `apps/UpperHost.Workbench.Wpf`. It is an application composition root, not a reusable platform module:
+
+- it may compose Starters, Presentation and application services;
+- `src/` production modules must never depend back on `apps/`;
+- reusable WPF controls remain in `UpperHost.Presentation.Wpf`;
+- reusable Workbench application state lives in `UpperHost.Workbench.Application`.
+
 ## Workbench scope
 
 The Workbench may provide direct configuration and operation for:
