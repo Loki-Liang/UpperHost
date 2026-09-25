@@ -2,7 +2,7 @@
 
 [简体中文](getting-started.zh-CN.md) | English
 
-This guide is for developers who have never used UpperHost. The goal is to get from an empty machine to a running simulator-backed device application without requiring knowledge of the framework internals.
+This guide is for developers who have never used UpperHost. The goal is to use the scaffold to go from an empty machine to a running simulator-backed upper-computer application without first understanding the runtime internals.
 
 ## 1. What UpperHost is
 
