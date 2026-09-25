@@ -71,7 +71,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
                          Hardware
 ```
 
-The framework owns application lifecycle, configuration, dependency injection, common communication runtime, device registration/discovery, dataflow, diagnostics and extension mechanics. A product owns its device semantics, protocol, command/interlock rules, workflow and product-specific UI.
+The scaffold/runtime owns application lifecycle, configuration, dependency injection, common communication runtime, device registration/discovery, dataflow, diagnostics and extension mechanics. A consumer product owns its device semantics, protocol, command/interlock rules, workflow and product-specific UI.
 
 ## Control path
 
