@@ -69,3 +69,21 @@ dotnet new upperhost -n MyMachine --transport simulator
 Supported baseline transport choices are `simulator`, `serial` and `tcp`. Additional providers should be delivered as separate packages/starters rather than added to the core assembly.
 
 If this is your first UpperHost application, start with [Getting Started](getting-started.md).
+
+## Device packages, descriptors and catalog
+
+A reusable device integration may publish a `DevicePackageDescriptor` in addition to its runtime `IDevice` implementation. The descriptor is runtime-neutral metadata for generated applications, samples, CLI/tooling or product-specific UI. It describes package/device identity, package version, capabilities, supported transports, parameter/command/signal metadata, typed configuration schema, optional simulator/diagnostics metadata and provider/protocol dependencies.
+
+Register a package at composition time:
+
+```csharp
+builder.AddDevicePackage(MyDevicePackage.Descriptor, new MyDevicePackageOptions());
+```
+
+`AddDevicePackage` validates the typed configuration immediately through the package schema. Required values, ranges, allowed values and package-defined cross-field rules report canonical configuration paths and fail before the device is built or I/O starts.
+
+Resolve `IDevicePackageCatalog` after host startup to enumerate installed descriptors or filter them by capability, transport or vendor. For the same package id the highest `System.Version` wins independent of registration order; two different descriptors with the same package id and version fail with `DevicePackageConflictException`.
+
+Secret fields must be modeled as `DeviceSecretReference`. The reference describes only the external source/key; plaintext credentials do not belong in package metadata, normal logs or persisted descriptor data.
+
+The catalog is intentionally not a package manager. It does not download drivers, claim arbitrary hardware can be integrated without code, or introduce a Workbench/low-code dependency. Private protocols, native SDKs and vendor drivers remain provider/device package responsibilities.
