@@ -27,5 +27,6 @@
     <ProjectReference Include="../../src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
     <ProjectReference Include="../../src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
     <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Workbench.Application/UpperHost.Workbench.Application.csproj" />
   </ItemGroup>
 </Project>
