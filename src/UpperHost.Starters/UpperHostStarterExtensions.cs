@@ -25,6 +25,7 @@ public static class UpperHostStarterExtensions
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
         builder.Services.TryAddSingleton<HealthService>();
+        builder.AddConfiguredUpperHostObservability();
         return builder;
     }
 
