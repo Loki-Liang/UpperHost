@@ -97,11 +97,13 @@ public sealed class SerialTransport : ITransport
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        cancellationToken.ThrowIfCancellationRequested();
         EnsureOpen();
 
         var buffer = new byte[_options.ReadBufferSize];
-        while (!cancellationToken.IsCancellationRequested)
+        while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var read = await _channel.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (read == 0)
                 yield break;

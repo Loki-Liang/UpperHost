@@ -72,10 +72,13 @@ public sealed class TcpTransport : ITransport
 
     public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var stream = GetOpenStream();
         var buffer = new byte[_options.ReadBufferSize];
-        while (!cancellationToken.IsCancellationRequested)
+
+        while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var read = await stream.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
             if (read == 0) yield break;
             yield return buffer.AsMemory(0, read).ToArray();
