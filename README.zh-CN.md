@@ -18,7 +18,7 @@
 | 控制 PLC、伺服、温控器、仪器等 | Device Control 路线 |
 | 做自动工站、测试台、设备序列控制 | Automation 路线 |
 | 做 EMG、DAQ、传感器、波形等实时采集 | Acquisition 路线 |
-| 增加 TCP/串口之外的新通信方式 | [扩展 UpperHost](docs/extending.zh-CN.md) |
+| 增加 TCP/串口之外的新通信方式 | [Provider 设计与接入](docs/providers.zh-CN.md) |
 | 理解平台边界 | [架构说明](docs/architecture.zh-CN.md) |
 
 ## 核心架构
