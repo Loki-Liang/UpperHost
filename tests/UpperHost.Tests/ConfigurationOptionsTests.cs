@@ -10,7 +10,7 @@ namespace UpperHost.Tests;
 public sealed class ConfigurationOptionsTests
 {
     [Fact]
-    public void Configured_transport_binds_typed_options()
+    public async Task Configured_transport_binds_typed_options()
     {
         var builder = UpperHostApplication.CreateBuilder();
         builder.Configuration["UpperHost:Transport:Type"] = "Tcp";
@@ -19,9 +19,9 @@ public sealed class ConfigurationOptionsTests
         builder.Configuration["UpperHost:Transport:Tcp:ReadBufferSize"] = "32768";
 
         builder.AddUpperHostApplication();
-        using var scope = builder.Build();
+        await using var app = builder.Build();
 
-        var options = scope.Services
+        var options = app.Services
             .GetRequiredService<IOptions<UpperHostTransportOptions>>()
             .Value;
 
@@ -62,13 +62,13 @@ public sealed class ConfigurationOptionsTests
     }
 
     [Fact]
-    public void Transport_defaults_are_deterministic()
+    public async Task Transport_defaults_are_deterministic()
     {
         var builder = UpperHostApplication.CreateBuilder();
         builder.AddUpperHostApplication();
-        using var scope = builder.Build();
+        await using var app = builder.Build();
 
-        var options = scope.Services
+        var options = app.Services
             .GetRequiredService<IOptions<UpperHostTransportOptions>>()
             .Value;
 
