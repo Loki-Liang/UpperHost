@@ -14,6 +14,7 @@ The canonical required check job IDs are defined in
 
 - `openhands-config`
 - `architecture-governance`
+- `linux-runtime-contract`
 - `build-test-template`
 
 `scripts/validate_main_governance.py` runs inside `openhands-config` and fails
@@ -71,7 +72,7 @@ administrator context, then verify them through the repository ruleset API/UI.
 Before closing Issue #31, retain evidence that:
 
 - an active ruleset targets `main`;
-- the three canonical required checks are configured;
+- the four canonical required checks are configured;
 - strict/freshness behavior is enabled;
 - a PR with a failed required check cannot merge;
 - a PR with a missing required check cannot merge;
