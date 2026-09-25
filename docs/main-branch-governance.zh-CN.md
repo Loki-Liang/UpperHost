@@ -12,7 +12,7 @@
 - `openhands-config`
 - `architecture-governance`
 - `linux-runtime-contract`
-- `build-test-template`
+- `build-test-scaffold`
 
 `scripts/validate_main_governance.py` 在 `openhands-config` 中执行；如果合同与
 `.github/workflows/ci.yml` 漂移，CI 必须失败。
