@@ -27,5 +27,5 @@
   <Project Path="samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj" />
   <Project Path="samples/UpperHost.Sample.DataAcquisition/UpperHost.Sample.DataAcquisition.csproj" />
   <Project Path="tests/UpperHost.Tests/UpperHost.Tests.csproj" />
-  <Project Path="templates/UpperHost.Templates.csproj" />
+  <Project Path="app/UpperHost.App/UpperHost.App.csproj" />
 </Solution>
