@@ -1,4 +1,7 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Hosting;
 using UpperHost.Observability;
@@ -14,127 +17,92 @@ public static class ConfiguredTransportExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var transportType = builder.Configuration["UpperHost:Transport:Type"]?.Trim();
-        if (string.IsNullOrWhiteSpace(transportType))
-            transportType = "Simulator";
+        var section = builder.Configuration.GetSection(UpperHostTransportOptions.SectionName);
 
-        return transportType.ToLowerInvariant() switch
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<UpperHostTransportOptions>, UpperHostTransportOptionsValidator>());
+        builder.Services
+            .AddOptions<UpperHostTransportOptions>()
+            .Bind(section)
+            .ValidateOnStart();
+        builder.Services.TryAddSingleton<UpperHostTransportOptions>(services =>
+            services.GetRequiredService<IOptions<UpperHostTransportOptions>>().Value);
+
+        var options = section.Get<UpperHostTransportOptions>() ?? new UpperHostTransportOptions();
+        EnsureValid(options);
+
+        return options.Type switch
         {
-            "simulator" => builder.AddSimulatorTransport(
-                builder.Configuration["UpperHost:Transport:Simulator:Name"] ?? "default"),
-            "serial" => AddConfiguredSerial(builder),
-            "tcp" => AddConfiguredTcp(builder),
-            _ => throw new InvalidOperationException(
-                $"Unsupported UpperHost transport type '{transportType}'. Registered baseline types are Simulator, Serial and Tcp. Add a provider starter for custom transports.")
+            UpperHostTransportType.Simulator => builder.AddSimulatorTransport(options.Simulator.Name),
+            UpperHostTransportType.Serial => AddConfiguredSerial(builder, options),
+            UpperHostTransportType.Tcp => AddConfiguredTcp(builder, options),
+            _ => throw new OptionsValidationException(
+                nameof(UpperHostTransportOptions),
+                typeof(UpperHostTransportOptions),
+                [$"{UpperHostTransportOptions.SectionName}:Type is unsupported."])
         };
     }
 
     public static UpperHostApplicationBuilder AddUpperHostApplication(this UpperHostApplicationBuilder builder) =>
         builder.AddUpperHostDefaults().AddConfiguredTransport();
 
-    private static UpperHostApplicationBuilder AddConfiguredSerial(UpperHostApplicationBuilder builder)
+    private static UpperHostApplicationBuilder AddConfiguredSerial(
+        UpperHostApplicationBuilder builder,
+        UpperHostTransportOptions options)
     {
-        var options = new SerialTransportOptions(
-            Required(builder, "UpperHost:Transport:Serial:PortName"),
-            PositiveInt(builder, "UpperHost:Transport:Serial:BaudRate", 115200));
-        var resilience = ReadReconnectPolicy(builder);
+        var serial = new SerialTransportOptions(
+            options.Serial.PortName!,
+            options.Serial.BaudRate);
+        var resilience = ToReconnectPolicy(options.Resilience);
 
-        builder.Services.AddSingleton(options);
+        builder.Services.AddSingleton(serial);
         return builder.AddUpperHostTransport(
-            _ => new SerialTransport(options),
-            transport => WrapIfEnabled(transport, resilience));
+            _ => new SerialTransport(serial),
+            transport => WrapIfEnabled(transport, options.Resilience.Enabled, resilience));
     }
 
-    private static UpperHostApplicationBuilder AddConfiguredTcp(UpperHostApplicationBuilder builder)
+    private static UpperHostApplicationBuilder AddConfiguredTcp(
+        UpperHostApplicationBuilder builder,
+        UpperHostTransportOptions options)
     {
-        var options = new TcpTransportOptions(
-            Required(builder, "UpperHost:Transport:Tcp:Host"),
-            Port(builder, "UpperHost:Transport:Tcp:Port", 9000));
-        var resilience = ReadReconnectPolicy(builder);
+        var tcp = new TcpTransportOptions(
+            options.Tcp.Host!,
+            options.Tcp.Port);
+        var resilience = ToReconnectPolicy(options.Resilience);
 
-        builder.Services.AddSingleton(options);
+        builder.Services.AddSingleton(tcp);
         return builder.AddUpperHostTransport(
-            _ => new TcpTransport(options),
-            transport => WrapIfEnabled(transport, resilience));
+            _ => new TcpTransport(tcp),
+            transport => WrapIfEnabled(transport, options.Resilience.Enabled, resilience));
     }
 
-    private static ITransport WrapIfEnabled(ITransport inner, ReconnectConfiguration configuration)
-    {
-        return configuration.Enabled
-            ? new ReconnectingTransport(inner, configuration.Policy)
-            : inner;
-    }
+    private static ITransport WrapIfEnabled(
+        ITransport inner,
+        bool enabled,
+        ReconnectPolicy policy) =>
+        enabled ? new ReconnectingTransport(inner, policy) : inner;
 
-    private static ReconnectConfiguration ReadReconnectPolicy(UpperHostApplicationBuilder builder)
+    private static ReconnectPolicy ToReconnectPolicy(UpperHostResilienceOptions options)
     {
-        var enabled = Boolean(builder, "UpperHost:Transport:Resilience:Enabled", true);
-        var maxAttempts = NonNegativeInt(builder, "UpperHost:Transport:Resilience:MaxAttempts", 5);
-        var initialDelayMs = NonNegativeInt(builder, "UpperHost:Transport:Resilience:InitialDelayMs", 250);
-        var maxDelayMs = NonNegativeInt(builder, "UpperHost:Transport:Resilience:MaximumDelayMs", 5000);
-        var backoff = PositiveDouble(builder, "UpperHost:Transport:Resilience:BackoffFactor", 2.0);
-        var reconnectOnEnd = Boolean(builder, "UpperHost:Transport:Resilience:ReconnectOnEndOfStream", true);
-
         var policy = new ReconnectPolicy(
-            maxAttempts,
-            TimeSpan.FromMilliseconds(initialDelayMs),
-            backoff,
-            TimeSpan.FromMilliseconds(maxDelayMs),
-            reconnectOnEnd);
+            options.MaxAttempts,
+            TimeSpan.FromMilliseconds(options.InitialDelayMs),
+            options.BackoffFactor,
+            TimeSpan.FromMilliseconds(options.MaximumDelayMs),
+            options.ReconnectOnEndOfStream);
         policy.Validate();
-        return new ReconnectConfiguration(enabled, policy);
+        return policy;
     }
 
-    private static string Required(UpperHostApplicationBuilder builder, string key)
+    private static void EnsureValid(UpperHostTransportOptions options)
     {
-        var value = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(value))
-            throw new InvalidOperationException($"Required UpperHost configuration '{key}' is missing.");
-        return value;
-    }
+        var result = new UpperHostTransportOptionsValidator().Validate(Options.DefaultName, options);
+        if (!result.Failed)
+            return;
 
-    private static int PositiveInt(UpperHostApplicationBuilder builder, string key, int fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        return int.TryParse(raw, out var value) && value > 0
-            ? value
-            : throw new InvalidOperationException($"UpperHost configuration '{key}' must be a positive integer.");
+        throw new OptionsValidationException(
+            Options.DefaultName,
+            typeof(UpperHostTransportOptions),
+            result.Failures);
     }
-
-    private static int NonNegativeInt(UpperHostApplicationBuilder builder, string key, int fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        return int.TryParse(raw, out var value) && value >= 0
-            ? value
-            : throw new InvalidOperationException($"UpperHost configuration '{key}' must be a non-negative integer.");
-    }
-
-    private static double PositiveDouble(UpperHostApplicationBuilder builder, string key, double fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        return double.TryParse(raw, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var value) && value >= 1
-            ? value
-            : throw new InvalidOperationException($"UpperHost configuration '{key}' must be a number greater than or equal to 1.");
-    }
-
-    private static bool Boolean(UpperHostApplicationBuilder builder, string key, bool fallback)
-    {
-        var raw = builder.Configuration[key];
-        if (string.IsNullOrWhiteSpace(raw)) return fallback;
-        return bool.TryParse(raw, out var value)
-            ? value
-            : throw new InvalidOperationException($"UpperHost configuration '{key}' must be true or false.");
-    }
-
-    private static int Port(UpperHostApplicationBuilder builder, string key, int fallback)
-    {
-        var value = PositiveInt(builder, key, fallback);
-        return value <= 65535
-            ? value
-            : throw new InvalidOperationException($"UpperHost configuration '{key}' must be in range 1..65535.");
-    }
-
-    private sealed record ReconnectConfiguration(bool Enabled, ReconnectPolicy Policy);
 }
