@@ -10,6 +10,17 @@ permissions:
   contents: read
 
 jobs:
+  openhands-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate OpenHands repository hooks
+        run: bash -n .openhands/setup.sh .openhands/pre-commit.sh
+
+      - name: Validate OpenHands repository skill
+        run: test -s .openhands/skills/repo.md
+
   build-test-template:
     runs-on: windows-latest
     steps:
