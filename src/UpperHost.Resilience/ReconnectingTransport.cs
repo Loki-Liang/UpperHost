@@ -149,7 +149,6 @@ public sealed class ReconnectingTransport : ITransport
             new UpperHostMetricContext(
                 Transport: Endpoint.Scheme,
                 Operation: "reconnect"));
-        tags.Add("upperhost.reconnect.attempt", attempt);
         UpperHostTelemetry.ReconnectAttempts.Add(1, tags);
 
         using var activity = UpperHostTelemetry.StartActivity(
