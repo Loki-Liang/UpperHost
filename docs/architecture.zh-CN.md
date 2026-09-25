@@ -2,7 +2,7 @@
 
 简体中文 | [English](architecture.md)
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和项目模板，用于快速构建具体的工业上位机产品；具体产品语义和 UI 保留在消费 UpperHost 的应用工程中。
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和可直接二开的源码产品工程，用于快速构建具体的工业上位机产品；具体产品语义和 UI 保留在消费 UpperHost 的应用工程中。
 
 ## 稳定平台边界
 
@@ -34,7 +34,7 @@ UpperHost 默认采用模块化单体。各模块应能独立理解、独立测�
 依赖方向总体向内：
 
 ```text
-Samples / Templates / Presentation
+Product App / Samples / Presentation
              |
           Starters
              |
@@ -52,7 +52,7 @@ Samples / Templates / Presentation
 硬规则：
 
 - `UpperHost.Abstractions` 是稳定依赖根，不引用仓库内其他 Project。
-- 生产 Project 禁止引用 Samples、Tests、Templates。
+- 可复用生产模块禁止引用产品 App、Samples、Tests。
 - 非 Presentation 生产模块禁止引用 `UpperHost.Presentation.*`。
 - 生产模块禁止反向依赖 `UpperHost.Starters`；Starters 负责组合模块。
 - 禁止 ProjectReference 环依赖。
@@ -183,7 +183,7 @@ Simulator 是正式开发接缝，不是演示玩具。Fault injection 应支持
 
 ## Device Package 扩展边界
 
-`DevicePackageDescriptor` 是可复用设备集成的稳定发现表面。契约位于 `UpperHost.Abstractions`，`UpperHost.Hosting` 负责进程内 `IDevicePackageCatalog` 实现和启动注册生命周期。这样既保持模块化单体的依赖方向，也允许 Samples、生成应用和具体产品 Tooling 在不访问 Provider 内部实现的前提下发现已安装能力。
+`DevicePackageDescriptor` 是可复用设备集成的稳定发现表面。契约位于 `UpperHost.Abstractions`，`UpperHost.Hosting` 负责进程内 `IDevicePackageCatalog` 实现和启动注册生命周期。这样既保持模块化单体的依赖方向，也允许 产品 App、Samples 和具体产品 Tooling 在不访问 Provider 内部实现的前提下发现已安装能力。
 
 Package 强类型配置使用 `DeviceConfigurationSchema<TConfiguration>` 表达。Schema metadata 可被 Tooling 检查，验证逻辑保持强类型，并支持必填、范围、允许值以及显式跨字段规则。涉及 Secret 的字段只允许保存引用元数据。
 
