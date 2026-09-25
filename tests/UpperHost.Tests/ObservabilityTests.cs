@@ -103,9 +103,11 @@ public sealed class ObservabilityTests
             {
                 logger.LogInformation("observability structured log probe");
                 logger.LogInformation(
-                    "credential probe {Password} {ApiToken}",
+                    "credential probe {Password} {ApiToken} {ConnectionString} {PrivateKey}",
                     "super-secret-value",
-                    "token-secret-value");
+                    "token-secret-value",
+                    "Server=db;Password=connection-secret",
+                    "private-key-secret");
             }
 
             Assert.Contains(
@@ -125,6 +127,8 @@ public sealed class ObservabilityTests
             Assert.Contains("[REDACTED]", contents, StringComparison.Ordinal);
             Assert.DoesNotContain("super-secret-value", contents, StringComparison.Ordinal);
             Assert.DoesNotContain("token-secret-value", contents, StringComparison.Ordinal);
+            Assert.DoesNotContain("connection-secret", contents, StringComparison.Ordinal);
+            Assert.DoesNotContain("private-key-secret", contents, StringComparison.Ordinal);
         }
         finally
         {
@@ -181,8 +185,10 @@ public sealed class ObservabilityTests
         options.Otlp.Enabled = true;
         options.Otlp.Endpoint = "not-an-absolute-uri";
 
-        Assert.Throws<InvalidOperationException>(() =>
+        var error = Assert.Throws<OptionsValidationException>(() =>
             builder.AddUpperHostObservability(options));
+
+        Assert.Contains("UpperHost:Observability:Otlp:Endpoint", error.Message);
     }
 
 
@@ -299,6 +305,21 @@ public sealed class ObservabilityTests
 
         Assert.Equal(2048, options.FileLogging.AsyncBufferSize);
         Assert.Equal(0.25, options.Otlp.TraceSampleRatio);
+    }
+
+    [Fact]
+    public async Task Configured_observability_validate_on_start_rechecks_configuration()
+    {
+        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        builder.AddConfiguredUpperHostObservability();
+
+        builder.Configuration["UpperHost:Observability:Otlp:TraceSampleRatio"] = "2";
+
+        await using var app = builder.Build();
+        var error = await Assert.ThrowsAsync<OptionsValidationException>(() =>
+            app.StartAsync());
+
+        Assert.Contains("UpperHost:Observability:Otlp:TraceSampleRatio", error.Message);
     }
 
     [Fact]
