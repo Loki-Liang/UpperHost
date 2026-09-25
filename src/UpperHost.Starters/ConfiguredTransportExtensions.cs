@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Hosting;
+using UpperHost.Observability;
 using UpperHost.Resilience;
 using UpperHost.Transport.Serial;
 using UpperHost.Transport.Tcp;
@@ -55,10 +56,13 @@ public static class ConfiguredTransportExtensions
         return builder;
     }
 
-    private static ITransport WrapIfEnabled(ITransport inner, ReconnectConfiguration configuration) =>
-        configuration.Enabled
+    private static ITransport WrapIfEnabled(ITransport inner, ReconnectConfiguration configuration)
+    {
+        var transport = configuration.Enabled
             ? new ReconnectingTransport(inner, configuration.Policy)
             : inner;
+        return new ObservedTransport(transport);
+    }
 
     private static ReconnectConfiguration ReadReconnectPolicy(UpperHostApplicationBuilder builder)
     {

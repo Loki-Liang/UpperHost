@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using UpperHost.Abstractions.Diagnostics;
+using UpperHost.Abstractions.Observability;
 
 namespace UpperHost.Diagnostics;
 
@@ -36,6 +37,10 @@ public sealed class AlarmService : IAlarmService
             metadata);
 
         _active[alarm.Id] = alarm;
+        UpperHostTelemetry.ActiveAlarms.Add(
+            1,
+            UpperHostTelemetry.CreateMetricTags(
+                new UpperHostMetricContext(AlarmSeverity: severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(alarm);
     }
@@ -63,6 +68,10 @@ public sealed class AlarmService : IAlarmService
         if (!_active.TryRemove(id, out var alarm))
             return ValueTask.FromResult(false);
 
+        UpperHostTelemetry.ActiveAlarms.Add(
+            -1,
+            UpperHostTelemetry.CreateMetricTags(
+                new UpperHostMetricContext(AlarmSeverity: alarm.Severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(true);
     }

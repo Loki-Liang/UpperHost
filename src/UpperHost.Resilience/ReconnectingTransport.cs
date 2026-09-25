@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+using UpperHost.Abstractions.Observability;
 using UpperHost.Abstractions.Transports;
 
 namespace UpperHost.Resilience;
@@ -141,6 +142,21 @@ public sealed class ReconnectingTransport : ITransport
 
     private async Task ReconnectAsync(int attempt, CancellationToken cancellationToken)
     {
+        var context = new UpperHostTelemetryContext(
+            Transport: Endpoint.Scheme,
+            Operation: "reconnect");
+        var tags = UpperHostTelemetry.CreateMetricTags(
+            new UpperHostMetricContext(
+                Transport: Endpoint.Scheme,
+                Operation: "reconnect"));
+        UpperHostTelemetry.ReconnectAttempts.Add(1, tags);
+
+        using var activity = UpperHostTelemetry.StartActivity(
+            "upperhost.transport.reconnect",
+            System.Diagnostics.ActivityKind.Client,
+            context);
+        activity?.SetTag("upperhost.reconnect.attempt", attempt);
+
         await _reconnectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -159,6 +175,13 @@ public sealed class ReconnectingTransport : ITransport
 
             await Task.Delay(GetDelay(attempt), cancellationToken).ConfigureAwait(false);
             await _inner.OpenAsync(cancellationToken).ConfigureAwait(false);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Ok);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            activity?.SetTag("error.type", ex.GetType().FullName);
+            activity?.SetStatus(System.Diagnostics.ActivityStatusCode.Error, "transport_reconnect_fault");
+            throw;
         }
         finally
         {
