@@ -48,7 +48,7 @@ dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
 dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 ```
 
-这让 OpenHands 在提交前先发现普通 Restore、编译和单元测试错误。最终仍由 GitHub Actions 在 Windows 上执行 Build、Test、NuGet Pack 和生成模板 Smoke Build。
+这让 OpenHands 在提交前先发现普通 Restore、编译和单元测试错误。最终仍由 GitHub Actions 在 Windows 上执行 Build、Test、NuGet Pack 和源码二开应用校验。
 
 ## 密钥
 
