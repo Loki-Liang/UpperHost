@@ -15,7 +15,7 @@ The canonical required check job IDs are defined in
 - `openhands-config`
 - `architecture-governance`
 - `linux-runtime-contract`
-- `build-test-template`
+- `build-test-scaffold`
 
 `scripts/validate_main_governance.py` runs inside `openhands-config` and fails
 when this contract drifts from `.github/workflows/ci.yml`.
