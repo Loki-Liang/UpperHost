@@ -86,9 +86,9 @@ Do not continue from stale CI conclusions or an old branch assumption.
 
 ## Product positioning: upper-computer development scaffold
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, samples and project templates for developers building product-specific industrial upper-computer applications.
+UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, reference samples and a runnable source application scaffold for developers building product-specific industrial upper-computer applications.
 
-Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold. Repository-level feature work must strengthen reusable Runtime, Provider, Template, Sample, Testing or Presentation capabilities that serve the Control, Automation or Acquisition paths.
+Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold. Repository-level feature work must strengthen reusable Runtime, Provider, Starter Application, Sample, Testing or Presentation capabilities that serve the Control, Automation or Acquisition paths.
 
 `UpperHost.Workflows` and `UpperHost.StateMachines` remain code/API runtime modules.
 
@@ -101,11 +101,11 @@ UpperHost is a **modular monolith by default**: one deployable application/proce
 ### Module dependency rules
 
 1. `UpperHost.Abstractions` is the stable dependency root and must not reference another repository project.
-2. Platform modules such as Control, Protocols, Dataflow, Workflows, StateMachines, Events, Resilience, Diagnostics and Testing expose narrow public contracts and must not depend on Presentation, Samples, Tests or Templates.
+2. Platform modules such as Control, Protocols, Dataflow, Workflows, StateMachines, Events, Resilience, Diagnostics and Testing expose narrow public contracts and must not depend on Presentation, the product App, Samples or Tests.
 3. `UpperHost.Transport.*` and storage/provider packages are infrastructure adapters. They depend inward on stable contracts and must not push vendor/native concepts into Core.
 4. `UpperHost.Presentation.*` is an outer adapter. Production modules must never depend back on presentation projects.
 5. `UpperHost.Starters` is a composition/convenience module. Other production modules must not depend back on it.
-6. `samples/`, `tests/` and `templates/` may compose production modules; production modules never reference them.
+6. `app/`, `samples/` and `tests/` may compose production modules; production modules never reference them.
 7. ProjectReference cycles are forbidden.
 8. Cross-module behavior uses public capabilities/contracts/events. Do not reach into another module's internals, use reflection to bypass boundaries, or create hidden static coupling.
 9. Keep public APIs minimal. Types are internal/private unless another module genuinely needs the contract.
@@ -123,7 +123,7 @@ The executable project-reference guard is `scripts/validate_architecture.py` and
 - **Observability:** use structured logs, health and metrics at meaningful boundaries; never log secrets or raw sensitive credentials.
 - **Concurrency:** shared mutable state requires an explicit synchronization/ownership model. Queues/channels must be bounded unless an unbounded design is explicitly justified.
 - **Dependencies:** adding a NuGet/native dependency requires a reason and correct module placement. Core abstractions stay free of vendor SDK dependencies.
-- **Compatibility:** treat public contracts and templates as versioned surfaces. Breaking changes require explicit migration/documentation and corresponding tests.
+- **Compatibility:** treat public contracts, configuration contracts and the starter application structure as versioned surfaces. Breaking changes require explicit migration/documentation and corresponding tests.
 - **Code shape:** prefer cohesive small types and explicit responsibilities; reject God classes, utility dumping grounds, duplicated protocol logic and copy-pasted provider implementations.
 - **Testing:** each module owns unit tests for its behavior; add integration/contract tests for module/provider boundaries and simulator/fault tests for hardware-dependent behavior.
 
