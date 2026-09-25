@@ -59,7 +59,7 @@ dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 给 OpenHands 分配 Issue 时可使用以下闭环要求：
 
 ```text
-基于最新 main 完成此 Issue。修改前先读取 .openhands/skills/repo.md。
+基于最新 main 完成此 Issue。修改前先读取 AGENTS.md 和 .openhands/skills/repo.md。
 保持现有架构边界，生产实现与对应测试一起提交。
 先跑 focused validation，再跑仓库 pre-commit 门禁；失败时从首个可行动错误继续修复，
 不要重复从头跑已经通过的步骤。最后 Review diff，并把分支/PR 推进到可合并状态，
