@@ -183,3 +183,11 @@ The core does not depend on WPF. `UpperHost.Presentation.Wpf` is an adapter and 
 ## Testing
 
 The simulator transport is a production-grade development seam, not a demo shortcut. `UpperHost.Testing` adds deterministic fault injection for latency, loss and failures so communication behavior can be exercised without physical hardware.
+
+## Device package extensibility
+
+`DevicePackageDescriptor` is the stable discovery surface for reusable device integrations. The contract lives in `UpperHost.Abstractions`; `UpperHost.Hosting` owns the in-process `IDevicePackageCatalog` implementation and startup registration lifecycle. This preserves the modular-monolith dependency direction while allowing samples, generated applications and product-specific tooling to discover installed capabilities without reaching into provider internals.
+
+Typed package configuration is represented by `DeviceConfigurationSchema<TConfiguration>`. Schema metadata is inspectable, while validation remains strongly typed and supports required/range/allowed-value rules plus explicit cross-field validation. Secret-bearing fields use reference metadata only.
+
+Catalog conflict resolution is deterministic: one active descriptor exists per package id, the highest package version is active, and an ambiguous same-id/same-version registration is rejected. The catalog has no download/install responsibility and does not create a Workbench, visual node graph or generic low-code boundary.

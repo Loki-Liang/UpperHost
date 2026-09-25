@@ -180,3 +180,11 @@ Core 不依赖 WPF。`UpperHost.Presentation.Wpf` 是适配器。未来 WinUI、
 ## Testing
 
 Simulator 是正式开发接缝，不是演示玩具。Fault injection 应支持延迟、丢失、异常等可重复故障，使没有真实硬件时也能验证通信和应用行为。
+
+## Device Package 扩展边界
+
+`DevicePackageDescriptor` 是可复用设备集成的稳定发现表面。契约位于 `UpperHost.Abstractions`，`UpperHost.Hosting` 负责进程内 `IDevicePackageCatalog` 实现和启动注册生命周期。这样既保持模块化单体的依赖方向，也允许 Samples、生成应用和具体产品 Tooling 在不访问 Provider 内部实现的前提下发现已安装能力。
+
+Package 强类型配置使用 `DeviceConfigurationSchema<TConfiguration>` 表达。Schema metadata 可被 Tooling 检查，验证逻辑保持强类型，并支持必填、范围、允许值以及显式跨字段规则。涉及 Secret 的字段只允许保存引用元数据。
+
+Catalog 冲突策略必须确定：每个 package id 只有一个 active Descriptor，最高 package version 生效；相同 id + version 的歧义注册直接拒绝。Catalog 不承担下载/安装职责，也不建立 Workbench、可视化节点图或通用低代码边界。

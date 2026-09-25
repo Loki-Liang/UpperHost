@@ -87,3 +87,21 @@ tcp
 其他 Provider 应独立交付，不修改 Core assembly。
 
 第一次使用请先阅读：[零基础入门](getting-started.zh-CN.md)。
+
+## Device Package、Descriptor 与 Catalog
+
+可复用设备集成除了运行时 `IDevice` 实现外，还可以发布 `DevicePackageDescriptor`。Descriptor 是面向生成应用、Samples、CLI/Tooling 或具体产品 UI 的运行时无关元数据，描述 package/device 标识、package 版本、能力、支持的 Transport、Parameter/Command/Signal 元数据、强类型配置 Schema、可选 Simulator/Diagnostics 元数据以及 Provider/Protocol 依赖。
+
+在组合阶段注册 Package：
+
+```csharp
+builder.AddDevicePackage(MyDevicePackage.Descriptor, new MyDevicePackageOptions());
+```
+
+`AddDevicePackage` 会立即通过 Package Schema 验证强类型配置。必填、范围、枚举/允许值以及 Package 自定义跨字段约束都必须返回 canonical configuration path；非法配置会在 Device 构建或任何 I/O 开始前 fail-fast。
+
+Host 启动后可解析 `IDevicePackageCatalog`，枚举已安装 Descriptor，或按 capability、transport、vendor 查询。同一个 package id 按 `System.Version` 确定性选择最高版本，与注册顺序无关；相同 package id + version 出现不同 Descriptor 时抛出 `DevicePackageConflictException`。
+
+Secret 字段必须使用 `DeviceSecretReference`，只描述外部 Secret 的来源和 key；明文凭据不得进入 Package metadata、普通日志或持久化 Descriptor 数据。
+
+Catalog 明确不是 Package Manager：不负责下载 Driver，不宣称任意硬件可以无代码接入，也不引入 Workbench/低代码依赖。私有协议、Native SDK、Vendor Driver 仍由 Provider/Device Package 扩展实现。

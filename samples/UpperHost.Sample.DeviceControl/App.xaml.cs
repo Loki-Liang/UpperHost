@@ -22,6 +22,9 @@ public partial class App : Application
         base.OnStartup(e);
 
         var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHost();
+        builder.AddDevicePackage(
+            TemperatureControllerPackage.Descriptor,
+            new TemperatureControllerPackageOptions());
 
         builder.Services.AddSingleton(_ => new SimulatorTransport("temperature-controller"));
         builder.Services.AddSingleton<ITransport>(sp => sp.GetRequiredService<SimulatorTransport>());
