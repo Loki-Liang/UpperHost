@@ -48,7 +48,7 @@ dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
 dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 ```
 
-This gives OpenHands fast compile/test feedback before code is pushed. The final GitHub Actions gate still performs the Windows build, full tests, NuGet packing, and generated-template smoke build.
+This gives OpenHands fast compile/test feedback before code is pushed. The final GitHub Actions gate still performs the Windows build, full tests, NuGet packing, and source-scaffold application validation.
 
 ## Secrets
 
