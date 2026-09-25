@@ -192,7 +192,14 @@ UpperHost 提供统一 Observability 基线：
 ```csharp
 public sealed class RobotHealthProbe : IHealthProbe
 {
-    // 实现产品设备健康判断
+    public string Name => "robot";
+
+    public Task<HealthReport> CheckAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new HealthReport(
+            Name,
+            HealthStatus.Healthy,
+            "Robot is ready."));
 }
 
 builder.Services.AddSingleton<IHealthProbe, RobotHealthProbe>();
@@ -222,7 +229,13 @@ Hosted Service 必须：
 ```csharp
 public sealed class TemperatureController : IDevice
 {
-    // Device identity / state
+    public DeviceDescriptor Descriptor { get; } =
+        new("temp-01", "Temperature Controller");
+
+    public DeviceState State { get; private set; } = DeviceState.Offline;
+
+    public IReadOnlyCollection<string> Capabilities { get; } =
+        ["connect", "command", "parameter"];
 }
 ```
 
