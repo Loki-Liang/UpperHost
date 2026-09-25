@@ -30,35 +30,47 @@ dotnet --info
 git --version
 ```
 
-## 3. 先确认 UpperHost 本身能构建
+## 3. 拉取脚手架并直接运行
+
+UpperHost 采用源码直接二开的使用方式。仓库本身就是产品工程骨架，不要求先构建框架、打包模板或生成第二个项目。
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git
-cd UpperHost
-dotnet restore UpperHost.slnx
-dotnet build UpperHost.slnx -c Release
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release
+git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+cd MyDeviceApp
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-如果这里失败，先解决 SDK/环境问题，不要急着写设备代码。
+第一次运行默认使用 Simulator。看到 UpperHost WPF 窗口，说明 Hosting、DI、Configuration、Observability 和基础 Transport Starter 已经接通。
 
-## 4. 安装项目模板
+如果这是你自己的产品仓库，随后把 Git remote 指向自己的仓库并继续开发即可。UpperHost 的推荐职责边界是：
 
-```powershell
-dotnet pack templates/UpperHost.Templates.csproj -c Release -o artifacts/packages
-dotnet new install artifacts/packages/UpperHost.Templates.0.1.0-alpha.1.nupkg
+```text
+app/UpperHost.App/
+  产品启动、产品 UI、产品组合根
+
+src/UpperHost.*/
+  跨项目可复用的 Runtime、Provider、基础设施
+
+samples/
+  Control / Automation / Acquisition 参考实现
 ```
 
-建议在 UpperHost 仓库外创建第一个项目：
+## 4. 从产品入口开始二开
 
-```powershell
-cd ..
-dotnet new upperhost -n MyFirstUpperHostApp --transport simulator
-cd MyFirstUpperHostApp
-dotnet run
+不要先修改 Runtime。优先在 `app/UpperHost.App` 的产品边界内组织你的业务代码，例如：
+
+```text
+app/UpperHost.App/
+├─ Devices/
+├─ Protocols/
+├─ Workflows/
+├─ Acquisition/
+├─ Presentation/
+├─ App.xaml.cs
+└─ appsettings.json
 ```
 
-能看到生成的 WPF 窗口，说明 Hosting、DI、Configuration 和基础 Transport Starter 已经接通。
+只有某项能力确定能够跨多个产品复用时，才把它抽到对应的 `src/UpperHost.*` 模块。
 
 ## 5. 写代码前只需要先理解 5 个概念
 
