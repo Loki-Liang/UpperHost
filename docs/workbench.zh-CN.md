@@ -38,6 +38,15 @@ UpperHost **不建设**可视化 Workflow Editor、节点图、拖拽连线编�
 
 未来若要引入以上任一能力，必须重新做产品决策并显式修改本边界，不能在普通 Feature 中顺带加入。
 
+## 应用组合根
+
+桌面主产品位于 `apps/UpperHost.Workbench.Wpf`。它属于 Application Composition Root，不是可复用平台模块：
+
+- 可以组合 Starters、Presentation 和 Application Service；
+- `src/` 生产模块禁止反向依赖 `apps/`；
+- 可复用 WPF 控件继续保留在 `UpperHost.Presentation.Wpf`；
+- 可复用 Workbench Application State 放在 `UpperHost.Workbench.Application`。
+
 ## Workbench 范围
 
 Workbench 可以直接提供：
