@@ -20,9 +20,9 @@ Use these stable fields where they apply: DeviceId, ConnectionId, SessionId, Com
 
 Never put passwords, tokens, device secrets, signing keys or raw credentials in observability fields.
 
-## Generated application defaults
+## Source scaffold application defaults
 
-The generated project enables structured rolling file logging and leaves OTLP disabled.
+The runnable source scaffold application enables structured rolling file logging and leaves OTLP disabled.
 
 ~~~json
 {
