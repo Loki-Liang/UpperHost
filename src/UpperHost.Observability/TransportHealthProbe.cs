@@ -32,7 +32,7 @@ public sealed class TransportHealthProbe : IHealthProbe
 
         var status = faulted > 0
             ? HealthStatus.Unhealthy
-            : opening > 0
+            : opening > 0 || closed > 0
                 ? HealthStatus.Degraded
                 : HealthStatus.Healthy;
 
@@ -40,7 +40,9 @@ public sealed class TransportHealthProbe : IHealthProbe
             ? $"{faulted} transport(s) are faulted."
             : opening > 0
                 ? $"{opening} transport(s) are opening."
-                : "Transport states are healthy.";
+                : closed > 0
+                    ? $"{closed} transport(s) are closed."
+                    : "All registered transports are open.";
 
         IReadOnlyDictionary<string, object?> data = new Dictionary<string, object?>
         {
