@@ -19,8 +19,8 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | Goal | Entry point |
 | --- | --- |
 | First time using UpperHost | [Getting Started](docs/getting-started.md) |
-| Understand platform boundaries | [Architecture](docs/architecture.md) |
-| Understand the end-user Workbench product | [Workbench product boundary](docs/workbench.md) |
+| Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
+| Understand architecture boundaries | [Architecture](docs/architecture.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
