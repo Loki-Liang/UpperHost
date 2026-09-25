@@ -75,7 +75,7 @@ When async file logging is enabled, `AsyncLogBufferMonitor` exposes queue utiliz
 
 ## Transport registration
 
-Starter transports and custom providers should be registered through `AddUpperHostTransport<TTransport>()`. This is the composition seam that applies the common observed transport pipeline consistently instead of requiring every Serial/TCP/CAN/BLE/vendor provider to remember observability wrapping independently.
+Starter transports and custom providers should be registered through `AddUpperHostTransport<TTransport>()`. This composition seam first applies ConnectionManager physical-lifecycle ownership, then optional resilience, then the common observed transport pipeline, instead of requiring every Serial/TCP/CAN/BLE/vendor provider to copy lifecycle or observability wrappers independently.
 
 ## Custom backends
 
