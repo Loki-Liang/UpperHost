@@ -25,6 +25,34 @@ Transport 只负责连接和字节传输。以下内容不要放进 Transport：
 
 新的 USB/CAN/BLE/厂商 SDK 连接方式应作为独立 Provider/Starter package 发布。
 
+## 复用 Provider Contract 与 Fault Test Kit
+
+依赖硬件的 Provider 应直接复用 `UpperHost.Testing`，不要让每个二开产品重新造一套测试基础设施。
+
+给任意 `ITransport` 套用确定性故障配置：
+
+```csharp
+var transport = new SimulatorTransport()
+    .UseFaultProfile(new TransportFaultProfile(
+        "disconnect-after-first-send",
+        Seed: 42,
+        DisconnectAfterSend: 1,
+        FailReconnectAttempts: 1));
+```
+
+Profile 以操作计数/seed 为可复现依据，支持确定性 latency、timeout、send/receive failure、command reject、disconnect/reconnect failure、丢输入、数据破坏与 receive 分片。故障诊断会带上 profile 名、seed、endpoint 和操作序号。Latency 使用 `TimeProvider`，测试可推进虚拟时间，不需要用 `Thread.Sleep` 猜时序。
+
+第一方或第三方字节流 Provider 在自己的测试项目实现 `ITransportContractFixture`，然后执行同一套公共契约：
+
+```csharp
+await TransportContractTestKit.VerifyAsync(
+    cancellationToken => CreateMyProviderFixtureAsync(cancellationToken));
+```
+
+公共 Contract 校验 open/close/reopen 生命周期、send/receive 语义、取消、确定性释放与资源所有权。UpperHost 自己会让 Simulator、TCP loopback、Serial 测试通道运行同一 Contract。Simulator、loopback、fake-channel 只能算自动化测试证据，绝不能写成真实硬件验证结果。
+
+Serial 的 `ISerialByteChannel` 是 `SerialTransport` 的 Provider 专属测试/适配 seam。产品代码默认仍使用 `System.IO.Ports`；测试可注入确定性的内存通道，不需要污染 `UpperHost.Abstractions`。
+
 ## 增加 Protocol
 
 实现 `ICommandEncoder<TCommand>` 和/或 `IMessageDecoder<TMessage>`。
