@@ -79,5 +79,5 @@ Before closing Issue #31, retain evidence that:
 - direct push / force push / deletion behavior matches the policy;
 - the documented check names match current workflow job IDs.
 
-Future release gates such as External Consumer E2E and Public API Compatibility
+Future release gates such as Source-Scaffold E2E and Public API Compatibility
 must be added to the policy and active ruleset when their issues are completed.
