@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using UpperHost.Abstractions.Devices;
+using UpperHost.Abstractions.Observability;
 
 namespace UpperHost.Control.Commands;
 
@@ -64,6 +65,13 @@ public sealed class CommandRuntime<TCommand, TResult>
             throw new ArgumentOutOfRangeException(nameof(options), "Command timeout must be greater than zero.");
 
         var executionId = Guid.NewGuid().ToString("N");
+        using var activity = UpperHostTelemetry.StartActivity(
+            "upperhost.command.execute",
+            ActivityKind.Internal,
+            new UpperHostTelemetryContext(
+                CommandId: executionId,
+                Operation: typeof(TCommand).Name));
+
         var timer = Stopwatch.StartNew();
         using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeoutCts.CancelAfter(options.Timeout);
@@ -76,63 +84,117 @@ public sealed class CommandRuntime<TCommand, TResult>
                 if (!decision.Allowed)
                 {
                     timer.Stop();
-                    return new CommandExecutionResult<TResult>(
+                    return Complete(
                         executionId,
                         CommandExecutionStatus.Rejected,
                         default,
                         decision.Code ?? "command_rejected",
                         decision.Message ?? $"Command rejected by guard '{guard.Name}'.",
                         null,
-                        timer.Elapsed);
+                        timer.Elapsed,
+                        activity);
                 }
             }
 
             var value = await _target.ExecuteAsync(command, timeoutCts.Token).ConfigureAwait(false);
             timer.Stop();
-            return new CommandExecutionResult<TResult>(
+            return Complete(
                 executionId,
                 CommandExecutionStatus.Succeeded,
                 value,
                 null,
                 null,
                 null,
-                timer.Elapsed);
+                timer.Elapsed,
+                activity);
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {
             timer.Stop();
-            return new CommandExecutionResult<TResult>(
+            return Complete(
                 executionId,
                 CommandExecutionStatus.Cancelled,
                 default,
                 "command_cancelled",
                 "Command execution was cancelled.",
                 ex,
-                timer.Elapsed);
+                timer.Elapsed,
+                activity);
         }
         catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested)
         {
             timer.Stop();
-            return new CommandExecutionResult<TResult>(
+            return Complete(
                 executionId,
                 CommandExecutionStatus.TimedOut,
                 default,
                 "command_timeout",
                 $"Command did not complete within {options.Timeout}.",
                 ex,
-                timer.Elapsed);
+                timer.Elapsed,
+                activity);
         }
         catch (Exception ex)
         {
             timer.Stop();
-            return new CommandExecutionResult<TResult>(
+            return Complete(
                 executionId,
                 CommandExecutionStatus.Faulted,
                 default,
                 "command_fault",
                 ex.Message,
                 ex,
-                timer.Elapsed);
+                timer.Elapsed,
+                activity);
         }
+    }
+
+    private static CommandExecutionResult<TResult> Complete(
+        string executionId,
+        CommandExecutionStatus status,
+        TResult? value,
+        string? code,
+        string? message,
+        Exception? exception,
+        TimeSpan duration,
+        Activity? activity)
+    {
+        var context = new UpperHostTelemetryContext(
+            CommandId: executionId,
+            Operation: typeof(TCommand).Name,
+            Result: status.ToString(),
+            ErrorCode: code);
+        var tags = UpperHostTelemetry.CreateTags(context);
+
+        UpperHostTelemetry.CommandExecutions.Add(1, tags);
+        UpperHostTelemetry.CommandDurationMilliseconds.Record(duration.TotalMilliseconds, tags);
+        if (status != CommandExecutionStatus.Succeeded)
+            UpperHostTelemetry.CommandFailures.Add(1, tags);
+
+        if (activity is not null)
+        {
+            activity.SetTag("upperhost.result", status.ToString());
+            activity.SetTag("upperhost.error.code", code);
+            activity.SetTag("upperhost.elapsed_ms", duration.TotalMilliseconds);
+            if (exception is not null)
+                activity.SetTag("upperhost.error.type", exception.GetType().FullName);
+
+            activity.SetStatus(
+                status == CommandExecutionStatus.Succeeded
+                    ? ActivityStatusCode.Ok
+                    : status == CommandExecutionStatus.Cancelled
+                        ? ActivityStatusCode.Unset
+                        : ActivityStatusCode.Error,
+                message);
+        }
+
+        return new CommandExecutionResult<TResult>(
+            executionId,
+            status,
+            value,
+            code,
+            message,
+            exception,
+            duration);
     }
 }
