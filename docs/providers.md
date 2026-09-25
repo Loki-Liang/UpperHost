@@ -31,4 +31,14 @@ UpperHost supports more than byte-stream transports. Provider design must preser
 - `UpperHost.Transport.Ble`: BLE GATT message transport implementing `IMessageTransport<BleMessage>`.
 - `UpperHost.Transport.VendorSdk`: adapter pattern for byte-oriented vendor SDK sessions plus guidance for SDKs that should map directly to Device capabilities.
 
+## Vendor SDK decision template
+
+Classify the vendor API before writing an adapter:
+
+1. **Raw ordered bytes** → implement `IVendorByteSession` and use `VendorSdkTransport`.
+2. **Discrete frame/message API** → define the provider-owned message type and implement `IMessageTransport<TMessage>`.
+3. **Domain API** → implement Device capabilities directly; do not create fake transport bytes.
+
+The vendor package owns native DLL references, handle lifetime, callback/thread-affinity rules and vendor error mapping. Core remains vendor-neutral. See [UpperHost.Transport.VendorSdk](../src/UpperHost.Transport.VendorSdk/README.md) for the reusable template and checklist.
+
 Each concrete provider is delivered in its own GitHub Flow PR with build/test evidence.
