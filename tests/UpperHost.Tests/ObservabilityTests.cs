@@ -108,6 +108,10 @@ public sealed class ObservabilityTests
                     "token-secret-value");
             }
 
+            Assert.Contains(
+                app.Services.GetServices<IHealthProbe>(),
+                probe => probe.Name == "upperhost.logging.async_buffer");
+
             await app.DisposeAsync();
 
             var files = Directory.GetFiles(directory, "upperhost-*.json");
@@ -121,9 +125,6 @@ public sealed class ObservabilityTests
             Assert.Contains("[REDACTED]", contents, StringComparison.Ordinal);
             Assert.DoesNotContain("super-secret-value", contents, StringComparison.Ordinal);
             Assert.DoesNotContain("token-secret-value", contents, StringComparison.Ordinal);
-            Assert.Contains(
-                app.Services.GetServices<IHealthProbe>(),
-                probe => probe.Name == "upperhost.logging.async_buffer");
         }
         finally
         {
