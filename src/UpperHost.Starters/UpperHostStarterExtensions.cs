@@ -4,6 +4,7 @@ using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Storage;
 using UpperHost.Abstractions.Transports;
+using UpperHost.Connections;
 using UpperHost.Diagnostics;
 using UpperHost.Events;
 using UpperHost.Hosting;
@@ -21,6 +22,7 @@ public static class UpperHostStarterExtensions
     public static UpperHostApplicationBuilder AddUpperHostDefaults(this UpperHostApplicationBuilder builder)
     {
         builder.AddUpperHost();
+        builder.Services.AddUpperHostConnections();
         builder.Services.TryAddSingleton<WorkflowRunner>();
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();

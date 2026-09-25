@@ -86,6 +86,26 @@ PLC、相机、运动控制器、实验仪器和生物信号采集设备不应�
 
 注册到 DI 的 `IDevice` 会在 Generic Host 启动后进入 `IDeviceRegistry`。`IDeviceDiscoveryService` 聚合各个 `IDeviceDiscoverer` Provider，Core 不需要知道厂商发现协议。
 
+## Connection 物理连接所有权
+
+物理连接生命周期统一由 `IConnectionManager` 协调。连接使用稳定 `ConnectionId` 与 `TransportEndpoint` 标识，消费者通过 Shared 或 Exclusive Lease 使用连接。
+
+Starter 的权威链路为：
+
+```text
+Provider/raw Transport
+  -> ConnectionManagedTransport
+  -> optional Resilience/ReconnectingTransport
+  -> ObservedTransport
+  -> Device / Protocol / Application consumer
+```
+
+第一个 Lease 获取时 Manager 打开底层 Transport，最后一个 Lease 释放后关闭底层 Transport；Exclusive Connection 存在活跃 Lease 时必须拒绝第二个 Lease。Lease 只允许数据收发，禁止消费者绕过 Manager 直接 Open/Close 物理 Transport。
+
+DI Container 负责 Transport 对象本身的生命周期，`IConnectionManager` 负责物理 Open/Close Handle 生命周期，从而避免双重 Dispose，同时保证退出时确定性关闭。使用 Managed Runtime 路径时，Device、Workflow、Presentation 禁止自行创建或缓存竞争性的 Serial/TCP/USB/Native Handle。
+
+Connection Trace 可以携带 `ConnectionId` 做关联；Metrics 必须保持低基数，禁止把 Connection/Session/Request ID 作为 Metric Attribute。
+
 ## Command / Request-Response
 
 控制设备通常走 Request/Response：

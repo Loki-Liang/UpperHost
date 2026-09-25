@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using UpperHost.Abstractions.Connections;
 using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Transports;
@@ -26,6 +27,7 @@ public sealed class AutoConfigurationTests
         Assert.Equal(simulator.Endpoint, transport.Endpoint);
         Assert.NotNull(app.Services.GetRequiredService<IEventBus>());
         Assert.NotNull(app.Services.GetRequiredService<IAlarmService>());
+        Assert.NotNull(app.Services.GetRequiredService<IConnectionManager>());
     }
 
     [Fact]

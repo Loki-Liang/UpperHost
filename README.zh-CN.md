@@ -90,6 +90,7 @@ UpperHost 脚手架负责：
 - 应用生命周期、配置、DI、日志。
 - 设备注册与发现。
 - Transport、Protocol 公共运行时。
+- `IConnectionManager` 通过 Shared/Exclusive Lease 统一管理物理连接 Open/Close，避免 Device、Workflow、UI 争用同一个 Serial/TCP/USB/Native Handle。
 - Command/Streaming 的公共基础设施。
 - Workflow、State Machine、Event、Alarm、Diagnostics。
 - 企业级 Observability：结构化日志 Scope、滚动 JSON 文件日志、Metrics、Tracing、Transport Health、可选 OpenTelemetry OTLP。

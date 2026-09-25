@@ -90,6 +90,26 @@ Any `IDevice` registered in DI is automatically added to `IDeviceRegistry` when 
 
 `AddUpperHostApplication()` installs the platform defaults and selects a baseline transport from `UpperHost:Transport:Type`. Invalid mandatory values fail during bootstrap with the exact configuration key. Custom transports remain explicit provider starters and never require changes to the core.
 
+## Connection ownership
+
+Physical connection lifetime is coordinated by `IConnectionManager`. A connection is identified by a stable `ConnectionId` and `TransportEndpoint`, and consumers acquire either shared or exclusive leases.
+
+The canonical starter pipeline is:
+
+```text
+Provider/raw Transport
+  -> ConnectionManagedTransport
+  -> optional Resilience/ReconnectingTransport
+  -> ObservedTransport
+  -> Device / Protocol / Application consumer
+```
+
+The manager opens the underlying transport for the first lease and closes it after the last lease is released. Exclusive connections reject concurrent leases. A lease exposes data transfer but does not allow consumers to bypass the manager by directly opening or closing the physical transport.
+
+The DI container owns the transport object lifetime; `IConnectionManager` owns the physical Open/Close handle lifecycle. This prevents double-disposal while keeping shutdown deterministic. Device, Workflow and Presentation code must not create or cache competing physical Serial/TCP/USB/native handles when using the managed runtime path.
+
+Connection lifecycle tracing may contain `ConnectionId` for correlation. Metrics must stay low-cardinality and therefore must not use connection/session/request identifiers as metric attributes.
+
 ## Command and request/response runtime
 
 Control workloads normally follow this path:
