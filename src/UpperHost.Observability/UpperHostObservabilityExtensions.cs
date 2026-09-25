@@ -22,13 +22,19 @@ public static class UpperHostObservabilityExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
 
-        var options = new UpperHostObservabilityOptions();
         var section = builder.Configuration
             .GetSection(UpperHostObservabilityOptions.SectionName);
 
-        section.Bind(options);
-        section.GetSection("Logging:File").Bind(options.FileLogging);
-        section.GetSection("Otlp").Bind(options.Otlp);
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<UpperHostObservabilityOptions>, UpperHostObservabilityOptionsValidator>());
+        builder.Services
+            .AddOptions<UpperHostObservabilityOptions>()
+            .Bind(section)
+            .ValidateOnStart();
+
+        var options = section.Get<UpperHostObservabilityOptions>()
+            ?? new UpperHostObservabilityOptions();
+        options.Validate();
 
         return builder.AddUpperHostObservability(options);
     }
@@ -41,6 +47,8 @@ public static class UpperHostObservabilityExtensions
         ArgumentNullException.ThrowIfNull(options);
         options.Validate();
 
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<UpperHostObservabilityOptions>, UpperHostObservabilityOptionsValidator>());
         builder.Services.TryAddSingleton(options);
         builder.Services.TryAddSingleton<IOptions<UpperHostObservabilityOptions>>(
             Options.Create(options));
