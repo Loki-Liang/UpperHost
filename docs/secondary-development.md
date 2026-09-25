@@ -147,7 +147,25 @@ UpperHost provides a common observability baseline:
 - `IHealthProbe` / `HealthService`.
 - Common observation points for transports, commands, reconnects, alarms and streams.
 
-Register product health through `IHealthProbe`. Keep metric attributes low-cardinality; per-execution identifiers belong in logs/traces rather than metric labels.
+Register product health through `IHealthProbe`:
+
+```csharp
+public sealed class RobotHealthProbe : IHealthProbe
+{
+    public string Name => "robot";
+
+    public Task<HealthReport> CheckAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new HealthReport(
+            Name,
+            HealthStatus.Healthy,
+            "Robot is ready."));
+}
+
+builder.Services.AddSingleton<IHealthProbe, RobotHealthProbe>();
+```
+
+Keep metric attributes low-cardinality; per-execution identifiers belong in logs/traces rather than metric labels.
 
 ## 7. Hosted services
 
@@ -162,6 +180,21 @@ Hosted services must honor cancellation, stop deterministically and avoid unmana
 ## 8. Device extension
 
 Implement a small `IDevice` and add only the capabilities the hardware supports:
+
+```csharp
+public sealed class TemperatureController : IDevice
+{
+    public DeviceDescriptor Descriptor { get; } =
+        new("temp-01", "Temperature Controller");
+
+    public DeviceState State { get; private set; } = DeviceState.Offline;
+
+    public IReadOnlyCollection<string> Capabilities { get; } =
+        ["connect", "command", "parameter"];
+}
+```
+
+Then compose the hardware-specific capabilities:
 
 ```text
 TemperatureController
