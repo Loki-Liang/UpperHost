@@ -2,7 +2,7 @@
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is a **general device-application platform**, not a framework for one industry, hardware category or acquisition workload.
+UpperHost is a **general device-application platform**, not a framework for one industry, hardware category or acquisition workload. The primary end-user product surface is UpperHost Workbench; Workbench reuses the same runtime and explicitly does not introduce visual workflow orchestration or a generic low-code engine.
 
 ## Stable platform boundary
 
