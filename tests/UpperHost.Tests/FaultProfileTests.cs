@@ -215,7 +215,7 @@ public sealed class FaultProfileTests
 
         await using var enumerator = transport.ReceiveAsync().GetAsyncEnumerator();
         var exception = await Assert.ThrowsAsync<FaultInjectedException>(
-            async () => await enumerator.MoveNextAsync());
+            async () => { await enumerator.MoveNextAsync(); });
 
         Assert.Equal(expectedKind, exception.Kind);
         Assert.Contains(profile.Name, exception.Message);

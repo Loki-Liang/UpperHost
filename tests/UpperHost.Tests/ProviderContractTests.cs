@@ -81,7 +81,7 @@ public sealed class ProviderContractTests
             _listener.Start();
             var endpoint = (IPEndPoint)_listener.LocalEndpoint;
             _transport = new TcpTransport(new TcpTransportOptions("127.0.0.1", endpoint.Port, 1024));
-            _acceptTask = _listener.AcceptTcpClientAsync().AsTask();
+            _acceptTask = _listener.AcceptTcpClientAsync(CancellationToken.None).AsTask();
         }
 
         public string Name => "tcp-loopback";
