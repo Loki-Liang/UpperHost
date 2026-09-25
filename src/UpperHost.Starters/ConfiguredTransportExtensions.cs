@@ -40,8 +40,9 @@ public static class ConfiguredTransportExtensions
         var resilience = ReadReconnectPolicy(builder);
 
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport>(_ => WrapIfEnabled(new SerialTransport(options), resilience));
-        return builder;
+        return builder.AddUpperHostTransport(
+            _ => new SerialTransport(options),
+            transport => WrapIfEnabled(transport, resilience));
     }
 
     private static UpperHostApplicationBuilder AddConfiguredTcp(UpperHostApplicationBuilder builder)
@@ -52,16 +53,16 @@ public static class ConfiguredTransportExtensions
         var resilience = ReadReconnectPolicy(builder);
 
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport>(_ => WrapIfEnabled(new TcpTransport(options), resilience));
-        return builder;
+        return builder.AddUpperHostTransport(
+            _ => new TcpTransport(options),
+            transport => WrapIfEnabled(transport, resilience));
     }
 
     private static ITransport WrapIfEnabled(ITransport inner, ReconnectConfiguration configuration)
     {
-        var transport = configuration.Enabled
+        return configuration.Enabled
             ? new ReconnectingTransport(inner, configuration.Policy)
             : inner;
-        return new ObservedTransport(transport);
     }
 
     private static ReconnectConfiguration ReadReconnectPolicy(UpperHostApplicationBuilder builder)
