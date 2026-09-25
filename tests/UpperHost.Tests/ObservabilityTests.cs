@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using UpperHost.Abstractions.Devices;
 using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Observability;
@@ -20,6 +21,7 @@ public sealed class ObservabilityTests
     public async Task Command_runtime_emits_metric_and_activity()
     {
         long commandMeasurements = 0;
+        KeyValuePair<string, object?>[] commandTags = [];
         Activity? stopped = null;
 
         using var meterListener = new MeterListener();
@@ -28,10 +30,13 @@ public sealed class ObservabilityTests
             if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
                 listener.EnableMeasurementEvents(instrument);
         };
-        meterListener.SetMeasurementEventCallback<long>((instrument, measurement, _, _) =>
+        meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
-            if (instrument.Name == "upperhost.command.executions")
-                Interlocked.Add(ref commandMeasurements, measurement);
+            if (instrument.Name != "upperhost.command.executions")
+                return;
+
+            Interlocked.Add(ref commandMeasurements, measurement);
+            commandTags = tags.ToArray();
         });
         meterListener.Start();
 
@@ -55,6 +60,10 @@ public sealed class ObservabilityTests
         Assert.NotNull(stopped);
         Assert.Equal(result.ExecutionId, stopped!.GetTagItem("upperhost.command.id"));
         Assert.Equal("Succeeded", stopped.GetTagItem("upperhost.result"));
+        Assert.Contains(commandTags, tag =>
+            tag.Key == "upperhost.operation" && Equals(tag.Value, nameof(TestCommand)));
+        Assert.DoesNotContain(commandTags, tag =>
+            tag.Key is "upperhost.command.id" or "upperhost.session.id" or "upperhost.connection.id");
     }
 
     [Fact]
@@ -93,6 +102,10 @@ public sealed class ObservabilityTests
                 Operation: "test")))
             {
                 logger.LogInformation("observability structured log probe");
+                logger.LogInformation(
+                    "credential probe {Password} {ApiToken}",
+                    "super-secret-value",
+                    "token-secret-value");
             }
 
             await app.DisposeAsync();
@@ -105,7 +118,12 @@ public sealed class ObservabilityTests
             Assert.Contains("observability structured log probe", contents, StringComparison.Ordinal);
             Assert.Contains("DeviceId", contents, StringComparison.Ordinal);
             Assert.Contains("device-1", contents, StringComparison.Ordinal);
-            Assert.DoesNotContain("Password", contents, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("[REDACTED]", contents, StringComparison.Ordinal);
+            Assert.DoesNotContain("super-secret-value", contents, StringComparison.Ordinal);
+            Assert.DoesNotContain("token-secret-value", contents, StringComparison.Ordinal);
+            Assert.Contains(
+                app.Services.GetServices<IHealthProbe>(),
+                probe => probe.Name == "upperhost.logging.async_buffer");
         }
         finally
         {
@@ -166,6 +184,133 @@ public sealed class ObservabilityTests
             builder.AddUpperHostObservability(options));
     }
 
+
+    [Fact]
+    public async Task Active_alarm_metric_balances_the_same_series()
+    {
+        var measurements = new List<(long Value, string? Severity)>();
+
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+                listener.EnableMeasurementEvents(instrument);
+        };
+        meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
+        {
+            if (instrument.Name != "upperhost.alarms.active")
+                return;
+
+            var severity = tags.ToArray()
+                .FirstOrDefault(tag => tag.Key == "upperhost.alarm.severity")
+                .Value as string;
+            measurements.Add((measurement, severity));
+        });
+        meterListener.Start();
+
+        var alarms = new AlarmService();
+        var alarm = await alarms.RaiseAsync(
+            "test",
+            "alarm",
+            "test alarm",
+            AlarmSeverity.Warning);
+        Assert.True(await alarms.ClearAsync(alarm.Id));
+
+        Assert.Contains(measurements, item =>
+            item.Value == 1 && item.Severity == AlarmSeverity.Warning.ToString());
+        Assert.Contains(measurements, item =>
+            item.Value == -1 && item.Severity == AlarmSeverity.Warning.ToString());
+    }
+
+    [Fact]
+    public async Task Receive_failure_emits_failure_metric_and_error_activity()
+    {
+        long failures = 0;
+        Activity? stopped = null;
+
+        using var meterListener = new MeterListener();
+        meterListener.InstrumentPublished = (instrument, listener) =>
+        {
+            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+                listener.EnableMeasurementEvents(instrument);
+        };
+        meterListener.SetMeasurementEventCallback<long>((instrument, measurement, _, _) =>
+        {
+            if (instrument.Name == "upperhost.transport.failures")
+                Interlocked.Add(ref failures, measurement);
+        });
+        meterListener.Start();
+
+        using var activityListener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == UpperHostTelemetry.InstrumentationName,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = activity =>
+            {
+                if (activity.OperationName == "upperhost.transport.receive")
+                    stopped = activity;
+            }
+        };
+        ActivitySource.AddActivityListener(activityListener);
+
+        await using var transport = new ObservedTransport(new FailingReceiveTransport());
+
+        await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+        {
+            await foreach (var _ in transport.ReceiveAsync())
+            {
+            }
+        });
+
+        Assert.Equal(1, Volatile.Read(ref failures));
+        Assert.NotNull(stopped);
+        Assert.Equal(ActivityStatusCode.Error, stopped!.Status);
+        Assert.Equal(
+            typeof(InvalidOperationException).FullName,
+            stopped.GetTagItem("error.type"));
+    }
+
+    [Fact]
+    public async Task Closed_transport_is_degraded()
+    {
+        await using var transport = new FakeTransport(TransportState.Closed);
+        var probe = new TransportHealthProbe([transport]);
+
+        var report = await probe.CheckAsync();
+
+        Assert.Equal(HealthStatus.Degraded, report.Status);
+        Assert.Equal(1, report.Data!["Closed"]);
+    }
+
+    [Fact]
+    public void Configured_observability_binds_typed_options()
+    {
+        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        builder.Configuration["UpperHost:Observability:Logging:File:AsyncBufferSize"] = "2048";
+        builder.Configuration["UpperHost:Observability:Otlp:TraceSampleRatio"] = "0.25";
+
+        builder.AddConfiguredUpperHostObservability();
+        var app = builder.Build();
+
+        var options = app.Services
+            .GetRequiredService<IOptions<UpperHostObservabilityOptions>>()
+            .Value;
+
+        Assert.Equal(2048, options.FileLogging.AsyncBufferSize);
+        Assert.Equal(0.25, options.Otlp.TraceSampleRatio);
+    }
+
+    [Fact]
+    public void Custom_transport_registration_uses_canonical_observed_pipeline()
+    {
+        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        builder.AddUpperHostTransport(_ => new FakeTransport(TransportState.Closed));
+        var app = builder.Build();
+
+        Assert.IsType<ObservedTransport>(
+            app.Services.GetRequiredService<ITransport>());
+    }
+
     private sealed record TestCommand(string Name);
 
     private sealed class TestCommandTarget : ICommandable<TestCommand, string>
@@ -177,6 +322,35 @@ public sealed class ObservabilityTests
             cancellationToken.ThrowIfCancellationRequested();
             return Task.FromResult(command.Name);
         }
+    }
+
+
+    private sealed class FailingReceiveTransport : ITransport
+    {
+        public TransportEndpoint Endpoint { get; } = new("fake", "failing");
+        public TransportState State => TransportState.Open;
+
+        public Task OpenAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task CloseAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public ValueTask SendAsync(
+            ReadOnlyMemory<byte> data,
+            CancellationToken cancellationToken = default) =>
+            ValueTask.CompletedTask;
+
+        public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            if (!cancellationToken.IsCancellationRequested)
+                throw new InvalidOperationException("receive failed");
+            yield break;
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class FakeTransport(TransportState state) : ITransport
