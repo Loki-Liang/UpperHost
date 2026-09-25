@@ -103,7 +103,7 @@ public sealed class ConnectionManager : IConnectionManager
                 {
                     UpperHostTelemetry.ActiveConnectionLeases.Add(
                         -entry.LeaseCount,
-                        UpperHostTelemetry.CreateMetricTags(MetricContext(entry, "lease", "manager_dispose")));
+                        UpperHostTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
                     entry.LeaseCount = 0;
                 }
 
@@ -148,7 +148,7 @@ public sealed class ConnectionManager : IConnectionManager
             entry.LeaseCount--;
             UpperHostTelemetry.ActiveConnectionLeases.Add(
                 -1,
-                UpperHostTelemetry.CreateMetricTags(MetricContext(entry, "lease", "released")));
+                UpperHostTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
             Record("release", entry, "success");
 
             _logger?.LogInformation(
@@ -269,6 +269,11 @@ public sealed class ConnectionManager : IConnectionManager
             Operation: operation,
             Outcome: outcome,
             ErrorType: errorType);
+
+    private static UpperHostMetricContext LeaseMetricContext(Entry entry) =>
+        new(
+            Transport: entry.Definition.Endpoint.Scheme,
+            Operation: "lease");
 
     private static void Record(
         string operation,
