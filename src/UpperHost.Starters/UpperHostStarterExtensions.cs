@@ -48,7 +48,8 @@ public static class UpperHostStarterExtensions
     public static UpperHostApplicationBuilder AddTcpTransport(this UpperHostApplicationBuilder builder, TcpTransportOptions options)
     {
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport, TcpTransport>();
+        builder.Services.AddSingleton<ITransport>(_ =>
+            new ObservedTransport(new TcpTransport(options)));
         return builder;
     }
 
