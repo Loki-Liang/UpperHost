@@ -36,19 +36,24 @@ The generated project enables structured rolling file logging and leaves OTLP di
           "Path": "logs/upperhost-.json",
           "MinimumLevel": "Information",
           "FileSizeLimitBytes": 52428800,
-          "RetainedFileCountLimit": 14
+          "RetainedFileCountLimit": 14,
+          "AsyncBufferSize": 10000,
+          "BlockWhenFull": false
         }
       },
       "Otlp": {
         "Enabled": false,
-        "Endpoint": "http://localhost:4317"
+        "Endpoint": "http://localhost:4317",
+        "TraceSampleRatio": 1.0
       }
     }
   }
 }
 ~~~
 
-File events are JSON, roll daily and by size, and use bounded file retention.
+File events are JSON, roll daily and by size, and use bounded file retention. File I/O is wrapped in a bounded asynchronous buffer so logging cannot grow memory without limit. The default does not block device/control hot paths when the buffer is full; dropped events are surfaced through the `upperhost.logging.async_buffer` health probe.
+
+Known sensitive property names such as passwords, tokens, credentials, authorization values, API keys, private keys and connection strings are redacted before rendering. Applications must still avoid placing secrets in free-form message text.
 
 ## Metrics
 
@@ -56,13 +61,21 @@ The stable Meter name is UpperHost. Baseline instruments include command executi
 
 CommandRuntime, starter transports, reconnect behavior and alarms publish into the common instruments.
 
+Metric attributes are intentionally low-cardinality. Per-operation identifiers such as DeviceId, ConnectionId, SessionId and CommandId belong in logs/traces and must not be added to metric attributes. Command duration is recorded in seconds. Active alarm increments/decrements use the same severity attribute set so the series represents a real active count.
+
 ## Tracing
 
-The stable ActivitySource name is UpperHost. Command execution and observed transport operations create spans. OTLP output is enabled only when explicitly configured.
+The stable ActivitySource name is UpperHost. Command execution and observed transport operations create spans. High-cardinality correlation identifiers may be attached to traces. OTLP output is enabled only when explicitly configured, and `TraceSampleRatio` controls parent-based ratio sampling.
 
 ## Health
 
-TransportHealthProbe summarizes registered transport states: Faulted is Unhealthy, Opening is Degraded, otherwise Healthy. No registered transport is valid because not every scaffold consumer requires a transport.
+TransportHealthProbe summarizes registered transport states: Faulted is Unhealthy; Opening or Closed is Degraded; all registered transports Open is Healthy. No registered transport is valid because not every scaffold consumer requires a transport.
+
+When async file logging is enabled, `AsyncLogBufferMonitor` exposes queue utilization and dropped-message count through Health. Dropped log events or at least 80% buffer utilization report Degraded.
+
+## Transport registration
+
+Starter transports and custom providers should be registered through `AddUpperHostTransport<TTransport>()`. This is the composition seam that applies the common observed transport pipeline consistently instead of requiring every Serial/TCP/CAN/BLE/vendor provider to remember observability wrapping independently.
 
 ## Custom backends
 
