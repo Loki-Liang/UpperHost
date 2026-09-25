@@ -4,6 +4,7 @@
   "required_status_checks": [
     "openhands-config",
     "architecture-governance",
+    "linux-runtime-contract",
     "build-test-template"
   ],
   "strict_required_status_checks": true,
