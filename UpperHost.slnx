@@ -20,7 +20,9 @@
   <Project Path="src/UpperHost.Storage.FileSystem/UpperHost.Storage.FileSystem.csproj" />
   <Project Path="src/UpperHost.Starters/UpperHost.Starters.csproj" />
   <Project Path="src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj" />
+  <Project Path="src/UpperHost.Workbench.Application/UpperHost.Workbench.Application.csproj" />
   <Project Path="src/UpperHost.Testing/UpperHost.Testing.csproj" />
+  <Project Path="apps/UpperHost.Workbench.Wpf/UpperHost.Workbench.Wpf.csproj" />
   <Project Path="samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.DeviceControl.csproj" />
   <Project Path="samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj" />
   <Project Path="samples/UpperHost.Sample.DataAcquisition/UpperHost.Sample.DataAcquisition.csproj" />
