@@ -73,15 +73,15 @@ public static class UpperHostTelemetry
         if (context is null)
             return tags;
 
-        Add(tags, "upperhost.device.id", context.DeviceId);
-        Add(tags, "upperhost.connection.id", context.ConnectionId);
-        Add(tags, "upperhost.session.id", context.SessionId);
-        Add(tags, "upperhost.command.id", context.CommandId);
-        Add(tags, "upperhost.protocol", context.Protocol);
-        Add(tags, "upperhost.transport", context.Transport);
-        Add(tags, "upperhost.operation", context.Operation);
-        Add(tags, "upperhost.result", context.Result);
-        Add(tags, "upperhost.error.code", context.ErrorCode);
+        Add(ref tags, "upperhost.device.id", context.DeviceId);
+        Add(ref tags, "upperhost.connection.id", context.ConnectionId);
+        Add(ref tags, "upperhost.session.id", context.SessionId);
+        Add(ref tags, "upperhost.command.id", context.CommandId);
+        Add(ref tags, "upperhost.protocol", context.Protocol);
+        Add(ref tags, "upperhost.transport", context.Transport);
+        Add(ref tags, "upperhost.operation", context.Operation);
+        Add(ref tags, "upperhost.result", context.Result);
+        Add(ref tags, "upperhost.error.code", context.ErrorCode);
         return tags;
     }
 
@@ -98,7 +98,7 @@ public static class UpperHostTelemetry
         Set(activity, "upperhost.error.code", context.ErrorCode);
     }
 
-    private static void Add(TagList tags, string key, string? value)
+    private static void Add(ref TagList tags, string key, string? value)
     {
         if (!string.IsNullOrWhiteSpace(value))
             tags.Add(key, value);
