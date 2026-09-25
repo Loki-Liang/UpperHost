@@ -22,8 +22,26 @@
 | 增加 TCP/串口之外的新通信方式 | [Provider 设计与接入](docs/providers.zh-CN.md) |
 | 使用 OpenHands 开发仓库 | [OpenHands 接入](docs/openhands.zh-CN.md) |
 | AI 开发总控规则 | [AGENTS.zh-CN.md](AGENTS.zh-CN.md) |
+| 查看 DI、配置、日志、Host 等二开基础能力 | [二次开发基础能力](docs/secondary-development.zh-CN.md) |
 | 配置日志、Metrics、Tracing、Health | [Observability](docs/observability.zh-CN.md) |
 | 理解平台边界 | [架构说明](docs/architecture.zh-CN.md) |
+
+## 开箱即用的工程基础能力
+
+UpperHost 不只是设备抽象库。二开产品启动时，脚手架已经提供一套统一工程基础设施，不需要每个项目重新搭 DI、日志、配置和生命周期：
+
+| 基础能力 | 当前默认实现 | 二开方式 |
+| --- | --- | --- |
+| Host / 生命周期 | .NET Generic Host，统一 Start / Stop / Dispose | 长期后台任务使用 `AddHostedService<T>()` |
+| DI | Microsoft.Extensions.DependencyInjection | 通过 `builder.Services` 注册产品 Service / Device，构造函数注入 |
+| Configuration | Generic Host Configuration + Options / 启动校验 | 产品配置建立独立 Section，通过 Options Pattern 绑定 |
+| Logging | `Microsoft.Extensions.Logging` 契约、Console、可选 Serilog JSON 滚动文件 | 业务只注入 `ILogger<T>`；日志 Provider 在 Composition Root 扩展/替换 |
+| Metrics / Tracing | .NET Meter / ActivitySource，可选 OpenTelemetry OTLP | 产品增加 Instrument/Backend，但不污染 Core Contract |
+| Health | `IHealthProbe` + `HealthService` | 注册产品/设备 Health Probe |
+| 后台任务 | Generic Host Hosted Service | 设备发现、心跳、后台同步使用 Hosted Service，不放进 UI Timer |
+| 测试基线 | Simulator + Fault Injection | 真实硬件前先验证协议、控制、超时和故障路径 |
+
+产品 Composition Root 是 `app/UpperHost.App/App.xaml.cs`。产品应该直接复用这些默认能力，不再另造 DI Container、日志抽象、应用生命周期或配置框架。完整代码示例和替换/扩展规则见：[二次开发基础能力](docs/secondary-development.zh-CN.md)。
 
 ## 核心架构
 

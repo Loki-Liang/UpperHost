@@ -167,7 +167,7 @@ Do not force low-rate command devices through a streaming pipeline, and do not d
 
 ## 8. Configuration
 
-The generated application reads `UpperHost:Transport` from `appsettings.json`. Start with `simulator`; change to `tcp` or `serial` only when you need a physical endpoint.
+The runnable source scaffold application reads `UpperHost:Transport` from `appsettings.json`. Start with `simulator`; change to `tcp` or `serial` only when you need a physical endpoint.
 
 Invalid required configuration should fail at startup instead of failing after the operator starts a machine cycle.
 
@@ -191,6 +191,7 @@ UpperHost may provide software guards, interlocks and state validation. These me
 
 ## 11. Next reading
 
+- [Secondary-development foundation](secondary-development.md)
 - [Architecture](architecture.md)
 - [Extending UpperHost](extending.md)
 - Device Control Sample (P0 roadmap)
