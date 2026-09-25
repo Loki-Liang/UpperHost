@@ -33,6 +33,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 - Automatic registration of DI-provided devices into the runtime registry.
 - Multi-provider device discovery aggregation through `IDeviceDiscoverer`.
 - Transport abstraction with Serial, TCP and deterministic Simulator providers.
+- `IConnectionManager` owns physical connection open/close lifecycle through shared or exclusive leases so devices and UI do not compete for the same handle.
 - Configuration-driven transport auto-configuration with startup fail-fast validation.
 - Protocol contracts plus request/response and streaming runtimes.
 - Bounded fan-out/backpressure primitives for streaming data.
