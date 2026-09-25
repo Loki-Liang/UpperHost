@@ -47,24 +47,27 @@ UpperHost 负责跨产品复用的 Runtime 契约、Provider、Template、Testin
 
 ## 主要开发体验
 
-推荐开发路径：
+UpperHost 采用类似成熟快速开发框架的**源码直接二开**方式。开发者拉取仓库后，直接把它作为自己的上位机产品工程继续开发：
 
 ```text
-dotnet new upperhost
+git clone UpperHost
         |
         v
-生成上位机产品工程
+app/UpperHost.App 直接运行
         |
         +-- 产品 Device Capability
         +-- 产品 Protocol / Provider
-        +-- 产品控制 / 采集业务
+        +-- 产品 Workflow / State
+        +-- 产品 Acquisition
         +-- 产品 UI
         |
         v
-Build / Test / Package
+Build / Test / Package 产品
 ```
 
-开发者应扩展脚手架，不应复制或重写 UpperHost Runtime。
+`app/UpperHost.App` 是正式二开入口；`src/UpperHost.*` 是可复用基础设施；`samples/` 仅用于演示正确用法。
+
+二开用户不需要先编译 UpperHost 本体、打包项目模板或生成第二套工程。只有开发 UpperHost Runtime 本身时，才进入框架贡献者工作流。
 
 ## 架构基线
 
