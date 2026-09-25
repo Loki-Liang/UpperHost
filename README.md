@@ -115,37 +115,30 @@ Hardware -> Transport -> Decoder -> Stream -> Dataflow -> Storage / Algorithm / 
 
 Do not force low-rate request/response devices through a high-rate streaming pipeline.
 
-## Build
+## Start secondary development in 5 minutes
 
-Requires .NET 10 SDK. WPF projects require Windows.
-
-```powershell
-dotnet restore UpperHost.slnx
-dotnet build UpperHost.slnx -c Release
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release
-```
-
-## Create a project
-
-Pack and install the template locally:
+UpperHost itself is the runnable source scaffold. You do not need to build or install a project generator before starting a product. Windows and the .NET 10 SDK are required for the WPF starter application.
 
 ```powershell
-dotnet pack templates/UpperHost.Templates.csproj -c Release -o artifacts/packages
-dotnet new install artifacts/packages/UpperHost.Templates.0.1.0-alpha.1.nupkg
-
-dotnet new upperhost -n MyDeviceApp --transport simulator
+git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+cd MyDeviceApp
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-Other baseline choices:
+The starter application uses Simulator by default. Continue developing the current repository as your product: add product Device capabilities, Protocol/Provider integrations, Workflows, Acquisition logic, and product UI under the application boundary while reusable runtime infrastructure remains under `src/UpperHost.*`.
 
-```powershell
-dotnet new upperhost -n PlcStation --transport tcp
-dotnet new upperhost -n InstrumentConsole --transport serial
+```text
+MyDeviceApp/
+├─ app/UpperHost.App/          # product entry point and UI; start product work here
+├─ src/UpperHost.*/            # reusable runtime / providers / infrastructure
+├─ samples/                    # reference implementations, not the product entry point
+├─ tests/                      # runtime and infrastructure tests
+└─ UpperHost.slnx
 ```
-
-The generated app reads `UpperHost:Transport` from `appsettings.json`; there is no transport wiring boilerplate in `App.xaml.cs`.
 
 Continue with the [zero-to-first-device guide](docs/getting-started.md).
+
+If you are contributing to the UpperHost runtime itself rather than building a product, then use the repository-level restore/build/test and contribution workflow.
 
 ## Minimal bootstrap
 
