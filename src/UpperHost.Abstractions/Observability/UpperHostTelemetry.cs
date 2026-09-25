@@ -61,6 +61,18 @@ public static class UpperHostTelemetry
         Meter.CreateCounter<long>("upperhost.transport.reconnect.attempts", "{attempt}",
             "Transport reconnect attempts.");
 
+    public static Counter<long> ConnectionOperations { get; } =
+        Meter.CreateCounter<long>("upperhost.connection.operations", "{operation}",
+            "Number of managed connection lifecycle operations.");
+
+    public static Counter<long> ConnectionFailures { get; } =
+        Meter.CreateCounter<long>("upperhost.connection.failures", "{failure}",
+            "Number of failed managed connection lifecycle operations.");
+
+    public static UpDownCounter<long> ActiveConnectionLeases { get; } =
+        Meter.CreateUpDownCounter<long>("upperhost.connection.active_leases", "{lease}",
+            "Current active managed connection leases.");
+
     public static UpDownCounter<long> ActiveAlarms { get; } =
         Meter.CreateUpDownCounter<long>("upperhost.alarms.active", "{alarm}",
             "Current active alarms by severity.");
