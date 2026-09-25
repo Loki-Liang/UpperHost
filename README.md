@@ -12,7 +12,7 @@ UpperHost treats three device-application styles as first-class peers:
 
 Acquisition is one scaffold workload, not the center of the architecture.
 
-The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. UpperHost is not a finished universal Workbench/HMI or a low-code platform; product-specific device semantics and UI stay in the generated application.
+The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in the generated application; UpperHost supplies the reusable runtime and engineering baseline.
 
 ## Start here
 

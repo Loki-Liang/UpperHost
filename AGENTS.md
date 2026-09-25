@@ -88,9 +88,7 @@ Do not continue from stale CI conclusions or an old branch assumption.
 
 UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, samples and project templates for developers building product-specific industrial upper-computer applications.
 
-UpperHost is not a finished universal Workbench/HMI and not a generic low-code product. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold.
-
-Do **not** introduce a visual workflow editor, node graph, drag-and-drop programming surface, generic low-code flow engine, visual DAG authoring, or graph-to-code system as part of normal UpperHost development.
+Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold. Repository-level feature work must strengthen reusable Runtime, Provider, Template, Sample, Testing or Presentation capabilities that serve the Control, Automation or Acquisition paths.
 
 `UpperHost.Workflows` and `UpperHost.StateMachines` remain code/API runtime modules.
 

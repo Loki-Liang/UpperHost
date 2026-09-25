@@ -104,4 +104,4 @@ Host 启动后可解析 `IDevicePackageCatalog`，枚举已安装 Descriptor，�
 
 Secret 字段必须使用 `DeviceSecretReference`，只描述外部 Secret 的来源和 key；明文凭据不得进入 Package metadata、普通日志或持久化 Descriptor 数据。
 
-Catalog 明确不是 Package Manager：不负责下载 Driver，不宣称任意硬件可以无代码接入，也不引入 Workbench/低代码依赖。私有协议、Native SDK、Vendor Driver 仍由 Provider/Device Package 扩展实现。
+Catalog 是进程内的发现与注册服务。Package 获取、私有协议、Native SDK、Vendor Driver 和产品 UI 由消费应用及其 Provider/Device Package 负责。

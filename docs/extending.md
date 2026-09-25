@@ -86,4 +86,4 @@ Resolve `IDevicePackageCatalog` after host startup to enumerate installed descri
 
 Secret fields must be modeled as `DeviceSecretReference`. The reference describes only the external source/key; plaintext credentials do not belong in package metadata, normal logs or persisted descriptor data.
 
-The catalog is intentionally not a package manager. It does not download drivers, claim arbitrary hardware can be integrated without code, or introduce a Workbench/low-code dependency. Private protocols, native SDKs and vendor drivers remain provider/device package responsibilities.
+The catalog is an in-process discovery and registration service. Package acquisition, private protocols, native SDKs, vendor drivers and product UI remain responsibilities of the consuming application and its provider/device packages.

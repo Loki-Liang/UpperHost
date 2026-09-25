@@ -33,23 +33,17 @@ UpperHost 同时服务三条一级开发路线：
 - `dotnet new upperhost` 工程模板；
 - 可运行 Reference Samples。
 
-## UpperHost 不是什么
+## 产品职责边界
 
-UpperHost **不是**：
-
-- 已经完成的通用最终用户 Workbench/HMI 产品；
-- No-Code / Low-Code 平台；
-- 可视化 Flow/Node Editor；
-- 医疗、PLC、机器人等某一行业专用框架；
-- “任何设备不写适配代码都能直接用”的承诺。
-
-使用 UpperHost 创建的具体产品仍然负责自己的：
+使用 UpperHost 创建的具体产品负责自己的：
 
 - Device 业务语义；
 - 私有协议；
 - Command / Parameter / Interlock 规则；
 - 产品工作流；
 - 产品 UI。
+
+UpperHost 负责跨产品复用的 Runtime 契约、Provider、Template、Testing 接缝、Diagnostics 与 Presentation Adapter。
 
 ## 主要开发体验
 
@@ -86,7 +80,7 @@ WPF 是当前默认 Presentation Adapter 和工程模板，不代表 UpperHost �
 
 未来可以增加其他 Presentation Stack，但必须复用同一套 Runtime Contract。
 
-未来即使提供 Reference Shell / Workbench，也只能作为 UpperHost 脚手架的消费者和示例，不能建立第二套 Runtime，也不能把仓库重新定义为最终用户低代码产品。
+未来提供的 Reference Presentation Application 统一复用 UpperHost Runtime Contract，仅用于展示具体产品如何组合脚手架模块。
 
 ## 交付规则
 
