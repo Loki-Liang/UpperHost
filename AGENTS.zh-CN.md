@@ -86,9 +86,9 @@ Squash Merge 到 main
 
 ## 产品定位：上位机开发脚手架
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。仓库的职责是给工业上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Samples 和项目模板。
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。仓库的职责是给工业上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Reference Samples 和可直接二开的源码产品工程。
 
-具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。仓库级功能必须增强可复用的 Runtime、Provider、Template、Sample、Testing 或 Presentation 能力，并明确服务于 Control、Automation 或 Acquisition 路线。
+具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。仓库级功能必须增强可复用的 Runtime、Provider、Starter Application、Sample、Testing 或 Presentation 能力，并明确服务于 Control、Automation 或 Acquisition 路线。
 
 `UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在。
 
@@ -101,11 +101,11 @@ UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部�
 ### 模块依赖规则
 
 1. `UpperHost.Abstractions` 是稳定依赖根，禁止引用仓库内其他 Project。
-2. Control、Protocols、Dataflow、Workflows、StateMachines、Events、Resilience、Diagnostics、Testing 等平台模块必须暴露窄公共契约，禁止依赖 Presentation、Samples、Tests、Templates。
+2. Control、Protocols、Dataflow、Workflows、StateMachines、Events、Resilience、Diagnostics、Testing 等平台模块必须暴露窄公共契约，禁止依赖 Presentation、产品 App、Samples、Tests。
 3. `UpperHost.Transport.*`、Storage/Provider 属于基础设施 Adapter，只能向内依赖稳定契约，禁止把 Vendor/Native 概念反向塞进 Core。
 4. `UpperHost.Presentation.*` 是最外层 Adapter；任何生产模块禁止反向依赖 Presentation。
 5. `UpperHost.Starters` 是 Composition/Convenience 模块；其他生产模块禁止反向依赖 Starters。
-6. `samples/`、`tests/`、`templates/` 可以组合生产模块；生产模块绝不能引用它们。
+6. `app/`、`samples/`、`tests/` 可以组合生产模块；生产模块绝不能引用它们。
 7. 禁止 ProjectReference 环依赖。
 8. 跨模块协作必须通过公开 Capability/Contract/Event；禁止访问其他模块内部实现、通过反射绕过边界或建立隐藏静态耦合。
 9. 公共 API 必须最小化；除非跨模块真实需要，否则类型默认保持 internal/private。
@@ -123,7 +123,7 @@ UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部�
 - **可观测性：**关键边界使用结构化日志、Health、Metrics；禁止记录密钥或敏感凭据。
 - **并发：**共享可变状态必须有明确同步/所有权模型；Queue/Channel 默认必须有界，无界设计需要明确理由。
 - **依赖：**新增 NuGet/Native 依赖必须说明原因并放在正确模块；Core Abstractions 禁止 Vendor SDK 依赖。
-- **兼容性：**Public Contract 和 Template 视为版本化接口；Breaking Change 必须提供迁移说明、文档和测试。
+- **兼容性：**Public Contract、配置契约和 Starter Application 结构视为版本化接口；Breaking Change 必须提供迁移说明、文档和测试。
 - **代码形态：**优先小而内聚、职责单一的类型；禁止 God Class、Utility 垃圾桶、重复协议逻辑和复制粘贴 Provider。
 - **测试：**模块自己承担行为单测；模块/Provider 边界补 Integration/Contract Test；依赖硬件的行为优先用 Simulator/Fault Injection 覆盖。
 
