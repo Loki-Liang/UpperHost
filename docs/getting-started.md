@@ -2,11 +2,11 @@
 
 [简体中文](getting-started.zh-CN.md) | English
 
-This guide is for developers who have never used UpperHost. The goal is to get from an empty machine to a running simulator-backed device application without requiring knowledge of the framework internals.
+This guide is for developers who have never used UpperHost. The goal is to use the scaffold to go from an empty machine to a running simulator-backed upper-computer application without first understanding the runtime internals.
 
 ## 1. What UpperHost is
 
-UpperHost is a general-purpose device application platform. It supports three equal application styles:
+UpperHost is a general-purpose .NET upper-computer development scaffold. It supplies a reusable runtime, project template and extension seams for three equal application styles:
 
 - **Control**: commands, parameters, readback, state, interlocks and diagnostics.
 - **Automation**: multi-device orchestration, workflows, state machines and alarms.

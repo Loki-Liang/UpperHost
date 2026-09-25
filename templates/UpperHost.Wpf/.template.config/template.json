@@ -1,9 +1,9 @@
 {
   "$schema": "http://json.schemastore.org/template",
   "author": "UpperHost Contributors",
-  "classifications": ["WPF", "Device", "Industrial", "UpperHost"],
+  "classifications": ["WPF", "Upper Computer", "Device", "Scaffold", "UpperHost"],
   "identity": "UpperHost.Templates.Wpf",
-  "name": "UpperHost WPF Device Application",
+  "name": "UpperHost WPF Upper-Computer Scaffold",
   "shortName": "upperhost",
   "sourceName": "UpperHost.App",
   "preferNameDirectory": true,

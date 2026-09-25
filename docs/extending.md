@@ -2,6 +2,8 @@
 
 English | [简体中文](extending.zh-CN.md)
 
+UpperHost is a development scaffold: extensions should add reusable device/protocol/provider capabilities while product-specific behavior stays in the consumer upper-computer application.
+
 ## Add a device
 
 Implement `IDevice`, then implement only the capabilities the hardware actually supports. Register the device in DI and expose it through `IDeviceRegistry` after application startup.

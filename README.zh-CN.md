@@ -2,9 +2,9 @@
 
 [English](README.md) | 简体中文
 
-**UpperHost 是用于构建上位机 / 面向设备应用的通用 .NET 平台。**
+**UpperHost 是通用 .NET 上位机开发脚手架。**
 
-它不是采集框架，也不绑定医疗设备、PLC、相机、机器人、实验仪器或任何单一行业。UpperHost 的目标是为三类常见设备应用提供统一、可扩展的基础设施：
+它不是最终用户成品 Workbench，也不是低代码平台；它为上位机开发提供可复用的工程骨架、Runtime、通信/协议边界、测试、诊断和扩展机制。具体产品仍负责自己的设备语义、业务逻辑和产品 UI。UpperHost 同时服务三类常见上位机：
 
 1. **设备控制（Control）**：命令、参数、读回、状态、联锁与诊断。
 2. **自动化（Automation）**：多设备协同、状态机、工作流、告警与故障恢复。
@@ -15,7 +15,7 @@
 | 你要做什么 | 推荐入口 |
 | --- | --- |
 | 第一次使用 UpperHost | [零基础入门](docs/getting-started.zh-CN.md) |
-| 理解最终用户 Workbench 产品边界 | [Workbench 产品边界](docs/workbench.zh-CN.md) |
+| 理解脚手架定位 | [UpperHost 脚手架定位](docs/scaffold.zh-CN.md) |
 | 控制 PLC、伺服、温控器、仪器等 | Device Control 路线 |
 | 做自动工站、测试台、设备序列控制 | Automation 路线 |
 | 做 EMG、DAQ、传感器、波形等实时采集 | Acquisition 路线 |
@@ -82,9 +82,9 @@ dotnet run
 
 然后继续阅读：[零基础入门：从 0 到第一台设备](docs/getting-started.zh-CN.md)。
 
-## 平台与产品的边界
+## 脚手架与产品的边界
 
-UpperHost 负责：
+UpperHost 脚手架负责：
 
 - 应用生命周期、配置、DI、日志。
 - 设备注册与发现。
@@ -102,7 +102,7 @@ UpperHost 负责：
 
 ## 当前路线图
 
-平台按 GitHub Flow 分阶段推进：
+脚手架基础能力此前按 GitHub Flow 分阶段推进：
 
 - P0：中英文零基础文档、Device Control Sample。
 - P1：Command Runtime、Interlock/Guard、Parameter Read/Write/Readback、AutomationStation Sample。

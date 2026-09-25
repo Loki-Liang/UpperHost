@@ -84,15 +84,17 @@ Do not continue from stale CI conclusions or an old branch assumption.
 - Update architecture or extension documentation when public boundaries change.
 - Do not mark a task complete when only implementation exists but tests/docs required by the acceptance criteria are missing.
 
-## Product boundary: Workbench, not visual orchestration
+## Product positioning: upper-computer development scaffold
 
-UpperHost Workbench is the primary end-user product surface. It exposes project, device, connection, command, parameter, streaming, waveform, alarm, log and diagnostics capabilities on top of the same runtime used by code-first applications.
+UpperHost is a **general-purpose .NET upper-computer / device-application development scaffold**. The repository exists to provide reusable runtime modules, project conventions, provider seams, testing infrastructure, samples and project templates for developers building product-specific upper-computer applications.
+
+UpperHost is not a finished universal Workbench/HMI and not a generic low-code product. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI belong to the application created with the scaffold.
 
 Do **not** introduce a visual workflow editor, node graph, drag-and-drop programming surface, generic low-code flow engine, visual DAG authoring, or graph-to-code system as part of normal UpperHost development.
 
-`UpperHost.Workflows` and `UpperHost.StateMachines` remain valid code/API runtime modules. They must not become a second graphical orchestration product without a new explicit product decision.
+`UpperHost.Workflows` and `UpperHost.StateMachines` remain code/API runtime modules.
 
-See `docs/workbench.md`.
+See `docs/scaffold.md`.
 
 ## Architecture baseline: modular monolith
 

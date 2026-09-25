@@ -23,11 +23,13 @@ jobs:
           test -s AGENTS.md
           test -s AGENTS.zh-CN.md
           test -s .openhands/skills/repo.md
-          test -s docs/workbench.md
-          test -s docs/workbench.zh-CN.md
+          test -s docs/scaffold.md
+          test -s docs/scaffold.zh-CN.md
           grep -Fq 'AGENTS.md' .openhands/skills/repo.md
-          grep -Fq 'visual workflow editor' docs/workbench.md
-          grep -Fq '不建设' docs/workbench.zh-CN.md
+          grep -Fq 'upper-computer / device-application development scaffold' docs/scaffold.md
+          grep -Fq '上位机开发脚手架' docs/scaffold.zh-CN.md
+          grep -Fq 'development scaffold' AGENTS.md
+          grep -Fq '上位机开发脚手架' AGENTS.zh-CN.md
 
   architecture-governance:
     runs-on: ubuntu-latest

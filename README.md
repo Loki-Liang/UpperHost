@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-**UpperHost is a general-purpose .NET platform for building upper-computer / device-facing applications.** It is deliberately not tied to medical devices, acquisition systems, PLCs, cameras, robots, laboratory instruments or any single protocol.
+**UpperHost is a general-purpose .NET upper-computer / device-application development scaffold.** It gives developers a reusable engineering baseline for building device control, automation and acquisition applications without rebuilding the same runtime, communication, testing and diagnostics infrastructure for every product.
 
 UpperHost treats three device-application styles as first-class peers:
 
@@ -10,23 +10,23 @@ UpperHost treats three device-application styles as first-class peers:
 2. **Automation** — multi-device orchestration, workflows, state machines, alarms and recovery.
 3. **Acquisition** — continuous streams, dataflow, backpressure, storage, algorithms and presentation.
 
-Acquisition is one platform workload, not the center of the architecture.
+Acquisition is one scaffold workload, not the center of the architecture.
 
-The project applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template.
+The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. UpperHost is not a finished universal Workbench/HMI or a low-code platform; product-specific device semantics and UI stay in the generated application.
 
 ## Start here
 
 | Goal | Entry point |
 | --- | --- |
 | First time using UpperHost | [Getting Started](docs/getting-started.md) |
-| Understand platform boundaries | [Architecture](docs/architecture.md) |
-| Understand the end-user Workbench product | [Workbench product boundary](docs/workbench.md) |
+| Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
+| Understand architecture boundaries | [Architecture](docs/architecture.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
 | Chinese documentation | [简体中文 README](README.zh-CN.md) |
 
-## Open-box platform capabilities
+## Scaffold capabilities
 
 - `IDevice + Capability` composition instead of a giant device base class.
 - Automatic registration of DI-provided devices into the runtime registry.
@@ -71,7 +71,7 @@ The project applies the same idea that makes Spring Boot productive: a small sta
                          Hardware
 ```
 
-The framework owns application lifecycle, configuration, dependency injection, common communication runtime, device registration/discovery, dataflow, diagnostics and extension mechanics. A product owns its device semantics, protocol, command/interlock rules, workflow and product-specific UI.
+The scaffold/runtime owns application lifecycle, configuration, dependency injection, common communication runtime, device registration/discovery, dataflow, diagnostics and extension mechanics. A consumer product owns its device semantics, protocol, command/interlock rules, workflow and product-specific UI.
 
 ## Control path
 
