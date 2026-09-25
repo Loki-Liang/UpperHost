@@ -236,7 +236,7 @@ public sealed class ConnectionManagerTests
         await using var lease = await manager.AcquireAsync(definition, transport);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            lease.Transport.SendAsync([1, 2, 3]).AsTask());
+            lease.Transport.SendAsync(new byte[] { 1, 2, 3 }).AsTask());
 
         var snapshot = Assert.Single(manager.Connections);
         Assert.Equal(ConnectionState.Faulted, snapshot.State);
