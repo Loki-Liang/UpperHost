@@ -12,7 +12,7 @@ UpperHost treats three device-application styles as first-class peers:
 
 Acquisition is one scaffold workload, not the center of the architecture.
 
-The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in the generated application; UpperHost supplies the reusable runtime and engineering baseline.
+The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a runnable source application entry. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in `app/UpperHost.App`; UpperHost supplies the reusable runtime and engineering baseline.
 
 ## Start here
 
@@ -47,8 +47,8 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 - Metadata-driven reusable WPF DeviceList, ParameterEditor, CommandPanel and AlarmPanel controls.
 - Fault-injection testing helpers.
 - Starter package for one-call common registration.
-- `dotnet new upperhost` WPF template.
-- Windows CI that builds, tests, packs NuGet packages and smoke-builds a generated template application outside the source repository.
+- Runnable `app/UpperHost.App` WPF product scaffold.
+- Windows CI that builds, tests, packs reusable NuGet modules and validates the source scaffold application.
 
 ## Architecture
 
