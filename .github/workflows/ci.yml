@@ -31,6 +31,9 @@ jobs:
           grep -Fq 'enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition' AGENTS.md
           grep -Fq '面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架' AGENTS.zh-CN.md
 
+      - name: Validate main branch governance contract
+        run: python scripts/validate_main_governance.py
+
   architecture-governance:
     runs-on: ubuntu-latest
     steps:
