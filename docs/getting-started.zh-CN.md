@@ -189,7 +189,7 @@ Hardware
 
 ## 8. 配置从 Simulator 开始
 
-模板从 `appsettings.json` 的 `UpperHost:Transport` 读取基础 Transport 配置。
+当前可运行源码脚手架从 `appsettings.json` 的 `UpperHost:Transport` 读取基础 Transport 配置。
 
 第一次开发优先使用 `simulator`。只有需要真实硬件时，再切换 `tcp`、`serial` 或安装其他 Provider。
 
@@ -220,6 +220,7 @@ UpperHost 可以承载软件层 Guard、Interlock、状态验证和业务保护�
 
 ## 11. 下一步阅读
 
+- [二次开发基础能力](secondary-development.zh-CN.md)
 - [架构说明](architecture.zh-CN.md)
 - [扩展 UpperHost](extending.zh-CN.md)
 - Device Control Sample（P0）
