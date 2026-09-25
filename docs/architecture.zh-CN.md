@@ -2,7 +2,7 @@
 
 简体中文 | [English](architecture.md)
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和项目模板，用于快速构建具体的工业上位机产品。UpperHost 不是通用成品 Workbench/HMI，不是低代码产品，也不绑定某个行业、某类硬件或某种采集场景。
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和项目模板，用于快速构建具体的工业上位机产品；具体产品语义和 UI 保留在消费 UpperHost 的应用工程中。
 
 ## 稳定平台边界
 
@@ -187,4 +187,4 @@ Simulator 是正式开发接缝，不是演示玩具。Fault injection 应支持
 
 Package 强类型配置使用 `DeviceConfigurationSchema<TConfiguration>` 表达。Schema metadata 可被 Tooling 检查，验证逻辑保持强类型，并支持必填、范围、允许值以及显式跨字段规则。涉及 Secret 的字段只允许保存引用元数据。
 
-Catalog 冲突策略必须确定：每个 package id 只有一个 active Descriptor，最高 package version 生效；相同 id + version 的歧义注册直接拒绝。Catalog 不承担下载/安装职责，也不建立 Workbench、可视化节点图或通用低代码边界。
+Catalog 冲突策略必须确定：每个 package id 只有一个 active Descriptor，最高 package version 生效；相同 id + version 的歧义注册直接拒绝。Catalog 只负责进程内 Descriptor 的发现与注册；Package 获取、设备集成和产品 UI 由消费应用及其扩展包负责。
