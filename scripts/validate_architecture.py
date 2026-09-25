@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PROJECT_ROOTS = ("src", "samples", "tests", "templates")
+PROJECT_ROOTS = ("src", "app", "samples", "tests")
 
 
 def project_files() -> list[Path]:
@@ -83,14 +83,14 @@ for project in projects:
         )
 
 
-# Rule 3: production modules never depend on samples, tests, or templates.
+# Rule 3: reusable production modules never depend on the product app, samples, or tests.
 for project in projects:
     project_rel = rel(project)
     if not project_rel.startswith("src/"):
         continue
     for target in graph[project]:
         target_rel = rel(target)
-        if target_rel.startswith(("samples/", "tests/", "templates/")):
+        if target_rel.startswith(("app/", "samples/", "tests/")):
             errors.append(f"{project_rel} must not depend on {target_rel}")
 
 

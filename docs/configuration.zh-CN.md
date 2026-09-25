@@ -56,10 +56,10 @@ Configured Starter 通过标准 Options 管线注册并启用启动期验证；�
 
 UpperHost 不自研凭据保险箱。应用应通过标准配置来源注入敏感值，例如环境变量、本地开发使用 .NET User Secrets，或通过 `Microsoft.Extensions.Configuration` 接入操作系统/云 Secret Store。
 
-Password、Token、API Key、Private Key、Connection String 等敏感值禁止提交到生成模板、写入 Device metadata、写入 generated source / 测试快照，或直接拼入自由文本日志。已知敏感属性名的结构化日志字段会在输出前脱敏，但这只是纵深防御。
+Password、Token、API Key、Private Key、Connection String 等敏感值禁止提交到产品源码脚手架、写入 Device metadata、写入 generated source / 测试快照，或直接拼入自由文本日志。已知敏感属性名的结构化日志字段会在输出前脱敏，但这只是纵深防御。
 
-环境变量沿用 .NET 标准双下划线映射，例如 `UpperHost__Transport__Tcp__Host`。产品专属 Secret Section 应由实际消费它的应用/Provider 定义，不进入 UpperHost 公共模板。
+环境变量沿用 .NET 标准双下划线映射，例如 `UpperHost__Transport__Tcp__Host`。产品专属 Secret Section 应由实际消费它的应用/Provider 定义，不进入 UpperHost 可复用 Runtime。
 
 ## 兼容性
 
-配置 Section/Key 属于版本化公共表面。重命名或删除必须提供 migration note、同步模板并补自动化覆盖。默认值统一定义在 Typed Options 中，不再散落在 Starter 字符串解析逻辑里。
+配置 Section/Key 属于版本化公共表面。重命名或删除必须提供 migration note、同步 Starter Application 并补自动化覆盖。默认值统一定义在 Typed Options 中，不再散落在 Starter 字符串解析逻辑里。

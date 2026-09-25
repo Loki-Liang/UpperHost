@@ -2,7 +2,7 @@
 
 简体中文 | [English](extending.md)
 
-UpperHost 是上位机开发脚手架：扩展应增加可复用的 Device/Protocol/Provider 能力，具体产品业务继续放在消费 UpperHost 的上位机工程中。
+UpperHost 是源码直接二开的上位机开发脚手架：扩展应增加可复用的 Device/Protocol/Provider 能力，具体产品业务继续放在 `app/UpperHost.App`。
 
 ## 增加 Device
 
@@ -68,29 +68,23 @@ connect -> self-test -> configure -> home -> run -> stop
 
 Plugin 是受信任的进程内扩展，不是安全沙箱。
 
-## 创建应用
+## 开始产品二开
 
-安装模板后：
+拉取仓库后直接运行正式产品入口：
 
 ```powershell
-dotnet new upperhost -n MyMachine --transport simulator
+git clone https://github.com/Loki-Liang/UpperHost.git MyMachine
+cd MyMachine
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-基础 Transport 选项：
-
-```text
-simulator
-serial
-tcp
-```
-
-其他 Provider 应独立交付，不修改 Core assembly。
+默认使用 `simulator`。需要真实设备时，在 `app/UpperHost.App/appsettings.json` 中切换到 `serial` 或 `tcp`；其他 Provider 继续通过现有 Provider/Starter 边界扩展。
 
 第一次使用请先阅读：[零基础入门](getting-started.zh-CN.md)。
 
 ## Device Package、Descriptor 与 Catalog
 
-可复用设备集成除了运行时 `IDevice` 实现外，还可以发布 `DevicePackageDescriptor`。Descriptor 是面向生成应用、Samples、CLI/Tooling 或具体产品 UI 的运行时无关元数据，描述 package/device 标识、package 版本、能力、支持的 Transport、Parameter/Command/Signal 元数据、强类型配置 Schema、可选 Simulator/Diagnostics 元数据以及 Provider/Protocol 依赖。
+可复用设备集成除了运行时 `IDevice` 实现外，还可以发布 `DevicePackageDescriptor`。Descriptor 是面向产品 App、Samples、CLI/Tooling 或具体产品 UI 的运行时无关元数据，描述 package/device 标识、package 版本、能力、支持的 Transport、Parameter/Command/Signal 元数据、强类型配置 Schema、可选 Simulator/Diagnostics 元数据以及 Provider/Protocol 依赖。
 
 在组合阶段注册 Package：
 

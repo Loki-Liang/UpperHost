@@ -56,10 +56,10 @@ Validation failures include the canonical configuration path.
 
 UpperHost does not implement a credential vault. Applications should inject sensitive values through standard configuration providers such as environment variables, .NET user secrets for local development, or an operating-system/cloud secret store integrated through `Microsoft.Extensions.Configuration`.
 
-Passwords, tokens, API keys, private keys and connection strings must not be committed to the generated template, copied into device metadata, emitted into generated source/test snapshots, or written into free-form log messages. Structured log properties with known sensitive names are redacted before rendering as defense in depth.
+Passwords, tokens, API keys, private keys and connection strings must not be committed to the product source scaffold, copied into device metadata, emitted into generated source/test snapshots, or written into free-form log messages. Structured log properties with known sensitive names are redacted before rendering as defense in depth.
 
-Environment variables use the standard double-underscore mapping, for example `UpperHost__Transport__Tcp__Host`. Product-specific secret sections belong to the application/provider that consumes them, not to the shared UpperHost template.
+Environment variables use the standard double-underscore mapping, for example `UpperHost__Transport__Tcp__Host`. Product-specific secret sections belong to the application/provider that consumes them, not to reusable UpperHost runtime modules.
 
 ## Compatibility
 
-Configuration section names and keys are versioned public surface. Renames/removals require a migration note, synchronized template changes and automated coverage. Defaults live in typed options instead of starter parsing code.
+Configuration section names and keys are versioned public surface. Renames/removals require a migration note, synchronized starter-application changes and automated coverage. Defaults live in typed options instead of starter parsing code.

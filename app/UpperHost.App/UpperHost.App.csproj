@@ -3,12 +3,13 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>UpperHost.App</AssemblyName>
+    <RootNamespace>UpperHost.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="UpperHost.Starters" Version="0.1.0-alpha.1" />
-    <PackageReference Include="UpperHost.Presentation.Wpf" Version="0.1.0-alpha.1" />
+    <ProjectReference Include="../../src/UpperHost.Starters/UpperHost.Starters.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">

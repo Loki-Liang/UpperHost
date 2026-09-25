@@ -2,7 +2,7 @@
 
 English | [简体中文](extending.zh-CN.md)
 
-UpperHost is a development scaffold: extensions should add reusable device/protocol/provider capabilities while product-specific behavior stays in the consumer upper-computer application.
+UpperHost is a source-first development scaffold: extensions should add reusable device/protocol/provider capabilities while product-specific behavior stays in `app/UpperHost.App`.
 
 ## Add a device
 
@@ -58,21 +58,23 @@ Implement `IUpperHostModule` and register services inside `ConfigureServices`. D
 
 Plugins are trusted in-process extensions, not a security sandbox.
 
-## Create an application
+## Start product development
 
-After installing the template package:
+Clone the repository and run the canonical product entry directly:
 
 ```powershell
-dotnet new upperhost -n MyMachine --transport simulator
+git clone https://github.com/Loki-Liang/UpperHost.git MyMachine
+cd MyMachine
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-Supported baseline transport choices are `simulator`, `serial` and `tcp`. Additional providers should be delivered as separate packages/starters rather than added to the core assembly.
+The default transport is `simulator`. Change `app/UpperHost.App/appsettings.json` to `serial` or `tcp` when a real endpoint is required. Additional providers should remain isolated behind the existing provider/starter boundaries.
 
 If this is your first UpperHost application, start with [Getting Started](getting-started.md).
 
 ## Device packages, descriptors and catalog
 
-A reusable device integration may publish a `DevicePackageDescriptor` in addition to its runtime `IDevice` implementation. The descriptor is runtime-neutral metadata for generated applications, samples, CLI/tooling or product-specific UI. It describes package/device identity, package version, capabilities, supported transports, parameter/command/signal metadata, typed configuration schema, optional simulator/diagnostics metadata and provider/protocol dependencies.
+A reusable device integration may publish a `DevicePackageDescriptor` in addition to its runtime `IDevice` implementation. The descriptor is runtime-neutral metadata for the product application, samples, CLI/tooling or product-specific UI. It describes package/device identity, package version, capabilities, supported transports, parameter/command/signal metadata, typed configuration schema, optional simulator/diagnostics metadata and provider/protocol dependencies.
 
 Register a package at composition time:
 

@@ -15,7 +15,7 @@ The canonical required check job IDs are defined in
 - `openhands-config`
 - `architecture-governance`
 - `linux-runtime-contract`
-- `build-test-template`
+- `build-test-scaffold`
 
 `scripts/validate_main_governance.py` runs inside `openhands-config` and fails
 when this contract drifts from `.github/workflows/ci.yml`.
@@ -79,5 +79,5 @@ Before closing Issue #31, retain evidence that:
 - direct push / force push / deletion behavior matches the policy;
 - the documented check names match current workflow job IDs.
 
-Future release gates such as External Consumer E2E and Public API Compatibility
+Future release gates such as Source-Scaffold E2E and Public API Compatibility
 must be added to the policy and active ruleset when their issues are completed.

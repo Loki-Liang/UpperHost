@@ -27,6 +27,7 @@ public partial class App : Application
     {
         if (_host is not null)
             await _host.DisposeAsync();
+
         base.OnExit(e);
     }
 }

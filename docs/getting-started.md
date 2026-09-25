@@ -6,7 +6,7 @@ This guide is for developers who have never used UpperHost. The goal is to use t
 
 ## 1. What UpperHost is
 
-UpperHost is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition. It supplies a reusable runtime, project template and extension seams for three equal application styles:
+UpperHost is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition. It supplies a reusable runtime, a runnable source application scaffold and extension seams for three equal application styles:
 
 - **Control**: commands, parameters, readback, state, interlocks and diagnostics.
 - **Automation**: multi-device orchestration, workflows, state machines and alarms.
@@ -30,35 +30,47 @@ dotnet --info
 git --version
 ```
 
-## 3. Build UpperHost itself
+## 3. Clone the scaffold and run it directly
+
+UpperHost uses a source-first secondary-development model. The repository itself is the product engineering scaffold; you do not have to build the framework, pack a template, or generate a second project before product work starts.
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git
-cd UpperHost
-dotnet restore UpperHost.slnx
-dotnet build UpperHost.slnx -c Release
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release
+git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+cd MyDeviceApp
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-If this fails, fix the SDK/environment problem before writing device code.
+The first run uses Simulator by default. When the UpperHost WPF window opens, Hosting, DI, Configuration, Observability, and the baseline transport starter are wired correctly.
 
-## 4. Install the project template
+Use these ownership boundaries:
 
-```powershell
-dotnet pack templates/UpperHost.Templates.csproj -c Release -o artifacts/packages
-dotnet new install artifacts/packages/UpperHost.Templates.0.1.0-alpha.1.nupkg
+```text
+app/UpperHost.App/
+  product startup, composition root, product UI and product-specific code
+
+src/UpperHost.*/
+  reusable runtime, providers and cross-product infrastructure
+
+samples/
+  Control / Automation / Acquisition references
 ```
 
-Create a new simulator-backed application outside the repository:
+## 4. Start product development from the application entry
 
-```powershell
-cd ..
-dotnet new upperhost -n MyFirstUpperHostApp --transport simulator
-cd MyFirstUpperHostApp
-dotnet run
+Prefer product code under `app/UpperHost.App`:
+
+```text
+app/UpperHost.App/
+├─ Devices/
+├─ Protocols/
+├─ Workflows/
+├─ Acquisition/
+├─ Presentation/
+├─ App.xaml.cs
+└─ appsettings.json
 ```
 
-The generated WPF window proves that hosting, dependency injection, configuration and the selected transport starter are wired correctly.
+Move a capability into `src/UpperHost.*` only after it is genuinely reusable across products.
 
 ## 5. Learn the five concepts before adding code
 

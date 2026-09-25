@@ -56,32 +56,32 @@ Hardware
 - 软件联锁/安全策略只负责软件控制约束，不能替代硬件急停、安全 PLC 或认证安全回路。
 - 厂商 SDK、USB、CAN、BLE 等通过独立 Provider/Starter 扩展，不进入 `UpperHost.Abstractions`。
 
-## 创建第一个项目
+## 5 分钟开始二次开发
 
-需要 .NET 10 SDK；WPF 项目需要 Windows。
-
-```powershell
-dotnet restore UpperHost.slnx
-dotnet build UpperHost.slnx -c Release
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release
-```
-
-安装本地模板：
+需要 Windows 和 .NET 10 SDK。UpperHost 仓库本身就是可运行、可继续开发的上位机工程骨架，不需要先生成另一个项目。
 
 ```powershell
-dotnet pack templates/UpperHost.Templates.csproj -c Release -o artifacts/packages
-dotnet new install artifacts/packages/UpperHost.Templates.0.1.0-alpha.1.nupkg
-```
-
-创建 Simulator 项目：
-
-```powershell
-dotnet new upperhost -n MyDeviceApp --transport simulator
+git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
 cd MyDeviceApp
-dotnet run
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-然后继续阅读：[零基础入门：从 0 到第一台设备](docs/getting-started.zh-CN.md)。
+首次启动默认使用 Simulator。接下来直接在当前产品仓库中增加自己的 Device、Protocol/Provider、Workflow、Acquisition 和产品 UI；可复用 Runtime 基础设施继续放在 `src/UpperHost.*`。
+
+推荐二开边界：
+
+```text
+MyDeviceApp/
+├─ app/UpperHost.App/          # 产品入口与产品 UI，二开从这里开始
+├─ src/UpperHost.*/            # 可复用 Runtime / Provider / 基础设施
+├─ samples/                    # 参考实现，不是产品入口
+├─ tests/                      # Runtime 与基础设施测试
+└─ UpperHost.slnx
+```
+
+需要接真实设备时，先阅读：[零基础入门：从 0 到第一台设备](docs/getting-started.zh-CN.md)。
+
+如果你的目标是贡献 UpperHost Runtime 本身，而不是开发自己的上位机产品，再执行仓库级 `restore / build / test` 和贡献流程。
 
 ## 脚手架与产品的边界
 

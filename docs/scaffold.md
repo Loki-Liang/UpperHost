@@ -28,33 +28,36 @@ The scaffold includes:
 - deterministic Simulator/fault-injection support;
 - automated tests and architecture governance;
 - NuGet-ready modules;
-- `dotnet new upperhost` project templates;
+- runnable `app/UpperHost.App` product scaffold;
 - runnable reference samples.
 
 ## Product ownership boundary
 
-A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, templates, testing seams, diagnostics and presentation adapters shared across products.
+A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, starter-application conventions, testing seams, diagnostics and presentation adapters shared across products.
 
 ## Primary developer experience
 
-The preferred development path is:
+UpperHost uses a **source-first secondary-development** model. Developers clone the repository and continue developing it directly as their upper-computer product:
 
 ```text
-dotnet new upperhost
+git clone UpperHost
         |
         v
-generated upper-computer application
+run app/UpperHost.App
         |
         +-- product Device capabilities
         +-- product Protocol / Provider
-        +-- product control / acquisition behavior
+        +-- product Workflow / State
+        +-- product Acquisition
         +-- product UI
         |
         v
-build / test / package
+build / test / package the product
 ```
 
-Developers should extend the scaffold rather than fork or rewrite its runtime.
+`app/UpperHost.App` is the canonical product entry point, `src/UpperHost.*` contains reusable infrastructure, and `samples/` contains reference implementations only.
+
+Product developers start from the runnable source scaffold directly. Repository-level framework build/test work belongs to contributors changing the reusable runtime.
 
 ## Architecture baseline
 
@@ -64,7 +67,7 @@ The scaffold must not introduce microservices, remote RPC, or distributed consis
 
 ## Presentation boundary
 
-WPF is the current default presentation adapter and project template, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
+WPF is the current default presentation adapter and starter-application UI stack, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
 
 Reference presentation applications may demonstrate the scaffold, but they consume the same UpperHost runtime contracts and remain examples of how a product composes the reusable modules.
 

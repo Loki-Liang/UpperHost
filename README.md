@@ -12,7 +12,7 @@ UpperHost treats three device-application styles as first-class peers:
 
 Acquisition is one scaffold workload, not the center of the architecture.
 
-The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a `dotnet new` project template. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in the generated application; UpperHost supplies the reusable runtime and engineering baseline.
+The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a runnable source application entry. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in `app/UpperHost.App`; UpperHost supplies the reusable runtime and engineering baseline.
 
 ## Start here
 
@@ -47,8 +47,8 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 - Metadata-driven reusable WPF DeviceList, ParameterEditor, CommandPanel and AlarmPanel controls.
 - Fault-injection testing helpers.
 - Starter package for one-call common registration.
-- `dotnet new upperhost` WPF template.
-- Windows CI that builds, tests, packs NuGet packages and smoke-builds a generated template application outside the source repository.
+- Runnable `app/UpperHost.App` WPF product scaffold.
+- Windows CI that builds, tests, packs reusable NuGet modules and validates the source scaffold application.
 
 ## Architecture
 
@@ -115,37 +115,30 @@ Hardware -> Transport -> Decoder -> Stream -> Dataflow -> Storage / Algorithm / 
 
 Do not force low-rate request/response devices through a high-rate streaming pipeline.
 
-## Build
+## Start secondary development in 5 minutes
 
-Requires .NET 10 SDK. WPF projects require Windows.
-
-```powershell
-dotnet restore UpperHost.slnx
-dotnet build UpperHost.slnx -c Release
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release
-```
-
-## Create a project
-
-Pack and install the template locally:
+UpperHost itself is the runnable source scaffold. You do not need to build or install a project generator before starting a product. Windows and the .NET 10 SDK are required for the WPF starter application.
 
 ```powershell
-dotnet pack templates/UpperHost.Templates.csproj -c Release -o artifacts/packages
-dotnet new install artifacts/packages/UpperHost.Templates.0.1.0-alpha.1.nupkg
-
-dotnet new upperhost -n MyDeviceApp --transport simulator
+git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+cd MyDeviceApp
+dotnet run --project app/UpperHost.App/UpperHost.App.csproj
 ```
 
-Other baseline choices:
+The starter application uses Simulator by default. Continue developing the current repository as your product: add product Device capabilities, Protocol/Provider integrations, Workflows, Acquisition logic, and product UI under the application boundary while reusable runtime infrastructure remains under `src/UpperHost.*`.
 
-```powershell
-dotnet new upperhost -n PlcStation --transport tcp
-dotnet new upperhost -n InstrumentConsole --transport serial
+```text
+MyDeviceApp/
+├─ app/UpperHost.App/          # product entry point and UI; start product work here
+├─ src/UpperHost.*/            # reusable runtime / providers / infrastructure
+├─ samples/                    # reference implementations, not the product entry point
+├─ tests/                      # runtime and infrastructure tests
+└─ UpperHost.slnx
 ```
-
-The generated app reads `UpperHost:Transport` from `appsettings.json`; there is no transport wiring boilerplate in `App.xaml.cs`.
 
 Continue with the [zero-to-first-device guide](docs/getting-started.md).
+
+If you are contributing to the UpperHost runtime itself rather than building a product, then use the repository-level restore/build/test and contribution workflow.
 
 ## Minimal bootstrap
 
