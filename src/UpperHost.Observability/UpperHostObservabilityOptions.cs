@@ -13,18 +13,15 @@ public sealed class UpperHostObservabilityOptions
         Assembly.GetEntryAssembly()?.GetName().Version?.ToString()
         ?? UpperHostTelemetry.InstrumentationVersion;
 
-    public UpperHostFileLoggingOptions FileLogging { get; set; } = new();
+    public UpperHostLoggingOptions Logging { get; set; } = new();
     public UpperHostOtlpOptions Otlp { get; set; } = new();
 
-    public void Validate()
-    {
-        if (string.IsNullOrWhiteSpace(ServiceName))
-            throw new InvalidOperationException("UpperHost observability ServiceName is required.");
-        if (string.IsNullOrWhiteSpace(ServiceVersion))
-            throw new InvalidOperationException("UpperHost observability ServiceVersion is required.");
-        FileLogging.Validate();
-        Otlp.Validate();
-    }
+    public UpperHostFileLoggingOptions FileLogging => Logging.File;
+}
+
+public sealed class UpperHostLoggingOptions
+{
+    public UpperHostFileLoggingOptions File { get; set; } = new();
 }
 
 public sealed class UpperHostFileLoggingOptions
@@ -36,20 +33,6 @@ public sealed class UpperHostFileLoggingOptions
     public int RetainedFileCountLimit { get; set; } = 14;
     public int AsyncBufferSize { get; set; } = 10_000;
     public bool BlockWhenFull { get; set; }
-
-    internal void Validate()
-    {
-        if (!Enabled)
-            return;
-        if (string.IsNullOrWhiteSpace(Path))
-            throw new InvalidOperationException("UpperHost file log path is required when file logging is enabled.");
-        if (FileSizeLimitBytes <= 0)
-            throw new InvalidOperationException("UpperHost file log size limit must be greater than zero.");
-        if (RetainedFileCountLimit <= 0)
-            throw new InvalidOperationException("UpperHost retained file count must be greater than zero.");
-        if (AsyncBufferSize <= 0)
-            throw new InvalidOperationException("UpperHost async log buffer size must be greater than zero.");
-    }
 }
 
 public sealed class UpperHostOtlpOptions
@@ -57,19 +40,4 @@ public sealed class UpperHostOtlpOptions
     public bool Enabled { get; set; }
     public string? Endpoint { get; set; }
     public double TraceSampleRatio { get; set; } = 1.0;
-
-    internal void Validate()
-    {
-        if (TraceSampleRatio <= 0 || TraceSampleRatio > 1)
-            throw new InvalidOperationException("UpperHost OTLP trace sample ratio must be greater than 0 and at most 1.");
-
-        if (!Enabled)
-            return;
-        if (string.IsNullOrWhiteSpace(Endpoint) ||
-            !Uri.TryCreate(Endpoint, UriKind.Absolute, out _))
-        {
-            throw new InvalidOperationException(
-                "UpperHost OTLP endpoint must be an absolute URI when OTLP export is enabled.");
-        }
-    }
 }
