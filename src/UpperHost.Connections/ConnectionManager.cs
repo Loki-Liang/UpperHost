@@ -377,12 +377,25 @@ public sealed class ConnectionManager : IConnectionManager
             throw new InvalidOperationException(
                 "Connection lease transport lifecycle is owned by IConnectionManager.");
 
-        public ValueTask SendAsync(
+        public async ValueTask SendAsync(
             ReadOnlyMemory<byte> data,
             CancellationToken cancellationToken = default)
         {
             _lease.ThrowIfDisposed();
-            return _inner.SendAsync(data, cancellationToken);
+
+            try
+            {
+                await _inner.SendAsync(data, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                MarkRuntimeFault("send", ex);
+                throw;
+            }
         }
 
         public async IAsyncEnumerable<ReadOnlyMemory<byte>> ReceiveAsync(
@@ -390,11 +403,46 @@ public sealed class ConnectionManager : IConnectionManager
             CancellationToken cancellationToken = default)
         {
             _lease.ThrowIfDisposed();
-            await foreach (var item in _inner.ReceiveAsync(cancellationToken).ConfigureAwait(false))
+            await using var enumerator = _inner
+                .ReceiveAsync(cancellationToken)
+                .GetAsyncEnumerator(cancellationToken);
+
+            while (true)
             {
+                bool hasItem;
+                ReadOnlyMemory<byte> item = default;
+
+                try
+                {
+                    hasItem = await enumerator.MoveNextAsync().ConfigureAwait(false);
+                    if (hasItem)
+                        item = enumerator.Current;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    MarkRuntimeFault("receive", ex);
+                    throw;
+                }
+
+                if (!hasItem)
+                    yield break;
+
                 _lease.ThrowIfDisposed();
                 yield return item;
             }
+        }
+
+        private void MarkRuntimeFault(string operation, Exception exception)
+        {
+            _entry.State = ConnectionState.Faulted;
+            Record(operation, _entry, "faulted", exception.GetType().FullName);
+
+            using var activity = StartActivity(operation, _entry);
+            MarkFailure(activity, exception, $"connection_{operation}_fault");
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
