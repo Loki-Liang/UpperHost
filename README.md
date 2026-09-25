@@ -112,6 +112,16 @@ Hardware -> Transport -> Decoder -> Stream -> Dataflow -> Storage / Algorithm / 
 
 Do not force low-rate request/response devices through a high-rate streaming pipeline.
 
+## Workbench
+
+The primary end-user desktop application is `apps/UpperHost.Workbench.Wpf`.
+
+```powershell
+dotnet run --project apps/UpperHost.Workbench.Wpf/UpperHost.Workbench.Wpf.csproj
+```
+
+The current shell provides Project, Devices, Connections, Control, Data, Alarms, Logs and Diagnostics workspaces and reuses the platform WPF controls. It does not provide visual workflow orchestration.
+
 ## Build
 
 Requires .NET 10 SDK. WPF projects require Windows.
