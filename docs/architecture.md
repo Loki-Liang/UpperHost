@@ -2,7 +2,7 @@
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is a **general device-application platform**, not a framework for one industry, hardware category or acquisition workload. The primary end-user product surface is UpperHost Workbench; Workbench reuses the same runtime and explicitly does not introduce visual workflow orchestration or a generic low-code engine.
+UpperHost is a **general-purpose .NET upper-computer / device-application development scaffold**. It provides reusable runtime modules, conventions, providers, testing seams and project templates for building product-specific upper-computer applications. It is not a finished universal Workbench/HMI, a low-code product, or a framework tied to one industry, hardware category or acquisition workload.
 
 ## Stable platform boundary
 
