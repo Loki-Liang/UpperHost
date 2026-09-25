@@ -2,7 +2,7 @@
 
 简体中文 | [English](architecture.md)
 
-UpperHost 是**通用 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和项目模板，用于快速构建具体的上位机产品。UpperHost 不是通用成品 Workbench/HMI，不是低代码产品，也不绑定某个行业、某类硬件或某种采集场景。
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和项目模板，用于快速构建具体的工业上位机产品。UpperHost 不是通用成品 Workbench/HMI，不是低代码产品，也不绑定某个行业、某类硬件或某种采集场景。
 
 ## 稳定平台边界
 

@@ -86,7 +86,7 @@ Squash Merge 到 main
 
 ## 产品定位：上位机开发脚手架
 
-UpperHost 是**通用 .NET 上位机开发脚手架**。仓库的职责是给上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Samples 和项目模板。
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。仓库的职责是给工业上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Samples 和项目模板。
 
 UpperHost 不是已经完成的通用 Workbench/HMI，也不是低代码产品。具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。
 
