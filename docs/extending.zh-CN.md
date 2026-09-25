@@ -2,6 +2,8 @@
 
 简体中文 | [English](extending.md)
 
+UpperHost 是上位机开发脚手架：扩展应增加可复用的 Device/Protocol/Provider 能力，具体产品业务继续放在消费 UpperHost 的上位机工程中。
+
 ## 增加 Device
 
 实现 `IDevice`，然后只实现硬件真正支持的 Capability。通过 DI 注册，应用启动后由 `IDeviceRegistry` 暴露。
