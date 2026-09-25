@@ -40,7 +40,8 @@ public static class UpperHostStarterExtensions
     public static UpperHostApplicationBuilder AddSerialTransport(this UpperHostApplicationBuilder builder, SerialTransportOptions options)
     {
         builder.Services.AddSingleton(options);
-        builder.Services.AddSingleton<ITransport, SerialTransport>();
+        builder.Services.AddSingleton<ITransport>(_ =>
+            new ObservedTransport(new SerialTransport(options)));
         return builder;
     }
 
