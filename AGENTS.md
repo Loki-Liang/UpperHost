@@ -165,7 +165,7 @@ Public runtime APIs, configuration contracts and the canonical source scaffold a
 - The baseline must come from a successful CI artifact for the exact base SHA. Never fall back to an older successful main artifact.
 - Normal ApiCompat failures are breaking changes. They require an explicit issue, migration instructions, a version change, tests and a same-PR `eng/compatibility/breaking/<PackageId>.md` approval record.
 - Strict baseline validation detects additive public API drift. A deliberate public addition requires a same-PR `eng/compatibility/api-additions/<PackageId>.md` approval record explaining the public surface and why it belongs in the contract.
-- Never delete a baseline, disable the analyzer/tool, weaken the source-scaffold contract or skip the gate to make CI green.
+- Never delete a baseline, disable ApiCompat/Package Validation, weaken the source-scaffold contract or skip the gate to make CI green.
 - The pre-commit hook validates the source-scaffold contract locally; the exact-base package comparison remains an authoritative PR/Windows CI gate because it requires the validated base artifact.
 
 See `docs/compatibility.md`.
