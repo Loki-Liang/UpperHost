@@ -179,7 +179,11 @@ public sealed class StreamRouter<T> : IAsyncDisposable
 
     private void RemoveBranch(StreamBranch<T> branch)
     {
-        _branches.TryRemove(new KeyValuePair<string, StreamBranch<T>>(branch.Options.Name, branch));
+        if (_branches.TryGetValue(branch.Options.Name, out var current) &&
+            ReferenceEquals(current, branch))
+        {
+            _branches.TryRemove(branch.Options.Name, out _);
+        }
     }
 
     private void Validate(StreamBranchOptions options)
@@ -476,7 +480,5 @@ public sealed class StreamBranch<T> : IAsyncDisposable
 
         while (_channel.Reader.TryRead(out var remaining))
             _releaseOwnedItem?.Invoke(remaining);
-
-        _publishGate.Dispose();
     }
 }
