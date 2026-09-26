@@ -132,6 +132,9 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
                         break;
 
                     var node = _nodes[stageId];
+                    if (node.Isolated)
+                        continue;
+
                     await node.CompleteInstancesAsync(cancellationToken).ConfigureAwait(false);
                     await node.Router
                         .CompleteAsync(StreamCompletionMode.Drain, cancellationToken)
@@ -345,6 +348,7 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
         }
 
         public StreamRouter<SignalBlock<T>> Router { get; }
+        public bool Isolated => Volatile.Read(ref _isolated) != 0;
 
         public async ValueTask ConsumeAsync(
             SignalBlock<T> input,
