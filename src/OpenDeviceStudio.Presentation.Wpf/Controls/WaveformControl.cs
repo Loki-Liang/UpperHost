@@ -134,7 +134,7 @@ public sealed class WaveformControl : Control
                 geometry.Freeze();
 
             drawingContext.DrawGeometry(
-                brush: null,
+                null,
                 pen,
                 geometry);
         }
