@@ -30,6 +30,12 @@ internal static class AcquisitionTelemetry
             "s",
             "Acquisition session convergence duration.");
 
+    public static Counter<long> ClosedIngressRejections { get; } =
+        UpperHostTelemetry.Meter.CreateCounter<long>(
+            "upperhost.acquisition.ingress.rejected_closed",
+            "{block}",
+            "Raw blocks rejected because the owning acquisition session ingress was closed.");
+
     public static TagList StateTags(
         AcquisitionSessionMode mode,
         AcquisitionSessionState from,
