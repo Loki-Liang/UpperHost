@@ -21,3 +21,8 @@ The default adapter therefore selects Arrow IPC Stream, while keeping the Core r
 - Raw remains the original numeric/byte representation after framing/minimal decode; calibration/filtering/downsampling are downstream.
 - Manifest JSON is session metadata only; Raw hot-path payload records are not JSONL.
 - This spike is not the #62 performance/soak baseline and does not authorize per-block fsync.
+
+## Exact-base validation baseline
+
+For the final #58 validation pass, the PR is rebased logically through GitHub's merge-ref against `main@5a0d4a344ba051193f8f6129c2b6ebf0446b0528`. Main CI run `36254715914` completed successfully and published the `opendevicestudio-packages` artifact (artifact id `10909429362`, digest `sha256:e81abcaa772e7e286b8f9c123e61dfb35be8d1f25227fff5f21f71b1e0086841`) used as the exact-base compatibility baseline.
+
