@@ -1,3 +1,5 @@
+using OpenDeviceStudio.Abstractions.Storage;
+
 namespace OpenDeviceStudio.Acquisition;
 
 public sealed record AcquisitionRawAcceptance(bool Accepted, string? Reason = null)
@@ -110,15 +112,18 @@ internal sealed class AcquisitionIngressGate(AcquisitionSessionMode mode)
 public sealed class RawFirstAcquisitionIngress<TBlock>
 {
     private readonly AcquisitionIngressGate _gate;
+    private readonly RawSourceFlowControl _flowControl;
     private readonly IAcquisitionRawSink<TBlock> _raw;
     private readonly IAcquisitionProcessingSink<TBlock> _processing;
 
     internal RawFirstAcquisitionIngress(
         AcquisitionIngressGate gate,
+        RawSourceFlowControl flowControl,
         IAcquisitionRawSink<TBlock> raw,
         IAcquisitionProcessingSink<TBlock> processing)
     {
         _gate = gate ?? throw new ArgumentNullException(nameof(gate));
+        _flowControl = flowControl;
         _raw = raw ?? throw new ArgumentNullException(nameof(raw));
         _processing = processing ?? throw new ArgumentNullException(nameof(processing));
     }
@@ -132,9 +137,23 @@ public sealed class RawFirstAcquisitionIngress<TBlock>
 
         using (lease)
         {
-            var acceptance = await _raw
-                .AcceptAsync(block, cancellationToken)
-                .ConfigureAwait(false);
+            AcquisitionRawAcceptance acceptance;
+            if (_flowControl == RawSourceFlowControl.CannotBackpressure)
+            {
+                if (_raw is not IAcquisitionTryRawSink<TBlock> tryRaw)
+                {
+                    throw new InvalidOperationException(
+                        "CannotBackpressure Raw sources require an IAcquisitionTryRawSink so ingress never waits for storage capacity.");
+                }
+
+                acceptance = tryRaw.TryAccept(block);
+            }
+            else
+            {
+                acceptance = await _raw
+                    .AcceptAsync(block, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             if (!acceptance.Accepted)
                 throw new AcquisitionRawRejectedException(acceptance.Reason);
