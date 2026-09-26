@@ -15,10 +15,9 @@ public static class FileSystemRawArtifactReader
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionDirectory);
         var manifestPath = Path.Combine(sessionDirectory, "manifest.json");
         await using var manifestStream = File.OpenRead(manifestPath);
-        var manifest = await JsonSerializer.DeserializeAsync(
+        var manifest = await JsonSerializer.DeserializeAsync<FileSystemRawRecorder.RawSessionManifest>(
             manifestStream,
-            FileSystemRawRecorder.RawJsonContext.Default.RawSessionManifest,
-            cancellationToken).ConfigureAwait(false)
+            cancellationToken: cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException("Raw manifest is empty.");
 
         if (manifest.SchemaVersion != 1 ||
@@ -150,10 +149,9 @@ public static class FileSystemRawRecoveryScanner
         try
         {
             await using var manifestStream = File.OpenRead(manifestPath);
-            manifest = await JsonSerializer.DeserializeAsync(
+            manifest = await JsonSerializer.DeserializeAsync<FileSystemRawRecorder.RawSessionManifest>(
                 manifestStream,
-                FileSystemRawRecorder.RawJsonContext.Default.RawSessionManifest,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken: cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or JsonException)
         {

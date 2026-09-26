@@ -583,7 +583,11 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             await JsonSerializer.SerializeAsync(
                 stream,
                 manifest,
-                RawJsonContext.Default.RawSessionManifest,
+                new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    WriteIndented = true
+                },
                 cancellationToken).ConfigureAwait(false);
             await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
             if (_options.Durability == RawDurabilityLevel.FlushToDiskOnFinalize &&
@@ -701,11 +705,6 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         IReadOnlyList<RawSegmentManifest> Segments,
         string? Reason);
 
-    [System.Text.Json.Serialization.JsonSerializable(typeof(RawSessionManifest))]
-    [System.Text.Json.Serialization.JsonSourceGenerationOptions(
-        PropertyNamingPolicy = System.Text.Json.Serialization.JsonKnownNamingPolicy.CamelCase,
-        WriteIndented = true)]
-    internal partial class RawJsonContext : System.Text.Json.Serialization.JsonSerializerContext;
 
     private sealed class SegmentWriter : IAsyncDisposable
     {
