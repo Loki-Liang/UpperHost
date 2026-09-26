@@ -133,7 +133,10 @@ public sealed class RawRecorderTestsClosure
             TimeSpan.FromSeconds(5));
 
         Assert.Equal(RawRecorderState.Faulted, recorder.Snapshot.State);
-        Assert.Contains("below hard threshold", recorder.Snapshot.FaultReason, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "below hard threshold",
+            recorder.Snapshot.FaultReason ?? string.Empty,
+            StringComparison.OrdinalIgnoreCase);
 
         var rejected = recorder.TryAccept(CreateBlock(
             sourceId: "source-low-disk",
@@ -177,6 +180,10 @@ public sealed class RawRecorderTestsClosure
             configurationHash: "cfg-flush",
             payload: [0x01, 0x00, 0x02, 0x00]));
         Assert.True(accepted.Accepted, accepted.Reason);
+        await WaitUntilAsync(
+            () => recorder.Snapshot.WrittenBlocks == 1,
+            TimeSpan.FromSeconds(5));
+        streamFactory.EnableFlushFailure();
 
         await Assert.ThrowsAnyAsync<Exception>(() => recorder.StopAsync().AsTask());
 
@@ -395,17 +402,24 @@ public sealed class RawRecorderTestsClosure
     private sealed class FailSegmentFlushStreamFactory : IRawSegmentStreamFactory
     {
         private int _openCount;
+        private int _failFlush;
+
+        public void EnableFlushFailure() => Volatile.Write(ref _failFlush, 1);
 
         public Stream OpenWrite(string path)
         {
             var stream = FileSystemRawSegmentStreamFactory.Instance.OpenWrite(path);
             return Interlocked.Increment(ref _openCount) == 1
                 ? stream
-                : new FlushFailingStream(stream);
+                : new FlushFailingStream(
+                    stream,
+                    () => Volatile.Read(ref _failFlush) != 0);
         }
     }
 
-    private sealed class FlushFailingStream(Stream inner) : Stream
+    private sealed class FlushFailingStream(
+        Stream inner,
+        Func<bool> shouldFailFlush) : Stream
     {
         public override bool CanRead => inner.CanRead;
         public override bool CanSeek => inner.CanSeek;
@@ -418,11 +432,17 @@ public sealed class RawRecorderTestsClosure
             set => inner.Position = value;
         }
 
-        public override void Flush() =>
-            throw new IOException("Injected Raw segment flush failure.");
+        public override void Flush()
+        {
+            if (shouldFailFlush())
+                throw new IOException("Injected Raw segment flush failure.");
+            inner.Flush();
+        }
 
         public override Task FlushAsync(CancellationToken cancellationToken) =>
-            Task.FromException(new IOException("Injected Raw segment flush failure."));
+            shouldFailFlush()
+                ? Task.FromException(new IOException("Injected Raw segment flush failure."))
+                : inner.FlushAsync(cancellationToken);
 
         public override int Read(byte[] buffer, int offset, int count) =>
             inner.Read(buffer, offset, count);
