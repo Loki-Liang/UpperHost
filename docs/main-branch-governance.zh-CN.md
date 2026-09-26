@@ -63,7 +63,7 @@
 - direct push / force push / deletion 行为与 policy 一致。
 - 文档中的 check 名称与当前 workflow job ID 一致。
 
-后续 #42 Source-Scaffold E2E、#41 Public API Compatibility 等变成正式 Release Gate 后，必须同步加入 policy 与 GitHub ruleset。
+#41 Public API Compatibility 直接纳入现有 canonical `build-test-scaffold` job，因此不会新增 required-check job ID；GitHub ruleset 继续要求 `build-test-scaffold` 即会覆盖兼容性门禁。后续如 #42 Source-Scaffold E2E 采用新的独立 job ID，则必须同时加入 policy 与 GitHub ruleset。
 
 ## Active ruleset 漂移校验
 

@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "appProject": "app/UpperHost.App/UpperHost.App.csproj",
+  "targetFramework": "net10.0-windows",
+  "outputType": "WinExe",
+  "useWpf": true,
+  "requiredProjectReferences": [
+    "../../src/UpperHost.Starters/UpperHost.Starters.csproj",
+    "../../src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj"
+  ],
+  "forbidPackageReferencesInApp": true,
+  "startupFile": "app/UpperHost.App/App.xaml.cs",
+  "requiredStartupTokens": [
+    "UpperHostApplication.CreateBuilder",
+    "AddUpperHostApplication",
+    "_host.StartAsync",
+    "_host.DisposeAsync"
+  ],
+  "configurationFile": "app/UpperHost.App/appsettings.json",
+  "defaultTransportType": "simulator",
+  "requiredConfigurationPaths": [
+    "UpperHost:Transport:Type",
+    "UpperHost:Transport:Simulator:Name",
+    "UpperHost:Transport:Serial:PortName",
+    "UpperHost:Transport:Serial:BaudRate",
+    "UpperHost:Transport:Tcp:Host",
+    "UpperHost:Transport:Tcp:Port",
+    "UpperHost:Transport:Resilience:Enabled",
+    "UpperHost:Observability:ServiceName",
+    "UpperHost:Observability:Logging:File:Enabled",
+    "UpperHost:Observability:Otlp:Enabled"
+  ]
+}

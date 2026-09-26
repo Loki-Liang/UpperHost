@@ -157,6 +157,18 @@ Any issue or PR that calls a cross-cutting component "enterprise-grade infrastru
 
 For metrics, per-execution identifiers such as command/session/connection/request IDs are forbidden as metric attributes unless an explicit bounded-cardinality proof is documented. Put correlation IDs in logs/traces instead. For logging or streaming, unbounded buffering is forbidden and overload/drop behavior must be observable.
 
+## Compatibility gate
+
+Public runtime APIs, configuration contracts and the canonical source scaffold are versioned surfaces.
+
+- `build-test-scaffold` validates `eng/compatibility/source-scaffold-contract.json` and compares every current reusable NuGet package against the exact PR base commit with Microsoft's `Microsoft.DotNet.ApiCompat.Tool`.
+- The baseline must come from a successful CI artifact for the exact base SHA. Never fall back to an older successful main artifact.
+- Normal ApiCompat failures are breaking changes. They require an explicit issue, migration instructions, a version change, tests and a same-PR `eng/compatibility/breaking/<PackageId>.md` approval record.
+- Strict baseline validation detects additive public API drift. A deliberate public addition requires a same-PR `eng/compatibility/api-additions/<PackageId>.md` approval record explaining the public surface and why it belongs in the contract.
+- Never delete a baseline, disable ApiCompat/Package Validation, weaken the source-scaffold contract or skip the gate to make CI green.
+- The pre-commit hook validates the source-scaffold contract locally; the exact-base package comparison remains an authoritative PR/Windows CI gate because it requires the validated base artifact.
+
+See `docs/compatibility.md`.
 ## Validation authority
 
 OpenHands usually runs in a Linux sandbox and must use `.openhands/setup.sh` and `.openhands/pre-commit.sh` for fast pre-PR validation.

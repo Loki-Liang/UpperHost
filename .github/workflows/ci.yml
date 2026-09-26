@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   openhands-config:
@@ -64,6 +65,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -86,6 +89,36 @@ jobs:
             dotnet pack $_.FullName -c Release --no-build -o artifacts/packages
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           }
+
+      - name: Validate source-scaffold compatibility contract
+        run: python scripts/validate_source_scaffold_contract.py
+
+      - name: Install pinned ApiCompat
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/tools | Out-Null
+          dotnet tool install Microsoft.DotNet.ApiCompat.Tool --tool-path artifacts/tools --version 10.0.400
+
+      - name: Prove compatibility gate detects API drift
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        run: ./scripts/test_compatibility_gate.ps1 -ApiCompatPath artifacts/tools/apicompat.exe
+
+      - name: Download exact-base compatibility packages
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/download_compatibility_baseline.ps1 -Repository $env:GITHUB_REPOSITORY -BaseSha $env:BASE_SHA -OutputDirectory artifacts/baseline
+
+      - name: Validate Runtime public API compatibility
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          GITHUB_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: ./scripts/validate_compatibility.ps1 -CurrentPackageDirectory artifacts/packages -BaselinePackageDirectory artifacts/baseline -ApiCompatPath artifacts/tools/apicompat.exe
 
       - name: Validate source-first scaffold entry
         shell: pwsh

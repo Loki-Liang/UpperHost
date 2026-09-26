@@ -24,6 +24,7 @@
 | AI 开发总控规则 | [AGENTS.zh-CN.md](AGENTS.zh-CN.md) |
 | 查看 DI、配置、日志、Host 等二开基础能力 | [二次开发基础能力](docs/secondary-development.zh-CN.md) |
 | 配置日志、Metrics、Tracing、Health | [Observability](docs/observability.zh-CN.md) |
+| 管理 Public API、配置和源码脚手架兼容性 | [兼容性门禁](docs/compatibility.zh-CN.md) |
 | 理解平台边界 | [架构说明](docs/architecture.zh-CN.md) |
 
 ## 开箱即用的工程基础能力
