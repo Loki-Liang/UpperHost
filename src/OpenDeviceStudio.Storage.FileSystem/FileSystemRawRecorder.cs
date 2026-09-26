@@ -16,6 +16,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private readonly FileSystemRawRecorderOptions _options;
     private readonly TimeProvider _timeProvider;
     private readonly IRawSegmentStreamFactory _streamFactory;
+    private readonly IRawStorageSpaceProbe _storageSpaceProbe;
     private readonly object _gate = new();
     private readonly object _acceptGate = new();
     private readonly SemaphoreSlim _manifestGate = new(1, 1);
@@ -58,7 +59,11 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     public FileSystemRawRecorder(
         FileSystemRawRecorderOptions options,
         TimeProvider? timeProvider = null)
-        : this(options, timeProvider ?? TimeProvider.System, FileSystemRawSegmentStreamFactory.Instance)
+        : this(
+            options,
+            timeProvider ?? TimeProvider.System,
+            FileSystemRawSegmentStreamFactory.Instance,
+            DriveInfoRawStorageSpaceProbe.Instance)
     {
     }
 
@@ -66,11 +71,25 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         FileSystemRawRecorderOptions options,
         TimeProvider timeProvider,
         IRawSegmentStreamFactory streamFactory)
+        : this(
+            options,
+            timeProvider,
+            streamFactory,
+            DriveInfoRawStorageSpaceProbe.Instance)
+    {
+    }
+
+    internal FileSystemRawRecorder(
+        FileSystemRawRecorderOptions options,
+        TimeProvider timeProvider,
+        IRawSegmentStreamFactory streamFactory,
+        IRawStorageSpaceProbe storageSpaceProbe)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _streamFactory = streamFactory ?? throw new ArgumentNullException(nameof(streamFactory));
+        _storageSpaceProbe = storageSpaceProbe ?? throw new ArgumentNullException(nameof(storageSpaceProbe));
     }
 
     public RawRecorderSnapshot Snapshot
@@ -755,25 +774,17 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 
     private void EnsureDiskSpace(string path)
     {
-        var root = Path.GetPathRoot(Path.GetFullPath(path));
-        if (string.IsNullOrWhiteSpace(root))
+        var available = _storageSpaceProbe.GetAvailableFreeBytes(path);
+        if (available is null)
             return;
 
-        try
-        {
-            var available = new DriveInfo(root).AvailableFreeSpace;
-            RawRecorderTelemetry.DiskAvailableBytes.Record(available);
-            if (available < _options.HardMinimumFreeBytes)
-                throw new IOException(
-                    $"Raw recorder free space {available} is below hard threshold {_options.HardMinimumFreeBytes}.");
+        RawRecorderTelemetry.DiskAvailableBytes.Record(available.Value);
+        if (available.Value < _options.HardMinimumFreeBytes)
+            throw new IOException(
+                $"Raw recorder free space {available.Value} is below hard threshold {_options.HardMinimumFreeBytes}.");
 
-            if (available < _options.WarningFreeBytes)
-                RawRecorderTelemetry.LowDiskWarnings.Add(1);
-        }
-        catch (DriveNotFoundException)
-        {
-            // Some virtual/provider file systems do not expose DriveInfo.
-        }
+        if (available.Value < _options.WarningFreeBytes)
+            RawRecorderTelemetry.LowDiskWarnings.Add(1);
     }
 
     private async Task WriteManifestAsync(
@@ -1188,6 +1199,37 @@ internal static class RawRecorderTelemetry
 }
 
 
+internal interface IRawStorageSpaceProbe
+{
+    long? GetAvailableFreeBytes(string path);
+}
+
+internal sealed class DriveInfoRawStorageSpaceProbe : IRawStorageSpaceProbe
+{
+    public static DriveInfoRawStorageSpaceProbe Instance { get; } = new();
+
+    private DriveInfoRawStorageSpaceProbe()
+    {
+    }
+
+    public long? GetAvailableFreeBytes(string path)
+    {
+        var root = Path.GetPathRoot(Path.GetFullPath(path));
+        if (string.IsNullOrWhiteSpace(root))
+            return null;
+
+        try
+        {
+            return new DriveInfo(root).AvailableFreeSpace;
+        }
+        catch (DriveNotFoundException)
+        {
+            // Some virtual/provider file systems do not expose DriveInfo.
+            return null;
+        }
+    }
+}
+
 internal interface IRawSegmentStreamFactory
 {
     Stream OpenWrite(string path);
@@ -1213,3 +1255,4 @@ internal sealed class FileSystemRawSegmentStreamFactory : IRawSegmentStreamFacto
                 BufferSize = 64 * 1024
             });
 }
+
