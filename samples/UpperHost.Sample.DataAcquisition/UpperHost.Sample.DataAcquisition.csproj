@@ -7,5 +7,6 @@
   <ItemGroup>
     <ProjectReference Include="../../src/UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
     <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+    <ProjectReference Include="../../src/UpperHost.Acquisition/UpperHost.Acquisition.csproj" />
   </ItemGroup>
 </Project>

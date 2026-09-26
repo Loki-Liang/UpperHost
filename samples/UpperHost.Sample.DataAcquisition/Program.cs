@@ -1,13 +1,11 @@
-using UpperHost.Dataflow;
+using UpperHost.Acquisition;
 using UpperHost.Sample.DataAcquisition.Acquisition;
 using UpperHost.Sample.DataAcquisition.Consumers;
 
-var device = new SimulatorAcquisitionDevice(channelCount: 4, frameCount: 500, samplePeriod: TimeSpan.FromMilliseconds(1));
-await device.ConnectAsync();
-
-var hub = new FanOutHub<SampleFrame>(new FanOutOptions(
-    Capacity: 16,
-    BackpressureMode: FanOutBackpressureMode.DropOldest));
+var device = new SimulatorAcquisitionDevice(
+    channelCount: 4,
+    frameCount: 500,
+    samplePeriod: TimeSpan.FromMilliseconds(1));
 
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 var storagePath = Path.Combine(
@@ -16,32 +14,27 @@ var storagePath = Path.Combine(
     "DataAcquisitionSample",
     $"samples-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.jsonl");
 
-var display = new ConsoleDisplayConsumer(
-    artificialRenderDelay: TimeSpan.FromMilliseconds(8),
-    renderEvery: 25);
-var storage = new JsonLinesStorageConsumer(storagePath);
+var dataflow = new SampleDataflowRuntime(storagePath);
+var source = new SessionManagedSimulatorSource(device, dataflow.PublishAsync);
 
-var displayTask = display.RunAsync(hub.Subscribe(cts.Token), cts.Token);
-var storageTask = storage.RunAsync(hub.Subscribe(cts.Token), cts.Token);
+await using var manager = new AcquisitionSessionManager();
+await using var session = manager.CreateSession(new AcquisitionSessionDefinition(
+    AcquisitionSessionMode.LiveAcquisition,
+    [source],
+    requiredComponents:
+    [
+        new AcquisitionRequiredComponentRegistration(dataflow)
+    ]));
 
-try
-{
-    await foreach (var frame in device.ReadAsync(cts.Token))
-        await hub.PublishAsync(frame, cts.Token);
-}
-finally
-{
-    await hub.DisposeAsync();
-    await device.DisconnectAsync();
-}
-
-var displayStats = await displayTask;
-var storedFrames = await storageTask;
+await session.StartAsync(cts.Token);
+await source.ProductionCompleted.WaitAsync(cts.Token);
+var result = await session.StopAsync(cts.Token);
 
 Console.WriteLine();
-Console.WriteLine("Acquisition complete.");
+Console.WriteLine($"Acquisition session: {result.SessionId}");
+Console.WriteLine($"Session state: {result.TerminalState}");
 Console.WriteLine($"Produced frames: {device.ProducedFrames}");
-Console.WriteLine($"Display received: {displayStats.ReceivedFrames}");
-Console.WriteLine($"Display observed dropped frames: {displayStats.SequenceGaps}");
-Console.WriteLine($"Storage received: {storedFrames}");
-Console.WriteLine($"Storage file: {storagePath}");
+Console.WriteLine($"Display received: {dataflow.DisplayStatistics?.ReceivedFrames ?? 0}");
+Console.WriteLine($"Display observed dropped frames: {dataflow.DisplayStatistics?.SequenceGaps ?? 0}");
+Console.WriteLine($"Storage received: {dataflow.StoredFrames}");
+Console.WriteLine($"Storage file: {dataflow.StoragePath}");

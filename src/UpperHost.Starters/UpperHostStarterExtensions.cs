@@ -4,6 +4,7 @@ using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Storage;
 using UpperHost.Abstractions.Transports;
+using UpperHost.Acquisition;
 using UpperHost.Connections;
 using UpperHost.Control.Scheduling;
 using UpperHost.Diagnostics;
@@ -24,11 +25,19 @@ public static class UpperHostStarterExtensions
     {
         builder.AddUpperHost();
         builder.Services.AddUpperHostConnections();
+        builder.Services.AddUpperHostAcquisition();
         builder.Services.TryAddSingleton<WorkflowRunner>();
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
         builder.Services.TryAddSingleton<HealthService>();
         builder.AddConfiguredUpperHostObservability();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddAcquisitionRuntime(this UpperHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddUpperHostAcquisition();
         return builder;
     }
 
