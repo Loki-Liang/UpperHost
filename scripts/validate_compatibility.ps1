@@ -91,6 +91,65 @@ function Require-Approval {
     }
 }
 
+function Get-PackageRenameContract {
+    param([Parameter(Mandatory = $true)][string[]]$ChangedFiles)
+
+    $path = "eng/compatibility/package-renames.json"
+    $forward = @{}
+    $reverse = @{}
+
+    if (-not (Test-Path $path)) {
+        return [pscustomobject]@{
+            Forward = $forward
+            Reverse = $reverse
+            Migration = $null
+        }
+    }
+
+    $contract = Get-Content -Raw $path | ConvertFrom-Json
+    if ($contract.schemaVersion -ne 1) {
+        throw "Unsupported package rename contract schemaVersion '$($contract.schemaVersion)'."
+    }
+
+    foreach ($field in @("issue", "reason", "migration", "version", "legacyArtifactName")) {
+        $value = [string]$contract.migration.$field
+        if ([string]::IsNullOrWhiteSpace($value)) {
+            throw "Package rename contract migration.$field must be non-empty."
+        }
+    }
+
+    foreach ($entry in @($contract.renames)) {
+        $from = [string]$entry.from
+        $to = [string]$entry.to
+        if ([string]::IsNullOrWhiteSpace($from) -or [string]::IsNullOrWhiteSpace($to) -or $from -eq $to) {
+            throw "Every package rename must define distinct non-empty 'from' and 'to' ids."
+        }
+        if ($forward.ContainsKey($from)) {
+            throw "Duplicate package rename source '$from'."
+        }
+        if ($reverse.ContainsKey($to)) {
+            throw "Duplicate package rename target '$to'."
+        }
+        $forward[$from] = $to
+        $reverse[$to] = $from
+    }
+
+    $migrationPath = ([string]$contract.migration.migration).Replace("\\", "/")
+    if (-not (Test-Path $migrationPath)) {
+        throw "Package rename migration document '$migrationPath' does not exist."
+    }
+
+    return [pscustomobject]@{
+        Forward = $forward
+        Reverse = $reverse
+        Migration = $contract.migration
+        Path = $path
+        MigrationPath = $migrationPath
+        Changed = ($path -in $ChangedFiles)
+        MigrationChanged = ($migrationPath -in $ChangedFiles)
+    }
+}
+
 function Invoke-ApiCompat {
     param(
         [Parameter(Mandatory = $true)][string]$Current,
@@ -134,10 +193,44 @@ if ($current.Count -eq 0 -or $baseline.Count -eq 0) {
 }
 
 $changedFiles = Get-ChangedFiles
+$renameContract = Get-PackageRenameContract -ChangedFiles $changedFiles
 $failures = New-Object System.Collections.Generic.List[string]
 
 foreach ($id in ($baseline.Keys | Sort-Object)) {
     if ($current.ContainsKey($id)) {
+        continue
+    }
+
+    if ($renameContract.Forward.ContainsKey($id)) {
+        $newId = [string]$renameContract.Forward[$id]
+        try {
+            if (-not $current.ContainsKey($newId)) {
+                throw "Mapped package '$newId' is missing from current artifacts."
+            }
+            if (-not $renameContract.Changed) {
+                throw "Package rename contract '$($renameContract.Path)' must be changed in this PR."
+            }
+            if (-not $renameContract.MigrationChanged) {
+                throw "Migration document '$($renameContract.MigrationPath)' must be changed in this PR."
+            }
+            if ("Directory.Build.props" -notin $changedFiles) {
+                throw "Package renames require an explicit version change in Directory.Build.props."
+            }
+
+            $left = $baseline[$id]
+            $right = $current[$newId]
+            if ($right.Version -eq $left.Version) {
+                throw "Package rename requires a version change; both packages are $($right.Version)."
+            }
+            if ($right.Version -ne [string]$renameContract.Migration.version) {
+                throw "Current package version '$($right.Version)' does not match rename contract version '$($renameContract.Migration.version)'."
+            }
+
+            Write-Warning "Approved package rename: $id -> $newId ($($left.Version) -> $($right.Version))"
+        }
+        catch {
+            $failures.Add("Package rename '$id' -> '$newId' is invalid: $($_.Exception.Message)")
+        }
         continue
     }
 
@@ -158,6 +251,12 @@ foreach ($id in ($current.Keys | Sort-Object)) {
     $right = $current[$id]
 
     if (-not $baseline.ContainsKey($id)) {
+        if ($renameContract.Reverse.ContainsKey($id)) {
+            $oldId = [string]$renameContract.Reverse[$id]
+            if ($baseline.ContainsKey($oldId)) {
+                continue
+            }
+        }
         try {
             $approval = "eng/compatibility/api-additions/$id.md"
             Require-Approval -Path $approval -RequiredFields @("Issue", "Reason", "Surface") -ChangedFiles $changedFiles

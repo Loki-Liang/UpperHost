@@ -64,6 +64,10 @@ Version: new version / SemVer rationale
 
 Deleting baselines, disabling ApiCompat, weakening the source contract or skipping the compatibility step is never an acceptable way to resolve a failure.
 
+## Package identity rename migrations
+
+A repository-wide package rename is modeled explicitly in `eng/compatibility/package-renames.json`. The manifest must be changed in the same PR, must map old and new PackageIds one-to-one, must point to a changed migration document, and requires an explicit version change. The exact-base artifact remains authoritative; a legacy artifact name may be recorded only to retrieve the pre-rename baseline for that migration.
+
 ## Configuration and source-scaffold changes
 
 `app/OpenDeviceStudio.App` remains the canonical clone/fork product entry. The contract checks its WPF target, source `ProjectReference` dependencies, startup composition and stable configuration paths. Changing one of those surfaces requires an explicit contract update plus migration/documentation and matching tests.
