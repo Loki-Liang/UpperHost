@@ -15,6 +15,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 {
     private readonly FileSystemRawRecorderOptions _options;
     private readonly TimeProvider _timeProvider;
+    private readonly IRawSegmentStreamFactory _streamFactory;
     private readonly object _gate = new();
     private readonly CancellationTokenSource _faultCancellation = new();
     private readonly Dictionary<SegmentKey, SegmentWriter> _activeSegments = new();
@@ -25,6 +26,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private Channel<CanonicalRawBlock>? _queue;
     private SemaphoreSlim? _slots;
     private Task _writerTask = Task.CompletedTask;
+    private Task _faultManifestTask = Task.CompletedTask;
     private RawRecorderState _state = RawRecorderState.Created;
     private string? _sessionDirectory;
     private string? _manifestPath;
@@ -45,10 +47,19 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     public FileSystemRawRecorder(
         FileSystemRawRecorderOptions options,
         TimeProvider? timeProvider = null)
+        : this(options, timeProvider ?? TimeProvider.System, FileSystemRawSegmentStreamFactory.Instance)
+    {
+    }
+
+    internal FileSystemRawRecorder(
+        FileSystemRawRecorderOptions options,
+        TimeProvider timeProvider,
+        IRawSegmentStreamFactory streamFactory)
     {
         _options = options ?? throw new ArgumentNullException(nameof(options));
         _options.Validate();
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
+        _streamFactory = streamFactory ?? throw new ArgumentNullException(nameof(streamFactory));
     }
 
     public RawRecorderSnapshot Snapshot
@@ -236,7 +247,10 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             if (state is RawRecorderState.Completed or RawRecorderState.Aborted or RawRecorderState.Disposed)
                 return;
             if (state == RawRecorderState.Faulted)
+            {
+                await _faultManifestTask.WaitAsync(cancellationToken).ConfigureAwait(false);
                 throw new IOException(_faultReason ?? "Raw recorder faulted.");
+            }
             if (state is RawRecorderState.Created or RawRecorderState.Preparing)
                 throw new InvalidOperationException($"Raw recorder cannot stop from state {state}.");
             _state = RawRecorderState.Stopping;
@@ -326,6 +340,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             foreach (var segment in _activeSegments.Values)
                 await segment.DisposeAsync().ConfigureAwait(false);
 
+            await _faultManifestTask.ConfigureAwait(false);
             _slots?.Dispose();
             _faultCancellation.Dispose();
             lock (_gate)
@@ -465,6 +480,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             index,
             _options,
             _timeProvider.GetUtcNow(),
+            _streamFactory,
             cancellationToken).ConfigureAwait(false);
 
         _segments.Add(new RawSegmentManifest(
@@ -627,7 +643,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         try { _faultCancellation.Cancel(); } catch (ObjectDisposedException) { }
         RawRecorderTelemetry.Faults.Add(1);
         _faultObserver?.OnFault(fault);
-        _ = BestEffortManifestAsync("Faulted", fault.Message);
+        _faultManifestTask = BestEffortManifestAsync("Faulted", fault.Message);
     }
 
     private RawRecorderAcceptStatus CurrentRejectStatus() =>
@@ -709,14 +725,14 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private sealed class SegmentWriter : IAsyncDisposable
     {
         private static readonly Schema Schema = CreateSchema();
-        private readonly FileStream _stream;
+        private readonly Stream _stream;
         private readonly ArrowStreamWriter _writer;
         private readonly FileSystemRawRecorderOptions _options;
         private readonly DateTimeOffset _createdAt;
         private int _finalized;
 
         private SegmentWriter(
-            FileStream stream,
+            Stream stream,
             ArrowStreamWriter writer,
             string partialPath,
             string finalPath,
@@ -755,18 +771,10 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             int segmentIndex,
             FileSystemRawRecorderOptions options,
             DateTimeOffset createdAt,
+            IRawSegmentStreamFactory streamFactory,
             CancellationToken cancellationToken)
         {
-            var stream = new FileStream(
-                partialPath,
-                new FileStreamOptions
-                {
-                    Mode = FileMode.CreateNew,
-                    Access = FileAccess.Write,
-                    Share = FileShare.Read,
-                    Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-                    BufferSize = 64 * 1024
-                });
+            var stream = streamFactory.OpenWrite(partialPath);
             var writer = new ArrowStreamWriter(stream, Schema, leaveOpen: true);
             await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
             return new SegmentWriter(
@@ -801,18 +809,27 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             await _writer.WriteEndAsync(cancellationToken).ConfigureAwait(false);
             if (durability != RawDurabilityLevel.Buffered)
                 await _stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            if (durability == RawDurabilityLevel.FlushToDiskOnFinalize)
-                _stream.Flush(flushToDisk: true);
+            if (durability == RawDurabilityLevel.FlushToDiskOnFinalize &&
+                _stream is FileStream fileStream)
+            {
+                fileStream.Flush(flushToDisk: true);
+            }
 
             _writer.Dispose();
-            await _stream.DisposeAsync().ConfigureAwait(false);
+            if (_stream is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            else
+                _stream.Dispose();
             File.Move(PartialPath, FinalPath, overwrite: false);
         }
 
         public async ValueTask DisposeAsync()
         {
             _writer.Dispose();
-            await _stream.DisposeAsync().ConfigureAwait(false);
+            if (_stream is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            else
+                _stream.Dispose();
         }
 
         private static Schema CreateSchema() =>
@@ -890,4 +907,31 @@ internal static class RawRecorderTelemetry
         UpperHostTelemetry.Meter.CreateCounter<long>("upperhost.raw.faults", "{fault}");
     public static Counter<long> SessionsCompleted { get; } =
         UpperHostTelemetry.Meter.CreateCounter<long>("upperhost.raw.sessions.completed", "{session}");
+}
+
+
+internal interface IRawSegmentStreamFactory
+{
+    Stream OpenWrite(string path);
+}
+
+internal sealed class FileSystemRawSegmentStreamFactory : IRawSegmentStreamFactory
+{
+    public static FileSystemRawSegmentStreamFactory Instance { get; } = new();
+
+    private FileSystemRawSegmentStreamFactory()
+    {
+    }
+
+    public Stream OpenWrite(string path) =>
+        new FileStream(
+            path,
+            new FileStreamOptions
+            {
+                Mode = FileMode.CreateNew,
+                Access = FileAccess.Write,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+                BufferSize = 64 * 1024
+            });
 }
