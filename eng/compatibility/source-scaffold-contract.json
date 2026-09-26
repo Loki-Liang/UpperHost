@@ -28,6 +28,10 @@
     "UpperHost:Transport:Resilience:Enabled",
     "UpperHost:Observability:ServiceName",
     "UpperHost:Observability:Logging:File:Enabled",
-    "UpperHost:Observability:Otlp:Enabled"
+    "UpperHost:Observability:Otlp:Enabled",
+    "UpperHost:Acquisition:RawRecording:Enabled",
+    "UpperHost:Acquisition:RawRecording:RootDirectory",
+    "UpperHost:Acquisition:RawRecording:QueueCapacity",
+    "UpperHost:Acquisition:RawRecording:Durability"
   ]
 }

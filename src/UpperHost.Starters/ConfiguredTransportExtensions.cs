@@ -30,7 +30,10 @@ public static class ConfiguredTransportExtensions
     }
 
     public static UpperHostApplicationBuilder AddUpperHostApplication(this UpperHostApplicationBuilder builder) =>
-        builder.AddUpperHostDefaults().AddConfiguredTransport();
+        builder
+            .AddUpperHostDefaults()
+            .AddConfiguredRawRecording()
+            .AddConfiguredTransport();
 
     private static UpperHostTransportOptions BindConfiguredTransportOptions(
         UpperHostApplicationBuilder builder)

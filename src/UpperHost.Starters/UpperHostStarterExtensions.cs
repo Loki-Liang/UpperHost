@@ -27,6 +27,8 @@ public static class UpperHostStarterExtensions
         builder.AddUpperHost();
         builder.Services.AddUpperHostConnections();
         builder.Services.AddUpperHostAcquisition();
+        builder.AddFileSystemRawRecording(
+            new FileSystemRawRecorderOptions(Path.Combine("data", "raw")));
         builder.Services.TryAddSingleton<WorkflowRunner>();
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
@@ -99,5 +101,42 @@ public static class UpperHostStarterExtensions
     {
         builder.Services.AddSingleton<IKeyValueStore>(_ => new JsonFileKeyValueStore(directory));
         return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddFileSystemRawRecording(
+        this UpperHostApplicationBuilder builder,
+        FileSystemRawRecorderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        options.Validate();
+
+        builder.Services.RemoveAll<IRawRecorderFactory>();
+        builder.Services.AddSingleton<IRawRecorderFactory>(sp =>
+            new FileSystemRawRecorderFactory(
+                options,
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder DisableRawRecording(
+        this UpperHostApplicationBuilder builder,
+        string reason)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        builder.Services.RemoveAll<IRawRecorderFactory>();
+        builder.Services.AddSingleton<IRawRecorderFactory>(
+            new DisabledRawRecorderFactory(reason));
+        return builder;
+    }
+
+    private sealed class DisabledRawRecorderFactory(string reason) : IRawRecorderFactory
+    {
+        public bool IsEnabled => false;
+        public string DisabledReason { get; } = reason;
+        public IRawRecorder Create() =>
+            throw new InvalidOperationException("Raw recording is disabled.");
     }
 }
