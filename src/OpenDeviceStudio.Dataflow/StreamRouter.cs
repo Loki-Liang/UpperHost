@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading.Channels;
+using OpenDeviceStudio.Abstractions.Observability;
 
 namespace OpenDeviceStudio.Dataflow;
 
@@ -186,7 +187,7 @@ public sealed class StreamBranchConsumerException(string branchId, Exception inn
 
 public static class StreamRouterMetrics
 {
-    public const string MeterName = "OpenDeviceStudio.Dataflow.StreamRouter";
+    public const string MeterName = OpenDeviceStudioTelemetry.InstrumentationName;
 }
 
 public sealed class StreamRouter<T> : IAsyncDisposable
@@ -241,6 +242,9 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 consumer,
                 ownership ?? ImmutableStreamOwnershipAdapter<T>.Instance,
                 _timeProvider,
+                state == StreamRouterState.Running
+                    ? Volatile.Read(ref _publishSequence) + 1
+                    : 1,
                 OnBranchFault);
 
             if (state == StreamRouterState.Running)
@@ -249,7 +253,9 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             _branches.Add(options.BranchId, branch);
             RebuildTopologyLocked();
             Interlocked.Increment(ref _topologyGeneration);
-            StreamRouterTelemetry.ActiveBranches.Add(1, StreamRouterTelemetry.BranchTags(options));
+            var metricTags = StreamRouterTelemetry.BranchTags(options);
+            StreamRouterTelemetry.ActiveBranches.Add(1, metricTags);
+            StreamRouterTelemetry.Capacity.Record(options.Capacity, metricTags);
 
             return new StreamBranchSubscription(this, branch);
         }
@@ -299,6 +305,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             var optional = Volatile.Read(ref _optionalBranches);
             var results = new StreamBranchPublishResult[required.Length + optional.Length];
             var resultIndex = 0;
+            var acceptedRequired = 0;
 
             for (var index = 0; index < required.Length; index++)
             {
@@ -307,7 +314,10 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 results[resultIndex++] = result;
 
                 if (result.Status == StreamBranchPublishStatus.Accepted)
+                {
+                    acceptedRequired++;
                     continue;
+                }
 
                 for (var remaining = index + 1; remaining < required.Length; remaining++)
                 {
@@ -318,9 +328,16 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 foreach (var skipped in optional)
                     results[resultIndex++] = skipped.CreateSkippedResult("Optional delivery skipped after Required branch failure.");
 
-                if (result.Status is StreamBranchPublishStatus.Rejected or StreamBranchPublishStatus.Faulted)
+                var hardFailure =
+                    result.Status is StreamBranchPublishStatus.Rejected or StreamBranchPublishStatus.Faulted;
+                var partialRequiredWhileRunning =
+                    acceptedRequired > 0 && State == StreamRouterState.Running;
+
+                if (hardFailure || partialRequiredWhileRunning)
                 {
-                    FaultRouter(new StreamBranchOverflowException(branch.Options.BranchId));
+                    FaultRouter(new InvalidOperationException(
+                        $"Required stream publish {sequence} stopped at branch '{branch.Options.BranchId}' " +
+                        $"with status {result.Status} after {acceptedRequired} Required branch(es) accepted the item."));
                 }
 
                 return new StreamPublishResult(
@@ -530,15 +547,18 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             else if (_branches.TryGetValue(branch.Options.BranchId, out var current) &&
                      ReferenceEquals(current, branch))
             {
+                _branches.Remove(branch.Options.BranchId);
                 RebuildTopologyLocked();
                 Interlocked.Increment(ref _topologyGeneration);
                 detachOptional = true;
             }
         }
 
-        StreamRouterTelemetry.Faults.Add(1, StreamRouterTelemetry.BranchTags(branch.Options));
+        StreamRouterTelemetry.Faults.Add(
+            1,
+            StreamRouterTelemetry.FaultTags(branch.Options, error));
         if (routerFaultedNow)
-            StreamRouterTelemetry.RouterFaults.Add(1);
+            StreamRouterTelemetry.RouterFaults.Add(1, StreamRouterTelemetry.ErrorTags(error));
 
         if (stopAll is not null)
         {
@@ -547,7 +567,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         }
         else if (detachOptional)
         {
-            branch.StopAccepting(StreamCompletionMode.Cancel);
+            branch.RetireOnCompletion();
             if (branch.TryDeactivateMetric())
                 StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
         }
@@ -567,7 +587,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             branches = _branches.Values.ToArray();
         }
 
-        StreamRouterTelemetry.RouterFaults.Add(1);
+        StreamRouterTelemetry.RouterFaults.Add(1, StreamRouterTelemetry.ErrorTags(error));
 
         foreach (var branch in branches)
             branch.StopAccepting(StreamCompletionMode.Drain);
@@ -627,6 +647,13 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 "Optional branches cannot use Wait because they must not backpressure the main publisher.",
                 nameof(options));
         }
+
+        if (options.Overflow == StreamOverflowPolicy.Latest && options.Capacity != 1)
+        {
+            throw new ArgumentException(
+                "Latest overflow requires Capacity=1 so exactly one pending latest item is retained.",
+                nameof(options));
+        }
     }
 
     private static string? DescribeFault(Exception? error)
@@ -676,6 +703,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private readonly Func<StreamItem<T>, CancellationToken, ValueTask> _consumer;
         private readonly IStreamOwnershipAdapter<T> _ownership;
         private readonly TimeProvider _timeProvider;
+        private readonly long _activationSequence;
         private readonly Action<BranchRuntime, Exception> _onFault;
         private readonly CancellationTokenSource _stopSource = new();
         private readonly TaskCompletionSource _completion =
@@ -688,6 +716,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private long _dropped;
         private long _rejected;
         private long _faultCount;
+        private long _queueDepth;
         private long _lastLatencyTicks;
         private long _maxLatencyTicks;
         private int _highWatermark;
@@ -696,26 +725,39 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private int _stopRequested;
         private int _disposed;
         private int _activeMetric = 1;
+        private int _retireOnCompletion;
 
         public BranchRuntime(
             StreamBranchOptions options,
             Func<StreamItem<T>, CancellationToken, ValueTask> consumer,
             IStreamOwnershipAdapter<T> ownership,
             TimeProvider timeProvider,
+            long activationSequence,
             Action<BranchRuntime, Exception> onFault)
         {
             Options = options;
             _consumer = consumer;
             _ownership = ownership;
             _timeProvider = timeProvider;
+            _activationSequence = activationSequence;
             _onFault = onFault;
-            _channel = Channel.CreateBounded<Envelope>(new BoundedChannelOptions(options.Capacity)
+
+            var channelOptions = new BoundedChannelOptions(options.Capacity)
             {
-                FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = false,
+                FullMode = options.Overflow switch
+                {
+                    StreamOverflowPolicy.DropOldest or StreamOverflowPolicy.Latest =>
+                        BoundedChannelFullMode.DropOldest,
+                    StreamOverflowPolicy.DropNewest =>
+                        BoundedChannelFullMode.DropNewest,
+                    _ => BoundedChannelFullMode.Wait
+                },
+                SingleReader = true,
                 SingleWriter = true,
                 AllowSynchronousContinuations = false
-            });
+            };
+
+            _channel = Channel.CreateBounded<Envelope>(channelOptions, OnItemDropped);
         }
 
         public StreamBranchOptions Options { get; }
@@ -746,6 +788,12 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             T item,
             CancellationToken cancellationToken)
         {
+            if (publishSequence < _activationSequence)
+            {
+                return CreateSkippedResult(
+                    $"Branch activates from publish sequence {_activationSequence}.");
+            }
+
             if (Volatile.Read(ref _stopRequested) != 0)
                 return CreateSkippedResult("Branch is no longer accepting publishes.");
 
@@ -760,7 +808,25 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     Reason: fault.Message);
             }
 
-            var retained = _ownership.Retain(item);
+            T retained;
+            try
+            {
+                retained = _ownership.Retain(item);
+            }
+            catch (Exception error)
+            {
+                var faultError = new InvalidOperationException(
+                    $"Stream branch '{Options.BranchId}' ownership retain failed.",
+                    error);
+                RecordFault(faultError);
+                return new StreamBranchPublishResult(
+                    Options.BranchId,
+                    Options.Name,
+                    Options.Delivery,
+                    StreamBranchPublishStatus.Faulted,
+                    Reason: faultError.Message);
+            }
+
             var envelope = new Envelope(publishSequence, _timeProvider.GetTimestamp(), retained);
 
             switch (Options.Overflow)
@@ -769,12 +835,12 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     try
                     {
                         await _channel.Writer.WriteAsync(envelope, cancellationToken).ConfigureAwait(false);
-                        MarkAccepted();
+                        MarkAccepted(envelope);
                         return AcceptedResult();
                     }
                     catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                     {
-                        _ownership.Release(retained);
+                        ReleaseOwned(retained);
                         return new StreamBranchPublishResult(
                             Options.BranchId,
                             Options.Name,
@@ -784,18 +850,18 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     }
                     catch (ChannelClosedException)
                     {
-                        _ownership.Release(retained);
+                        ReleaseOwned(retained);
                         return FaultOrSkippedResult();
                     }
 
                 case StreamOverflowPolicy.Reject:
                     if (_channel.Writer.TryWrite(envelope))
                     {
-                        MarkAccepted();
+                        MarkAccepted(envelope);
                         return AcceptedResult();
                     }
 
-                    _ownership.Release(retained);
+                    ReleaseOwned(retained);
                     Interlocked.Increment(ref _rejected);
                     StreamRouterTelemetry.Rejected.Add(1, StreamRouterTelemetry.BranchTags(Options));
                     return new StreamBranchPublishResult(
@@ -805,94 +871,27 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                         StreamBranchPublishStatus.Rejected,
                         Reason: "Bounded branch capacity is full.");
 
-                case StreamOverflowPolicy.DropNewest:
-                    if (_channel.Writer.TryWrite(envelope))
-                    {
-                        MarkAccepted();
-                        return AcceptedResult();
-                    }
-
-                    _ownership.Release(retained);
-                    Interlocked.Increment(ref _dropped);
-                    StreamRouterTelemetry.Dropped.Add(1, StreamRouterTelemetry.BranchTags(Options));
-                    return new StreamBranchPublishResult(
-                        Options.BranchId,
-                        Options.Name,
-                        Options.Delivery,
-                        StreamBranchPublishStatus.Dropped,
-                        DroppedCount: 1,
-                        Reason: "Incoming item dropped because branch capacity is full.");
-
                 case StreamOverflowPolicy.DropOldest:
-                {
-                    if (_channel.Writer.TryWrite(envelope))
-                    {
-                        MarkAccepted();
-                        return AcceptedResult();
-                    }
-
-                    var dropped = 0;
-                    if (_channel.Reader.TryRead(out var oldest))
-                    {
-                        _ownership.Release(oldest.Item);
-                        dropped = 1;
-                        Interlocked.Increment(ref _dropped);
-                        StreamRouterTelemetry.Dropped.Add(1, StreamRouterTelemetry.BranchTags(Options));
-                    }
-
-                    if (_channel.Writer.TryWrite(envelope))
-                    {
-                        MarkAccepted();
-                        return AcceptedResult(dropped);
-                    }
-
-                    _ownership.Release(retained);
-                    Interlocked.Increment(ref _dropped);
-                    StreamRouterTelemetry.Dropped.Add(1, StreamRouterTelemetry.BranchTags(Options));
-                    return new StreamBranchPublishResult(
-                        Options.BranchId,
-                        Options.Name,
-                        Options.Delivery,
-                        StreamBranchPublishStatus.Dropped,
-                        DroppedCount: dropped + 1,
-                        Reason: "Branch stopped accepting while replacing the oldest item.");
-                }
-
+                case StreamOverflowPolicy.DropNewest:
                 case StreamOverflowPolicy.Latest:
                 {
-                    var dropped = 0;
-                    while (_channel.Reader.TryRead(out var pending))
-                    {
-                        _ownership.Release(pending.Item);
-                        dropped++;
-                    }
-
-                    if (dropped > 0)
-                    {
-                        Interlocked.Add(ref _dropped, dropped);
-                        StreamRouterTelemetry.Dropped.Add(dropped, StreamRouterTelemetry.BranchTags(Options));
-                    }
-
+                    var droppedBefore = Interlocked.Read(ref _dropped);
                     if (_channel.Writer.TryWrite(envelope))
                     {
-                        MarkAccepted();
-                        return AcceptedResult(dropped);
+                        MarkAccepted(envelope);
+                        var droppedNow = Interlocked.Read(ref _dropped) - droppedBefore;
+                        var droppedCount = droppedNow <= 0
+                            ? 0
+                            : (int)Math.Min(int.MaxValue, droppedNow);
+                        return AcceptedResult(droppedCount);
                     }
 
-                    _ownership.Release(retained);
-                    Interlocked.Increment(ref _dropped);
-                    StreamRouterTelemetry.Dropped.Add(1, StreamRouterTelemetry.BranchTags(Options));
-                    return new StreamBranchPublishResult(
-                        Options.BranchId,
-                        Options.Name,
-                        Options.Delivery,
-                        StreamBranchPublishStatus.Dropped,
-                        DroppedCount: dropped + 1,
-                        Reason: "Branch stopped accepting before the latest item could be queued.");
+                    ReleaseOwned(retained);
+                    return FaultOrSkippedResult();
                 }
 
                 default:
-                    _ownership.Release(retained);
+                    ReleaseOwned(retained);
                     throw new ArgumentOutOfRangeException();
             }
         }
@@ -900,7 +899,11 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         public StreamBranchSnapshot GetSnapshot()
         {
             var fault = Volatile.Read(ref _fault);
-            var depth = _channel.Reader.CanCount ? _channel.Reader.Count : 0;
+            var queueDepth = Math.Clamp(
+                Volatile.Read(ref _queueDepth),
+                0,
+                int.MaxValue);
+            var depth = (int)queueDepth;
 
             return new StreamBranchSnapshot(
                 Options.BranchId,
@@ -967,6 +970,15 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 await _consumerTask.ConfigureAwait(false);
         }
 
+        public void RetireOnCompletion()
+        {
+            Interlocked.Exchange(ref _retireOnCompletion, 1);
+            StopAccepting(StreamCompletionMode.Cancel);
+
+            if (_completion.Task.IsCompleted)
+                DisposeRuntime();
+        }
+
         public void DisposeRuntime()
         {
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
@@ -984,6 +996,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                                    .ReadAllAsync(_stopSource.Token)
                                    .ConfigureAwait(false))
                 {
+                    envelope.MarkRemoved(DecrementQueueDepth);
                     Interlocked.Increment(ref _dequeued);
                     var latency = _timeProvider.GetElapsedTime(envelope.EnqueuedTimestamp);
                     Interlocked.Exchange(ref _lastLatencyTicks, latency.Ticks);
@@ -1012,7 +1025,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     }
                     finally
                     {
-                        _ownership.Release(envelope.Item);
+                        ReleaseOwned(envelope.Item);
                     }
                 }
             }
@@ -1029,6 +1042,9 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 if (State != StreamBranchState.Faulted)
                     Volatile.Write(ref _state, (int)StreamBranchState.Completed);
                 _completion.TrySetResult();
+
+                if (Volatile.Read(ref _retireOnCompletion) != 0)
+                    DisposeRuntime();
             }
         }
 
@@ -1043,27 +1059,68 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             _onFault(this, error);
         }
 
+        private void ReleaseOwned(T item)
+        {
+            try
+            {
+                _ownership.Release(item);
+            }
+            catch (Exception error)
+            {
+                RecordFault(new InvalidOperationException(
+                    $"Stream branch '{Options.BranchId}' ownership release failed.",
+                    error));
+            }
+        }
+
         private void ReleaseBufferedItems()
         {
             while (_channel.Reader.TryRead(out var pending))
-                _ownership.Release(pending.Item);
+            {
+                pending.MarkRemoved(DecrementQueueDepth);
+                ReleaseOwned(pending.Item);
+            }
         }
 
-        private void MarkAccepted()
+        private void OnItemDropped(Envelope dropped)
+        {
+            dropped.MarkRemoved(DecrementQueueDepth);
+            ReleaseOwned(dropped.Item);
+            Interlocked.Increment(ref _dropped);
+            StreamRouterTelemetry.Dropped.Add(1, StreamRouterTelemetry.BranchTags(Options));
+        }
+
+        private void MarkAccepted(Envelope envelope)
         {
             Interlocked.Increment(ref _accepted);
             StreamRouterTelemetry.Accepted.Add(1, StreamRouterTelemetry.BranchTags(Options));
+            envelope.MarkAccepted(IncrementQueueDepth);
+        }
 
-            var depth = _channel.Reader.CanCount ? _channel.Reader.Count : 0;
+        private void IncrementQueueDepth()
+        {
+            var depth = Interlocked.Increment(ref _queueDepth);
+            var tags = StreamRouterTelemetry.BranchTags(Options);
+            StreamRouterTelemetry.QueueDepth.Add(1, tags);
+
             while (true)
             {
                 var current = Volatile.Read(ref _highWatermark);
                 if (depth <= current)
-                    break;
+                    return;
 
-                if (Interlocked.CompareExchange(ref _highWatermark, depth, current) == current)
-                    break;
+                if (Interlocked.CompareExchange(ref _highWatermark, (int)depth, current) == current)
+                {
+                    StreamRouterTelemetry.QueueHighWatermark.Record(depth, tags);
+                    return;
+                }
             }
+        }
+
+        private void DecrementQueueDepth()
+        {
+            Interlocked.Decrement(ref _queueDepth);
+            StreamRouterTelemetry.QueueDepth.Add(-1, StreamRouterTelemetry.BranchTags(Options));
         }
 
         private void UpdateMaxLatency(long ticks)
@@ -1100,17 +1157,36 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     Reason: fault.Message);
         }
 
-        private readonly record struct Envelope(
-            long PublishSequence,
-            long EnqueuedTimestamp,
-            T Item);
+        private sealed class Envelope(
+            long publishSequence,
+            long enqueuedTimestamp,
+            T item)
+        {
+            private int _queueAccounting;
+
+            public long PublishSequence { get; } = publishSequence;
+            public long EnqueuedTimestamp { get; } = enqueuedTimestamp;
+            public T Item { get; } = item;
+
+            public void MarkAccepted(Action incrementDepth)
+            {
+                if (Interlocked.CompareExchange(ref _queueAccounting, 1, 0) == 0)
+                    incrementDepth();
+            }
+
+            public void MarkRemoved(Action decrementDepth)
+            {
+                if (Interlocked.Exchange(ref _queueAccounting, 2) == 1)
+                    decrementDepth();
+            }
+        }
     }
 
 }
 
 internal static class StreamRouterTelemetry
 {
-    private static readonly Meter Meter = new(StreamRouterMetrics.MeterName);
+    private static readonly Meter Meter = OpenDeviceStudioTelemetry.Meter;
 
     public static readonly Counter<long> Published =
         Meter.CreateCounter<long>("opendevicestudio.streamrouter.published");
@@ -1136,6 +1212,15 @@ internal static class StreamRouterTelemetry
     public static readonly UpDownCounter<long> ActiveBranches =
         Meter.CreateUpDownCounter<long>("opendevicestudio.streamrouter.active_branches");
 
+    public static readonly Histogram<long> Capacity =
+        Meter.CreateHistogram<long>("opendevicestudio.streamrouter.branch.capacity", "{item}");
+
+    public static readonly UpDownCounter<long> QueueDepth =
+        Meter.CreateUpDownCounter<long>("opendevicestudio.streamrouter.branch.queue_depth", "{item}");
+
+    public static readonly Histogram<long> QueueHighWatermark =
+        Meter.CreateHistogram<long>("opendevicestudio.streamrouter.branch.queue_high_watermark", "{item}");
+
     public static readonly Histogram<double> QueueLatencyMs =
         Meter.CreateHistogram<double>("opendevicestudio.streamrouter.branch.queue_latency", "ms");
 
@@ -1145,6 +1230,22 @@ internal static class StreamRouterTelemetry
         {
             { "branch.id", options.BranchId },
             { "branch.delivery", options.Delivery.ToString() }
+        };
+        return tags;
+    }
+
+    public static TagList FaultTags(StreamBranchOptions options, Exception error)
+    {
+        var tags = BranchTags(options);
+        tags.Add("error.type", error.GetBaseException().GetType().Name);
+        return tags;
+    }
+
+    public static TagList ErrorTags(Exception error)
+    {
+        var tags = new TagList
+        {
+            { "error.type", error.GetBaseException().GetType().Name }
         };
         return tags;
     }
