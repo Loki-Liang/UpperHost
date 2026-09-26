@@ -5,7 +5,7 @@ namespace OpenDeviceStudio.Presentation.Wpf;
 
 public abstract class OpenDeviceStudioWpfApplication : Application
 {
-    private OpenDeviceStudioApplication? _upperHost;
+    private OpenDeviceStudioApplication? _host;
 
     protected abstract void ConfigureOpenDeviceStudio(OpenDeviceStudioApplicationBuilder builder);
     protected abstract Window CreateMainWindow(IServiceProvider services);
@@ -17,19 +17,19 @@ public abstract class OpenDeviceStudioWpfApplication : Application
         var builder = OpenDeviceStudioApplication.CreateBuilder(e.Args).AddOpenDeviceStudio();
         ConfigureOpenDeviceStudio(builder);
 
-        _upperHost = builder.Build();
-        await _upperHost.StartAsync().ConfigureAwait(true);
+        _host = builder.Build();
+        await _host.StartAsync().ConfigureAwait(true);
 
-        MainWindow = CreateMainWindow(_upperHost.Services);
+        MainWindow = CreateMainWindow(_host.Services);
         MainWindow.Show();
     }
 
     protected sealed override async void OnExit(ExitEventArgs e)
     {
-        if (_upperHost is not null)
+        if (_host is not null)
         {
-            await _upperHost.StopAsync().ConfigureAwait(true);
-            await _upperHost.DisposeAsync().ConfigureAwait(true);
+            await _host.StopAsync().ConfigureAwait(true);
+            await _host.DisposeAsync().ConfigureAwait(true);
         }
 
         base.OnExit(e);
