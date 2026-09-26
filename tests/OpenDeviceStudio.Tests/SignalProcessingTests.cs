@@ -483,14 +483,15 @@ public sealed class SignalProcessingTests
             : base(stageId)
         {
             _gain = gain;
-            ConfigurationHash = SignalConfigurationHash.Compute(
+            GainConfigurationHash = SignalConfigurationHash.Compute(
                 new Dictionary<string, string>
                 {
                     ["gain"] = gain.ToString(System.Globalization.CultureInfo.InvariantCulture)
                 });
         }
 
-        public override string ConfigurationHash { get; }
+        private string GainConfigurationHash { get; }
+        public override string ConfigurationHash => GainConfigurationHash
 
         public override ISignalStage<float> Create(SignalStageInstanceContext context) =>
             new DelegateStage(input =>
@@ -590,7 +591,7 @@ public sealed class SignalProcessingTests
 
         public string StageId { get; }
         public virtual string Version => "test-v1";
-        public virtual string ConfigurationHash { get; protected set; }
+        public virtual string ConfigurationHash { get; }
         public virtual bool IsStateful => false;
         public virtual bool RequiresContinuity => false;
         public virtual bool RequiresOrderedInput => true;
