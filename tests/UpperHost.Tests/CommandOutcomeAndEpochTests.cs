@@ -12,7 +12,7 @@ public sealed class CommandOutcomeAndEpochTests
     {
         var time = new FakeTimeProvider();
         var target = new NeverCompletesTarget();
-        var runtime = CommandRuntime<TestCommand, string>.CreateContextual(target, timeProvider: time);
+        var runtime = new CommandRuntime<TestCommand, string>(target, guards: null, time);
         await using var dispatcher = new BoundedCommandDispatcher<TestCommand, string>(runtime);
 
         await dispatcher.StartAsync();
@@ -69,7 +69,7 @@ public sealed class CommandOutcomeAndEpochTests
     {
         var time = new FakeTimeProvider();
         var target = new AcknowledgedNeverCompletesTarget();
-        var runtime = new CommandRuntime<TestCommand, string>(target, guards: null, time);
+        var runtime = CommandRuntime<TestCommand, string>.CreateContextual(target, timeProvider: time);
         await using var dispatcher = new BoundedCommandDispatcher<TestCommand, string>(runtime);
 
         await dispatcher.StartAsync();
