@@ -239,7 +239,7 @@ public static class FileSystemRawRecoveryScanner
 
         if (manifest is not null)
         {
-            foreach (var segment in (manifest.Segments ?? Array.Empty<FileSystemRawRecorder.RawSegmentManifest>())
+            foreach (var segment in (manifest.Segments ?? System.Array.Empty<FileSystemRawRecorder.RawSegmentManifest>())
                          .Where(static item => item.State == "Completed"))
             {
                 var path = Path.Combine(sessionDirectory, segment.FileName);
