@@ -1,75 +1,76 @@
-# UpperHost repository instructions
+# UpperHost OpenHands Execution Profile
 
-## Authority and default executor
+## Authority
 
-`AGENTS.md` is the repository-level authority. Read it before implementation; this OpenHands skill adds execution detail and must not weaken or bypass it.
+AGENTS.md is the repository-level authority. This profile tells OpenHands how to load and execute the governance system; it must never weaken repository rules.
 
-OpenHands is the default implementation executor for normal UpperHost feature, fix, refactor, test, documentation, and architecture work. Repository orchestration may happen elsewhere, but implementation should stay in OpenHands unless a documented fallback condition from `AGENTS.md` applies.
+OpenHands is the default implementation executor for normal UpperHost feature, fix, refactor, test, documentation, and architecture work.
 
-## Purpose
+## Rule loading
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. Control, automation, and acquisition are equal first-class development paths. Read `docs/scaffold.md` before changing product positioning or developer experience.
+Start with AGENTS.md, then read .github/governance/agent-governance.json.
 
-Product-specific device semantics, protocol behavior, control/interlock policy, workflow and UI belong to the source product application under `app/UpperHost.App`. Repository changes should extend reusable Runtime, Provider, Starter Application, Sample, Testing or Presentation capabilities while keeping existing Workflow/StateMachine modules as code/API runtime capabilities.
+All production-code work loads:
 
-## Required architecture boundaries
+- agents.implementation.md
+- agents.testing.md
+- agents.review.md
+- agents.git.md
 
-UpperHost is a **modular monolith by default**. Before adding a project, cross-module reference, framework, or distributed boundary, apply the module/dependency rules in `AGENTS.md` and `docs/architecture.md`. Run `python scripts/validate_architecture.py` after changing project references.
+Load additional rules by scope:
 
-1. Keep Core industry-neutral.
-2. Model devices by capability composition, not a giant inheritance tree.
-3. Transport owns transfer mechanics; Protocol owns framing and semantic decoding.
-4. Preserve native communication shape:
-   - ordered bytes -> `ITransport`
-   - discrete messages/frames -> `IMessageTransport<TMessage>`
-   - vendor SDK domain operations -> Device Capability directly
-5. Keep request/response, message/frame, and streaming as explicit boundaries.
-6. Keep vendor/native SDK dependencies in provider packages; never place them in `UpperHost.Abstractions`.
-7. UI/Workflow code calls application/device capabilities, not sockets or native SDKs directly.
-8. Software guards/interlocks never claim to replace certified hardware safety mechanisms.
-9. Backpressure and loss policy must be explicit for streaming paths.
-10. WPF is an adapter. Do not couple Core to WPF.
+- architecture/module/public boundary -> agents.architecture.md
+- TCP/Serial/USB/BLE/reconnect -> agents.transport.md
+- DAQ/EMG/raw/processing/fan-out -> agents.acquisition.md
+- logs/metrics/traces/health -> agents.observability.md
+- trust/credentials/external input -> agents.security.md
+- package/release/rollback -> agents.release.md
+- API/config/source-scaffold compatibility -> agents.compatibility.md
 
-## Repository map
+Do not blindly copy every rule into task context. Load the root policy, base production rules, and only additional specialty rules that apply.
 
-- `src/UpperHost.Abstractions`: stable platform contracts.
-- `src/UpperHost.Control`: command runtime, guards, interlocks, parameter readback.
-- `src/UpperHost.Protocols`: protocol runtime and request/response semantics.
-- `src/UpperHost.Transport.*`: transport/provider adapters.
-- `src/UpperHost.Dataflow`: streaming fan-out/backpressure primitives.
-- `src/UpperHost.Workflows` and `src/UpperHost.StateMachines`: automation orchestration.
-- `src/UpperHost.Presentation.Wpf`: WPF adapter only.
-- `app/UpperHost.App`: canonical runnable product scaffold and secondary-development entry.
-- `samples/`: runnable Control / Automation / Acquisition examples.
-- `tests/UpperHost.Tests`: automated platform tests.
-- `docs/`: bilingual architecture and extension guidance.
+## Method skills
 
-## Development workflow
+Specialty agents invoke reusable method skills as needed:
 
-1. Read `AGENTS.md` and re-read current `main`, the issue/PR acceptance criteria, relevant code, tests, and CI before editing.
-2. Refresh current facts: main SHA, PR exact-head/base SHA when applicable, current diff/review threads, and current CI state.
-3. Work from a short-lived branch with one coherent scope; never implement normal work directly on `main`.
-4. Change production code and matching tests together.
-5. For docs/examples that have an English/Chinese pair, update both in the same change.
-6. Run focused validation first. Fix the first actionable failure and continue from that failure point; do not repeatedly restart already-passing validation.
-7. After focused validation passes, run `.openhands/pre-commit.sh` and then the repository-required CI.
-8. Review the final diff for architecture-boundary violations, missing tests, unrelated files, and stale documentation before opening/merging a PR.
-9. Merge only after the exact PR head is green and unresolved review threads are cleared; verify the resulting commit is actually on `main`.
+- .openhands/skills/adversarial-review.md
+- .openhands/skills/premortem.md
+- .openhands/skills/invariant-analysis.md
+- .openhands/skills/state-machine-audit.md
+- .openhands/skills/dataflow-trace.md
+- .openhands/skills/capacity-backpressure-audit.md
+- .openhands/skills/fault-injection.md
+- .openhands/skills/contract-attack.md
+- .openhands/skills/upgrade-rollback-audit.md
 
-## Validation
+Skills are methods, not policy. They explain how to perform an analysis; AGENTS.md and agents.*.md define when it is mandatory.
 
-OpenHands usually runs in a Linux sandbox. The solution contains Windows/WPF targets, so Linux validation must enable Windows targeting:
+## Required execution order
 
-```bash
-dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
-```
+1. Refresh CURRENT FACTS from GitHub/repository.
+2. Load applicable rules.
+3. Read existing architecture/code/tests/ADRs before editing.
+4. Confirm measurable acceptance criteria and build the Evidence Matrix.
+5. Implement production behavior and matching tests.
+6. Run focused validation.
+7. Run agents.review.md Five-Gate Review and apply relevant method skills.
+8. Fix findings; never stop at a findings-only report.
+9. Run .openhands/pre-commit.sh.
+10. Push/open PR and use exact-head GitHub Actions as the authoritative integration gate.
+11. Merge only after required CI passes and review threads are clear; verify the result on main.
 
-The authoritative release gate remains the Windows GitHub Actions CI, which additionally packs reusable libraries and validates the source WPF scaffold application. Never claim Windows runtime/UI validation from a Linux-only OpenHands run.
+## Repository validation
 
-## OpenHands hooks
+Linux/OpenHands pre-PR commands:
 
-- `.openhands/setup.sh` prepares .NET 10 and restores the repository.
-- `.openhands/pre-commit.sh` runs the Linux-safe build/test gate.
-- Do not commit credentials, OpenHands API keys, model API keys, PATs, signing material, or machine-local configuration.
+    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
+    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+
+The authoritative Windows/WPF integration gate remains GitHub Actions.
+
+## Hooks and secrets
+
+- .openhands/setup.sh prepares .NET 10 and restores the repository.
+- .openhands/pre-commit.sh validates AI governance, architecture, source-scaffold compatibility, build, and tests.
+- Never commit OpenHands credentials, model API keys, PATs, signing material, device secrets, or machine-local configuration.

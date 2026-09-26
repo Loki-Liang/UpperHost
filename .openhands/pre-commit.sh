@@ -9,6 +9,7 @@ if ! command -v dotnet >/dev/null 2>&1; then
   exit 1
 fi
 
+python scripts/validate_agent_governance.py
 python scripts/validate_architecture.py
 python scripts/validate_source_scaffold_contract.py
 dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true

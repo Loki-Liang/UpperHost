@@ -2,66 +2,86 @@
 
 简体中文 | [English](openhands.md)
 
-UpperHost 已加入 OpenHands V1 / Agent Canvas 的仓库级配置。OpenHands 只作为开发工具，不是 UpperHost 的运行时依赖。
+UpperHost 已加入 OpenHands V1 / Agent Canvas 仓库级配置。OpenHands 只作为开发工具，不是 UpperHost 运行时依赖。
 
-## 默认开发策略
+## 分层治理
 
-对于常规功能开发、缺陷修复、重构、测试、文档和架构实现，**OpenHands 是 UpperHost 默认的实际开发执行器**。根目录 `AGENTS.md` 是仓库总控规则，`.openhands/skills/repo.md` 是 OpenHands 专用执行细则。
+OpenHands 是默认实际开发执行器。治理按职责拆分：
 
-标准交付链路：
+    AGENTS.md
+      -> 适用 agents.*.md
+      -> .openhands/skills/*.md 可复用方法
+      -> ADR + Issue 验收/证据
+      -> 实现/测试
+      -> 五审
+      -> CI 证据
 
-```text
-Issue/Task -> OpenHands -> Focused Validation -> .openhands/pre-commit.sh
-          -> Pull Request -> Windows GitHub Actions -> Review -> Squash Merge -> main
-```
+- AGENTS.md：薄的仓库宪法和规则路由。
+- .github/governance/agent-governance.json：机器可校验的路由清单。
+- agents.*.md：各专项长期固定流程和规则。
+- .openhands/skills/*.md：反方 Review、Pre-mortem、不变量、状态机、数据全链路、容量/背压、故障注入、契约攻击、升级回滚等方法。
+- .openhands/skills/repo.md：OpenHands 执行画像，只负责加载和执行规则，不重复复制专项规则正文。
 
-其他助手可以负责任务调度、现状检查、Review 和 CI 排查，但生产实现默认留在 OpenHands；只有 `AGENTS.md` 明确的备用场景才允许切换执行器。
+Skill 解决“怎么把一件事做好”；Agent 规则决定“什么时候必须做”。
 
-## 已接入内容
+## 标准交付链路
 
-- `.openhands/skills/repo.md`：OpenHands 自动加载的仓库规则，包含架构边界、目录职责、开发流程和验证要求。
-- `.openhands/setup.sh`：幂等初始化 OpenHands 工作区，准备 .NET 10 并 Restore solution。
-- `.openhands/pre-commit.sh`：适用于 Linux Sandbox 的 Build + Unit Test 门禁。
-- GitHub Actions 对 OpenHands Shell Hook 做语法校验，防止配置长期失效。
+    CURRENT FACTS
+      -> 加载适用规则
+      -> 阅读现有架构/代码/测试
+      -> Acceptance + Evidence Matrix
+      -> 实现
+      -> Focused Validation
+      -> 五审
+      -> 整改发现
+      -> .openhands/pre-commit.sh
+      -> Pull Request
+      -> exact-head Windows GitHub Actions
+      -> squash merge
+      -> 核对 main
 
-## 连接仓库
+OpenHands 禁止只汇报 Review 发现后停止；Blocker 必须整改并重新 Review。
 
-使用当前 OpenHands V1 / Agent Canvas 或 OpenHands Cloud，连接 GitHub 后选择：
+## 五审
 
-```text
-Loki-Liang/UpperHost
-```
+agents.review.md 固化统一生产质量门禁：
 
-每个开发任务都应从最新 `main` 开始，并在修改代码前先加载仓库 Skill。
+1. 架构审；
+2. 故障审；
+3. 实现审；
+4. 验收/证据审；
+5. 维护者审。
 
-本机使用 Agent Canvas 时，按 OpenHands 当前官方安装方式部署。需要隔离 Agent 对本机文件系统的访问时，应优先使用 Sandbox/Docker 模式。
+五审调用独立 Skill，不再靠一个越来越长的总提示词。
+
+## 仓库 Hook
+
+- .openhands/setup.sh：幂等准备 .NET 10 并 Restore solution。
+- .openhands/pre-commit.sh：治理校验、架构/源码脚手架门禁、Build、Unit Test。
+- scripts/validate_agent_governance.py：防止根规则、专项 Agent、OpenHands Profile、Skills 静默漂移。
+- GitHub Actions：再次执行治理 validator/tests，并作为 Windows 权威集成门禁。
 
 ## 平台验证边界
 
-UpperHost 包含 WPF 项目，权威 CI 在 Windows 上运行；OpenHands 常见执行环境是 Linux Sandbox。
+OpenHands 常运行在 Linux，而 UpperHost 包含 Windows/WPF 项目。Linux 提交前验证使用：
 
-因此仓库 Hook 使用：
+    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
+    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 
-```bash
-dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
-```
-
-这让 OpenHands 在提交前先发现普通 Restore、编译和单元测试错误。最终仍由 GitHub Actions 在 Windows 上执行 Build、Test、NuGet Pack 和源码二开应用校验。
-
-## 密钥
-
-禁止把 OpenHands API Key、模型 API Key、PAT、签名材料或任何机器级凭据提交到仓库。认证必须配置在 OpenHands 自身或对应 Secret Store 中。
+最终 Windows Build、完整测试、Package Compatibility 和 Source Scaffold 验证仍由 GitHub Actions 负责。
 
 ## 推荐任务指令
 
-给 OpenHands 分配 Issue 时可使用以下闭环要求：
+以后给 OpenHands 的任务可以明显缩短：
 
-```text
-基于最新 main 完成此 Issue。修改前先读取 AGENTS.md 和 .openhands/skills/repo.md。
-保持现有架构边界，生产实现与对应测试一起提交。
-先跑 focused validation，再跑仓库 pre-commit 门禁；失败时从首个可行动错误继续修复，
-不要重复从头跑已经通过的步骤。最后 Review diff，并把分支/PR 推进到可合并状态，
-禁止只汇报问题不落地实现。
-```
+    基于最新 main 完成此 Issue。
+    严格执行 AGENTS.md，并按 governance manifest 加载所有适用专项 Agent。
+    编码前先建立 Acceptance/Evidence Matrix。
+    调用适用 Skill，先 focused validation，再执行五审。
+    Review 发现必须整改，禁止只汇报。
+    最后运行 .openhands/pre-commit.sh，把 PR 推进到 exact-head 可合并状态。
+
+## 密钥
+
+禁止把 OpenHands/模型凭据、PAT、签名材料或设备 Secret 提交到仓库。
