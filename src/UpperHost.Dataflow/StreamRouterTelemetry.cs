@@ -6,17 +6,35 @@ namespace UpperHost.Dataflow;
 
 internal static class DataflowTelemetry
 {
+    public static Counter<long> RouterPublishes { get; } =
+        UpperHostTelemetry.Meter.CreateCounter<long>(
+            "upperhost.dataflow.router.publishes",
+            "{publish}",
+            "Publish attempts accepted into the running StreamRouter hot path.");
+
     public static UpDownCounter<long> ActiveBranches { get; } =
         UpperHostTelemetry.Meter.CreateUpDownCounter<long>(
             "upperhost.dataflow.branch.active",
             "{branch}",
             "Active StreamRouter branches.");
 
+    public static Histogram<long> Capacity { get; } =
+        UpperHostTelemetry.Meter.CreateHistogram<long>(
+            "upperhost.dataflow.branch.capacity",
+            "{item}",
+            "Configured bounded StreamRouter branch capacity.");
+
     public static UpDownCounter<long> QueueDepth { get; } =
         UpperHostTelemetry.Meter.CreateUpDownCounter<long>(
             "upperhost.dataflow.branch.queue_depth",
             "{item}",
             "Current bounded StreamRouter branch queue depth.");
+
+    public static Histogram<long> QueueHighWater { get; } =
+        UpperHostTelemetry.Meter.CreateHistogram<long>(
+            "upperhost.dataflow.branch.queue_high_water",
+            "{item}",
+            "Observed StreamRouter branch queue high-water marks.");
 
     public static Counter<long> Accepted { get; } =
         UpperHostTelemetry.Meter.CreateCounter<long>(
@@ -83,11 +101,19 @@ internal static class DataflowTelemetry
         return tags;
     }
 
-    public static TagList RouterFaultTags(StreamBranchDelivery delivery)
+    public static TagList BranchFaultTags(StreamBranchOptions options, Exception exception)
+    {
+        var tags = BranchTags(options);
+        tags.Add("error.type", exception.GetType().Name);
+        return tags;
+    }
+
+    public static TagList RouterFaultTags(StreamBranchDelivery delivery, Exception exception)
     {
         var tags = new TagList
         {
-            { "upperhost.dataflow.delivery", delivery.ToString() }
+            { "upperhost.dataflow.delivery", delivery.ToString() },
+            { "error.type", exception.GetType().Name }
         };
         return tags;
     }
