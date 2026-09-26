@@ -148,17 +148,24 @@ Live Acquisition 默认启用 Required Canonical Raw Recorder。`CanonicalRawBlo
 
 `SupportsBackpressure` Source 可等待有界 Recorder 容量；`CannotBackpressure` Source 强制走非阻塞 `TryAccept`，队列饱和时 Fault Required Raw path，禁止静默 Drop。FileSystem/Arrow 只存在于 Adapter 层，产品可替换为 EDF/EDF+、Parquet、HDF5、Vendor Native 或 Database Adapter，而不改变 Acquisition Session 生命周期权威。
 
-## Streaming
+## Streaming 与 Signal Processing
 
-连续数据设备走 Streaming：
+连续数据设备走独立的 Streaming 路线：
 
 ```text
 Transport Receive
  -> Decoder
- -> Typed stream
- -> Dataflow
- -> Storage / Algorithm / Presentation
+ -> Canonical Raw
+ -> Required Raw Recorder Accepted
+ -> 产品 Raw-to-Signal projection
+ -> OpenDeviceStudio.SignalProcessing
+      -> validated/frozen Stage Graph
+      -> StreamRouter bounded edges
+      -> Required Processing / Algorithm
+      -> Optional Algorithm / Presentation
 ```
+
+SignalProcessing 负责 Processing topology、per-partition stage state、continuity/gap policy、derived lineage 与 online/replay 复用；它不解析 transport bytes、不拥有 Raw 持久化，也不依赖 WPF/FileSystem。第三方 DSP 库只能存在于 OpenDeviceStudio.SignalProcessing.NWaves 等 Adapter 中，不能泄漏进 Core public contract。
 
 不要让低速命令设备强行通过高频 Streaming 管线，也不要让 UI Timer 成为高频采集驱动器。
 
@@ -172,7 +179,7 @@ Protocol 负责领域命令和字节之间的转换，拥有 framing 状态，�
 
 ## Backpressure
 
-`FanOutHub<T>` 为消费者提供独立 bounded channel。UI 可以使用 drop-oldest；无损存储路径可以使用 wait，并使用独立 hub/pipeline。丢弃策略必须显式，而不是由系统偶然发生。
+`StreamRouter<T>` 是 production streaming fan-out contract。每个 branch 独立配置 bounded Capacity、Required/Optional、Overflow 与 FailurePolicy。Required path 禁止 lossy overflow，Optional path 禁止 Wait。SignalProcessing 的 Graph edge 直接复用同一个 Runtime，因此 slow optional algorithm / presentation 不会无声拖死 Required Raw/Processing path。`FanOutHub<T>` 仅保留兼容性，不再作为 production reference path。
 
 ## State Machine 与 Workflow
 
