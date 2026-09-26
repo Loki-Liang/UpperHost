@@ -671,11 +671,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                 await JsonSerializer.SerializeAsync(
                     stream,
                     manifest,
-                    new JsonSerializerOptions
-                    {
-                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                        WriteIndented = true
-                    },
+                    RawManifestJson.Options,
                     cancellationToken).ConfigureAwait(false);
                 await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
                 if (_options.Durability == RawDurabilityLevel.FlushToDiskOnFinalize &&
