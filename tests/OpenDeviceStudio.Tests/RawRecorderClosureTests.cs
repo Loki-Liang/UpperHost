@@ -80,9 +80,9 @@ public sealed class RawRecorderClosureTests
             Assert.Equal("source-soak", stored.SourceId);
             Assert.Equal("cfg-short-soak", stored.ConfigurationHash);
 
-            Span<byte> expectedFirstSample = stackalloc byte[sizeof(short)];
+            var expectedFirstSample = new byte[sizeof(short)];
             BinaryPrimitives.WriteInt16LittleEndian(expectedFirstSample, checked((short)index));
-            Assert.Equal(expectedFirstSample.ToArray(), stored.Payload.Span[..sizeof(short)].ToArray());
+            Assert.Equal(expectedFirstSample, stored.Payload.Span[..sizeof(short)].ToArray());
         }
 
         var recovery = await FileSystemRawRecoveryScanner.ScanAsync(snapshot.SessionDirectory!);
@@ -150,7 +150,7 @@ public sealed class RawRecorderClosureTests
                 }),
             sessionId: "source-scaffold-raw-e2e"));
 
-        await session.StartAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        await session.StartAsync().WaitAsync(TimeSpan.FromSeconds(5));
         var result = await session.StopAsync().WaitAsync(TimeSpan.FromSeconds(10));
 
         Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
