@@ -25,7 +25,7 @@ UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手�
 | Transport | Serial、TCP、Simulator；统一 `ITransport` 扩展边界 | 实现 `ITransport`，通过 `AddUpperHostTransport<T>()` 注册 |
 | Protocol | Command Encoder、Message Decoder、Request/Response / Streaming 边界 | 实现 `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control Runtime | Host-owned bounded Command Dispatcher、Guard / Interlock、UnknownOutcome、资源仲裁、参数/Readback 基础能力 | 每个强类型命令合同通过 `AddCommandDispatcher<TCommand,TResult>()` 注册；产品定义安全和完成语义 |
-| Streaming / Dataflow | 有界 Fan-out、背压与丢弃策略基础能力 | 将设备 Stream 接入 Dataflow，明确容量和 loss policy |
+| Streaming / Dataflow | `StreamRouter<T>`：冻结拓扑、per-branch 有界 QoS、Required/Optional 故障语义、ownership 与 metrics；旧 `FanOutHub<T>` 仅保留兼容 | 在 `StartAsync()` 前注册完整 Processing 拓扑，并逐 branch 明确容量/overflow/failure policy |
 | Workflow | `WorkflowRunner` | 产品定义 `WorkflowDefinition` / `IWorkflowStep` |
 | State Machine | 通用 `StateMachine<TState,TTrigger>` | 产品定义状态与触发器 |
 | Event | Typed `IEventBus` | 发布/订阅产品事件，不使用全局静态事件 |
@@ -346,6 +346,28 @@ Hardware
 ```
 
 所有 Required Ready 后 Source 才能启动；Required fault 统一由 Session 收敛；Optional Presentation/Algorithm 默认隔离，只有冻结配置明确要求时才升级为 fatal。Replay Source 默认只读原 Raw artifact，复用同一 Processing implementation，并创建新的 ProcessingEpoch。
+
+Processing 之后的 fan-out 统一使用一套生产 Router 契约，不允许每个功能再自造队列：
+
+```csharp
+var router = new StreamRouter<ProcessedBlock>(ownership);
+router.RegisterBranch(
+    StreamBranchOptions.Required(
+        "algorithm-a", "Algorithm A", capacity: 256, overflow: StreamOverflowPolicy.Wait),
+    ConsumeAlgorithmAsync);
+router.RegisterBranch(
+    StreamBranchOptions.Optional(
+        "presentation", "Waveform UI", capacity: 8, overflow: StreamOverflowPolicy.DropOldest),
+    RenderAsync);
+
+await router.StartAsync(cancellationToken);
+
+var publish = await router.PublishAsync(block, cancellationToken);
+if (publish.RequiresStop)
+    throw new InvalidOperationException("Required 数据路由失败。");
+```
+
+所有 branch 都是 bounded。Required branch 禁止 lossy overflow；Optional branch 禁止 `Wait`，因此慢 UI 不能反压 Required processing。Router 对各 branch 保留其串行 publish sequence，统一持有 consumer task 并观察 fault，暴露 queue/drop/lag 等 branch 指标；pooled/shared block 通过 `IStreamItemOwnership<T>` 明确 Retain/Release 生命周期。Canonical Raw Recorder 仍属于 ingress durability path（#58），不是普通 Optional Router branch。
 
 还必须明确 Channel / Queue Capacity、Backpressure、Drop/Loss Policy、UI 降采样以及原始数据保存与显示数据的职责边界。不要让 WPF UI Timer 成为采集时钟。
 
