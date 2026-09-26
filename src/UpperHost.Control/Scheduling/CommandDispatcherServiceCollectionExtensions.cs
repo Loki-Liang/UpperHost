@@ -20,7 +20,7 @@ public static class CommandDispatcherServiceCollectionExtensions
         var configured = options ?? new BoundedCommandDispatcherOptions();
         configured.Validate();
 
-        EnsureSharedResourceArbiter(services, configured.MaxSharedReadersPerResource);
+        services.AddUpperHostControlResourceArbiter(configured.MaxSharedReadersPerResource);
 
         services.AddSingleton<CommandDispatcherRegistrationMarker<TCommand, TResult>>();
         services.TryAddSingleton<CommandRuntime<TCommand, TResult>>();
@@ -35,6 +35,18 @@ public static class CommandDispatcherServiceCollectionExtensions
             new CommandDispatcherHostedService<TCommand, TResult>(
                 sp.GetRequiredService<BoundedCommandDispatcher<TCommand, TResult>>()));
 
+        return services;
+    }
+
+    public static IServiceCollection AddUpperHostControlResourceArbiter(
+        this IServiceCollection services,
+        int maxSharedReadersPerResource = 4)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        if (maxSharedReadersPerResource <= 0)
+            throw new ArgumentOutOfRangeException(nameof(maxSharedReadersPerResource));
+
+        EnsureSharedResourceArbiter(services, maxSharedReadersPerResource);
         return services;
     }
 
