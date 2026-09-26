@@ -123,11 +123,17 @@ public sealed record StreamPublishResult(
 {
     public bool HasRequiredFailure => Branches.Any(static branch =>
         branch.Delivery == StreamBranchDelivery.Required &&
-        branch.Status != StreamBranchPublishStatus.Accepted);
+        branch.Status is StreamBranchPublishStatus.Dropped or
+            StreamBranchPublishStatus.Rejected or
+            StreamBranchPublishStatus.Faulted);
 
     public bool RequiresStop => RouterState != StreamRouterState.Running || HasRequiredFailure;
 
-    public bool IsSuccess => !RequiresStop;
+    public bool IsSuccess =>
+        RouterState == StreamRouterState.Running &&
+        Branches
+            .Where(static branch => branch.Delivery == StreamBranchDelivery.Required)
+            .All(static branch => branch.Status == StreamBranchPublishStatus.Accepted);
 }
 
 public sealed record StreamBranchSnapshot(
