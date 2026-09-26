@@ -20,7 +20,7 @@ public sealed class AcquisitionSessionTests
         {
             StartHook = async token =>
             {
-                ingress = source.Context!.CreateRawFirstIngress(raw, processing);
+                ingress = source!.Context!.CreateRawFirstIngress(raw, processing);
                 await ingress.PublishAsync(42, token);
             }
         };
@@ -149,7 +149,7 @@ public sealed class AcquisitionSessionTests
         {
             StartHook = async token =>
             {
-                ingress = source.Context!.CreateRawFirstIngress(rawSink, processingSink);
+                ingress = source!.Context!.CreateRawFirstIngress(rawSink, processingSink);
                 await ingress.PublishAsync(1, token);
                 throw new InvalidOperationException("partial start");
             }
@@ -681,7 +681,7 @@ public sealed class AcquisitionSessionTests
             {
                 StartHook = async token =>
                 {
-                    var ingress = source.Context!.CreateRawFirstIngress(raw, processing);
+                    var ingress = source!.Context!.CreateRawFirstIngress(raw, processing);
                     for (var block = 0; block < blocksPerSession; block++)
                         await ingress.PublishAsync(block, token);
                 }
