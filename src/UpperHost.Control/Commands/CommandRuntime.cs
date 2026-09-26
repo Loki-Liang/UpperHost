@@ -144,15 +144,21 @@ public sealed class CommandRuntime<TCommand, TResult>
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
-    public CommandRuntime(
+    private CommandRuntime(
         IContextualCommandable<TCommand, TResult> target,
-        IEnumerable<ICommandGuard<TCommand>>? guards = null,
-        TimeProvider? timeProvider = null)
+        IEnumerable<ICommandGuard<TCommand>>? guards,
+        TimeProvider timeProvider)
     {
         _contextualTarget = target ?? throw new ArgumentNullException(nameof(target));
         _guards = guards?.ToArray() ?? [];
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
+
+    public static CommandRuntime<TCommand, TResult> CreateContextual(
+        IContextualCommandable<TCommand, TResult> target,
+        IEnumerable<ICommandGuard<TCommand>>? guards = null,
+        TimeProvider? timeProvider = null) =>
+        new(target, guards, timeProvider ?? TimeProvider.System);
 
     public async Task<CommandExecutionResult<TResult>> ExecuteAsync(
         TCommand command,

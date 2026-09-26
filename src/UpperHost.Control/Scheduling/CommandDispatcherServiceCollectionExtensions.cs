@@ -26,7 +26,8 @@ public static class CommandDispatcherServiceCollectionExtensions
             new BoundedCommandDispatcher<TCommand, TResult>(
                 sp.GetRequiredService<CommandRuntime<TCommand, TResult>>(),
                 configured,
-                sp.GetService<ICommandConnectionEpochValidator>()));
+                sp.GetService<ICommandConnectionEpochValidator>(),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
         services.AddSingleton<IHostedService>(sp =>
             new CommandDispatcherHostedService<TCommand, TResult>(
                 sp.GetRequiredService<BoundedCommandDispatcher<TCommand, TResult>>()));
