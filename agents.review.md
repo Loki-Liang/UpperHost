@@ -16,6 +16,10 @@ Review is not a report. Every blocker found must be fixed in code, tests, docume
 6. Re-run affected focused tests and review rounds.
 7. Only then proceed to full required validation.
 
+## Five-Gate Review
+
+The five reviews are a single quality gate. Passing one review never compensates for a blocker in another.
+
 ## Review 1 — Architecture attack
 
 Assume the structure is wrong.
