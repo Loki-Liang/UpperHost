@@ -20,6 +20,8 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private readonly SemaphoreSlim _manifestGate = new(1, 1);
     private readonly CancellationTokenSource _faultCancellation = new();
     private readonly Dictionary<SegmentKey, SegmentWriter> _activeSegments = new();
+    private readonly Dictionary<SegmentKey, long> _nextSequenceBySource = new();
+    private readonly Dictionary<SegmentKey, long> _lastSequenceBySource = new();
     private readonly List<RawSegmentManifest> _segments = [];
 
     private RawRecordingSessionDescriptor? _descriptor;
@@ -34,10 +36,17 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private string? _faultReason;
     private long _acceptedBlocks;
     private long _writtenBlocks;
+    private long _flushedBlocks;
+    private long _durableBlocks;
     private long _acceptedBytes;
     private long _writtenBytes;
+    private long _flushedBytes;
+    private long _durableBytes;
     private long _sessionPayloadBytes;
-    private long _lastSequence = long.MinValue;
+    private long _sequenceGapCount;
+    private long _duplicateBlockCount;
+    private long _outOfOrderBlockCount;
+    private long _manifestGeneration;
     private int _queueDepth;
     private int _queueHighWater;
     private int _segmentCount;
@@ -69,19 +78,33 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         {
             lock (_gate)
             {
+                var lastSequences = _lastSequenceBySource
+                    .OrderBy(static pair => pair.Key.SourceId, StringComparer.Ordinal)
+                    .ThenBy(static pair => pair.Key.ConnectionEpoch)
+                    .Select(static pair => new RawSourceSequenceSnapshot(
+                        pair.Key.SourceId,
+                        pair.Key.ConnectionEpoch,
+                        pair.Value))
+                    .ToArray();
+
                 return new RawRecorderSnapshot(
                     _state,
                     Interlocked.Read(ref _acceptedBlocks),
                     Interlocked.Read(ref _writtenBlocks),
+                    Interlocked.Read(ref _flushedBlocks),
+                    Interlocked.Read(ref _durableBlocks),
                     Interlocked.Read(ref _acceptedBytes),
                     Interlocked.Read(ref _writtenBytes),
+                    Interlocked.Read(ref _flushedBytes),
+                    Interlocked.Read(ref _durableBytes),
                     Math.Max(0, Volatile.Read(ref _queueDepth)),
                     _options.QueueCapacity,
                     Volatile.Read(ref _queueHighWater),
                     Volatile.Read(ref _segmentCount),
-                    Interlocked.Read(ref _lastSequence) == long.MinValue
-                        ? null
-                        : Interlocked.Read(ref _lastSequence),
+                    Interlocked.Read(ref _sequenceGapCount),
+                    Interlocked.Read(ref _duplicateBlockCount),
+                    Interlocked.Read(ref _outOfOrderBlockCount),
+                    lastSequences,
                     _sessionDirectory,
                     _faultReason);
             }
@@ -135,6 +158,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             });
 
         await WriteManifestAsync("Preparing", null, cancellationToken).ConfigureAwait(false);
+        await PreflightWriterAsync(cancellationToken).ConfigureAwait(false);
 
         lock (_gate)
             _state = RawRecorderState.Ready;
@@ -428,18 +452,117 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             return new RawRecorderAcceptResult(RawRecorderAcceptStatus.Faulted, fault.Message);
         }
 
-        if (Interlocked.Read(ref _acceptedBytes) + block.Payload.Length > _options.MaxSessionBytes)
-        {
-            var fault = new RawRecorderFault(
-                "raw.session.quota",
-                "Raw recording session exceeded its configured byte quota.",
-                null,
-                _timeProvider.GetUtcNow());
-            Fail(fault);
-            return new RawRecorderAcceptResult(RawRecorderAcceptStatus.Faulted, fault.Message);
-        }
-
         return null;
+    }
+
+    private bool TryReserveSessionBytes(int payloadBytes, out RawRecorderAcceptResult failure)
+    {
+        while (true)
+        {
+            var current = Interlocked.Read(ref _acceptedBytes);
+            if (payloadBytes > _options.MaxSessionBytes - current)
+            {
+                var fault = new RawRecorderFault(
+                    "raw.session.quota",
+                    "Raw recording session exceeded its configured byte quota.",
+                    null,
+                    _timeProvider.GetUtcNow());
+                Fail(fault);
+                failure = new RawRecorderAcceptResult(
+                    RawRecorderAcceptStatus.Faulted,
+                    fault.Message);
+                return false;
+            }
+
+            if (Interlocked.CompareExchange(
+                    ref _acceptedBytes,
+                    current + payloadBytes,
+                    current) == current)
+            {
+                failure = RawRecorderAcceptResult.Success;
+                return true;
+            }
+        }
+    }
+
+    private void ReleaseSessionBytes(int payloadBytes) =>
+        Interlocked.Add(ref _acceptedBytes, -payloadBytes);
+
+    private void TrackSequenceContinuity(CanonicalRawBlock block)
+    {
+        var key = new SegmentKey(block.SourceId, block.ConnectionEpoch);
+        var endExclusive = block.SequenceEndExclusive;
+
+        lock (_gate)
+        {
+            if (_nextSequenceBySource.TryGetValue(key, out var expected))
+            {
+                if (block.SequenceStart > expected)
+                {
+                    var missing = block.SequenceStart - expected;
+                    Interlocked.Add(ref _sequenceGapCount, missing);
+                    RawRecorderTelemetry.SequenceGaps.Add(missing);
+                }
+                else if (block.SequenceStart < expected)
+                {
+                    if (endExclusive <= expected)
+                    {
+                        Interlocked.Increment(ref _duplicateBlockCount);
+                        RawRecorderTelemetry.DuplicateBlocks.Add(1);
+                    }
+                    else
+                    {
+                        Interlocked.Increment(ref _outOfOrderBlockCount);
+                        RawRecorderTelemetry.OutOfOrderBlocks.Add(1);
+                    }
+                }
+
+                _nextSequenceBySource[key] = Math.Max(expected, endExclusive);
+            }
+            else
+            {
+                _nextSequenceBySource[key] = endExclusive;
+            }
+
+            var lastSequence = endExclusive - 1;
+            if (!_lastSequenceBySource.TryGetValue(key, out var currentLast) ||
+                lastSequence > currentLast)
+            {
+                _lastSequenceBySource[key] = lastSequence;
+            }
+        }
+    }
+
+    private async Task PreflightWriterAsync(CancellationToken cancellationToken)
+    {
+        var sessionDirectory = _sessionDirectory
+            ?? throw new InvalidOperationException("Raw session directory is not initialized.");
+        var probePath = Path.Combine(sessionDirectory, ".raw-writer-preflight.arrow.partial");
+        Stream? stream = null;
+        ArrowStreamWriter? writer = null;
+
+        try
+        {
+            stream = _streamFactory.OpenWrite(probePath);
+            writer = new ArrowStreamWriter(
+                stream,
+                SegmentWriter.RecordSchema,
+                leaveOpen: true);
+            await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
+            await writer.WriteEndAsync(cancellationToken).ConfigureAwait(false);
+            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            writer?.Dispose();
+            if (stream is IAsyncDisposable asyncDisposable)
+                await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+            else
+                stream?.Dispose();
+
+            if (File.Exists(probePath))
+                File.Delete(probePath);
+        }
     }
 
     private void Accepted(CanonicalRawBlock block)
@@ -451,7 +574,6 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
 
         Interlocked.Increment(ref _acceptedBlocks);
-        Interlocked.Add(ref _acceptedBytes, block.Payload.Length);
         var depth = Interlocked.Increment(ref _queueDepth);
         UpdateHighWater(depth);
         RawRecorderTelemetry.AcceptedBlocks.Add(1);
@@ -500,12 +622,14 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             _activeSegments.Add(key, segment);
         }
 
+        var writeStarted = _timeProvider.GetTimestamp();
         await segment.WriteAsync(block).ConfigureAwait(false);
+        RawRecorderTelemetry.WriteLatencyMs.Record(
+            _timeProvider.GetElapsedTime(writeStarted).TotalMilliseconds);
 
         Interlocked.Increment(ref _writtenBlocks);
         Interlocked.Add(ref _writtenBytes, block.Payload.Length);
         Interlocked.Add(ref _sessionPayloadBytes, block.Payload.Length);
-        Interlocked.Exchange(ref _lastSequence, block.SequenceEndExclusive - 1);
         RawRecorderTelemetry.WrittenBlocks.Add(1);
         RawRecorderTelemetry.WrittenBytes.Add(block.Payload.Length);
     }
@@ -572,7 +696,27 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         SegmentWriter segment,
         CancellationToken cancellationToken)
     {
+        var finalizeStarted = _timeProvider.GetTimestamp();
         await segment.FinalizeAsync(_options.Durability, cancellationToken).ConfigureAwait(false);
+        RawRecorderTelemetry.FinalizeLatencyMs.Record(
+            _timeProvider.GetElapsedTime(finalizeStarted).TotalMilliseconds);
+
+        if (_options.Durability != RawDurabilityLevel.Buffered)
+        {
+            Interlocked.Add(ref _flushedBlocks, segment.BlockCount);
+            Interlocked.Add(ref _flushedBytes, segment.PayloadBytes);
+            RawRecorderTelemetry.FlushedBlocks.Add(segment.BlockCount);
+            RawRecorderTelemetry.FlushedBytes.Add(segment.PayloadBytes);
+        }
+
+        if (_options.Durability == RawDurabilityLevel.FlushToDiskOnFinalize)
+        {
+            Interlocked.Add(ref _durableBlocks, segment.BlockCount);
+            Interlocked.Add(ref _durableBytes, segment.PayloadBytes);
+            RawRecorderTelemetry.DurableBlocks.Add(segment.BlockCount);
+            RawRecorderTelemetry.DurableBytes.Add(segment.PayloadBytes);
+        }
+
         var fileHash = await ComputeFileHashAsync(segment.FinalPath, cancellationToken).ConfigureAwait(false);
 
         lock (_gate)
@@ -610,6 +754,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         try
         {
             var available = new DriveInfo(root).AvailableFreeSpace;
+            RawRecorderTelemetry.DiskAvailableBytes.Record(available);
             if (available < _options.HardMinimumFreeBytes)
                 throw new IOException(
                     $"Raw recorder free space {available} is below hard threshold {_options.HardMinimumFreeBytes}.");
@@ -642,6 +787,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                 manifestPath = _manifestPath;
                 manifest = new RawSessionManifest(
                     1,
+                    Interlocked.Increment(ref _manifestGeneration),
                     "arrow-ipc-stream",
                     _descriptor.SessionId,
                     state,
@@ -653,6 +799,9 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                     _options.Durability.ToString(),
                     _descriptor.Sources,
                     _segments.ToArray(),
+                    Interlocked.Read(ref _sequenceGapCount),
+                    Interlocked.Read(ref _duplicateBlockCount),
+                    Interlocked.Read(ref _outOfOrderBlockCount),
                     reason);
             }
 
@@ -715,7 +864,14 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         _queue?.Writer.TryComplete(fault.Exception ?? new IOException(fault.Message));
         try { _faultCancellation.Cancel(); } catch (ObjectDisposedException) { }
         RawRecorderTelemetry.Faults.Add(1);
-        _faultObserver?.OnFault(fault);
+        try
+        {
+            _faultObserver?.OnFault(fault);
+        }
+        catch
+        {
+            RawRecorderTelemetry.FaultObserverErrors.Add(1);
+        }
         _faultManifestTask = BestEffortManifestAsync("Faulted", fault.Message);
     }
 
@@ -783,6 +939,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 
     internal sealed record RawSessionManifest(
         int SchemaVersion,
+        long Generation,
         string Format,
         string SessionId,
         string State,
@@ -792,12 +949,15 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         string Durability,
         IReadOnlyList<RawRecordingSourceIdentity> Sources,
         IReadOnlyList<RawSegmentManifest> Segments,
+        long SequenceGapCount,
+        long DuplicateBlockCount,
+        long OutOfOrderBlockCount,
         string? Reason);
 
 
     private sealed class SegmentWriter : IAsyncDisposable
     {
-        private static readonly Schema Schema = CreateSchema();
+        internal static readonly Schema RecordSchema = CreateSchema();
         private readonly Stream _stream;
         private readonly ArrowStreamWriter _writer;
         private readonly FileSystemRawRecorderOptions _options;
@@ -851,7 +1011,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             ArrowStreamWriter? writer = null;
             try
             {
-                writer = new ArrowStreamWriter(stream, Schema, leaveOpen: true);
+                writer = new ArrowStreamWriter(stream, RecordSchema, leaveOpen: true);
                 await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
                 return new SegmentWriter(
                     stream, writer, partialPath, finalPath, sourceId,
@@ -949,7 +1109,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             byte[] checksum)
         {
             return new RecordBatch(
-                Schema,
+                RecordSchema,
                 [
                     new StringArray.Builder().Append(block.SourceId).Build(),
                     new StringArray.Builder().Append(block.DeviceId ?? string.Empty).Build(),
@@ -987,6 +1147,30 @@ internal static class RawRecorderTelemetry
         OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.written.blocks", "{block}");
     public static Counter<long> WrittenBytes { get; } =
         OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.written.bytes", "By");
+    public static Counter<long> FlushedBlocks { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.flushed.blocks", "{block}");
+    public static Counter<long> FlushedBytes { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.flushed.bytes", "By");
+    public static Counter<long> DurableBlocks { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.durable.blocks", "{block}");
+    public static Counter<long> DurableBytes { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.durable.bytes", "By");
+    public static Counter<long> SequenceGaps { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.sequence.gaps", "{sequence}");
+    public static Counter<long> DuplicateBlocks { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.sequence.duplicate_blocks", "{block}");
+    public static Counter<long> OutOfOrderBlocks { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.sequence.out_of_order_blocks", "{block}");
+    public static Histogram<double> WriteLatencyMs { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateHistogram<double>("opendevicestudio.raw.write.latency", "ms");
+    public static Histogram<double> FinalizeLatencyMs { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateHistogram<double>("opendevicestudio.raw.finalize.latency", "ms");
+    public static Histogram<long> DiskAvailableBytes { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateHistogram<long>("opendevicestudio.raw.disk.available_bytes", "By");
+    public static Counter<long> IntegrityErrors { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.integrity.errors", "{error}");
+    public static Counter<long> FaultObserverErrors { get; } =
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.fault_observer.errors", "{error}");
     public static Counter<long> LowDiskWarnings { get; } =
         OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.low_disk.warning", "{warning}");
     public static Counter<long> Faults { get; } =
