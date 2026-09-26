@@ -1517,7 +1517,16 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 return;
 
             Interlocked.Exchange(ref _isExpired, 1);
-            _expired.TrySetResult();
+
+            // Do not complete the deadline task from inside a TimeProvider timer
+            // callback. FakeTimeProvider.Advance() executes callbacks synchronously,
+            // and completing the task there can let Session convergence re-enter the
+            // timer-dispatch cycle. Queue only the control signal; cleanup remains
+            // owned by the supervisor after this callback has returned.
+            ThreadPool.QueueUserWorkItem(
+                static state => ((TaskCompletionSource)state!).TrySetResult(),
+                _expired,
+                preferLocal: false);
         }
     }
 
