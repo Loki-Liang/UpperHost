@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public static class DeviceStateServiceCollectionExtensions
 {
-    public static IServiceCollection AddUpperHostDeviceState<TState>(
+    public static IServiceCollection AddOpenDeviceStudioDeviceState<TState>(
         this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -33,7 +33,7 @@ public static class DeviceStateServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddUpperHostDevicePolling<TState>(
+    public static IServiceCollection AddOpenDeviceStudioDevicePolling<TState>(
         this IServiceCollection services,
         Func<IServiceProvider, IEnumerable<DevicePollGroup<TState>>> groupFactory,
         DevicePollRuntimeOptions? options = null)
@@ -41,7 +41,7 @@ public static class DeviceStateServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(groupFactory);
 
-        services.AddUpperHostDeviceState<TState>();
+        services.AddOpenDeviceStudioDeviceState<TState>();
 
         if (services.Any(static descriptor =>
                 descriptor.ServiceType == typeof(DevicePollingRegistrationMarker<TState>)))

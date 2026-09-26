@@ -1,6 +1,6 @@
-using UpperHost.Control.Commands;
+using OpenDeviceStudio.Control.Commands;
 
-namespace UpperHost.Control.Scheduling;
+namespace OpenDeviceStudio.Control.Scheduling;
 
 public enum CommandPriority
 {

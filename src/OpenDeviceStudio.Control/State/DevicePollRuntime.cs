@@ -1,6 +1,6 @@
 using System.Threading.Channels;
 
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public enum PollMissedTickPolicy
 {

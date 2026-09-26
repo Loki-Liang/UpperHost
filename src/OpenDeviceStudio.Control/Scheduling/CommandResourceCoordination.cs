@@ -1,6 +1,6 @@
 using System.Collections.Concurrent;
 
-namespace UpperHost.Control.Scheduling;
+namespace OpenDeviceStudio.Control.Scheduling;
 
 public enum CommandResourceAccess
 {

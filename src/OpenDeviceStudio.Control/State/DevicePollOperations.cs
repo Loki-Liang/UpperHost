@@ -1,7 +1,7 @@
-using UpperHost.Control.Commands;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public static class DevicePollOperations
 {

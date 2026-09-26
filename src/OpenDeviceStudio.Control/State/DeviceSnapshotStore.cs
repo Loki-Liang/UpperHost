@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public enum DeviceSnapshotQuality
 {

@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public enum DeviceControlReadinessState
 {

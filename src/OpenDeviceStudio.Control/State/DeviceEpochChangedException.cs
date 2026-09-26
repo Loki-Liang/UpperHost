@@ -1,4 +1,4 @@
-namespace UpperHost.Control.State;
+namespace OpenDeviceStudio.Control.State;
 
 public sealed class DeviceEpochChangedException : InvalidOperationException
 {
