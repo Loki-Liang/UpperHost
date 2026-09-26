@@ -75,7 +75,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private int _abortRequested;
     private int _convergeOnce;
     private int _terminalOnce;
-    private int _disposeOnce;
+    private readonly object _disposeGate = new();
+    private Task? _disposeTask;
     private int _storedSecondaryFaults;
     private int _droppedSecondaryFaults;
     private int _activeMetric;
@@ -400,11 +401,17 @@ public sealed class AcquisitionSession : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public ValueTask DisposeAsync()
     {
-        if (Interlocked.Exchange(ref _disposeOnce, 1) != 0)
-            return;
+        lock (_disposeGate)
+        {
+            _disposeTask ??= DisposeCoreAsync();
+            return new ValueTask(_disposeTask);
+        }
+    }
 
+    private async Task DisposeCoreAsync()
+    {
         try
         {
             if (!_completion.Task.IsCompleted)
@@ -1484,6 +1491,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private static AcquisitionFaultCategory FaultCategoryFor(AcquisitionComponentKind kind) =>
         kind switch
         {
+            AcquisitionComponentKind.Source => AcquisitionFaultCategory.Source,
             AcquisitionComponentKind.RawRecorder => AcquisitionFaultCategory.RawIntegrity,
             AcquisitionComponentKind.Processing => AcquisitionFaultCategory.Processing,
             AcquisitionComponentKind.Router => AcquisitionFaultCategory.RequiredBranch,
