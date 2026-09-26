@@ -7,9 +7,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Authors>UpperHost Contributors</Authors>
-    <Company>UpperHost</Company>
-    <RepositoryUrl>https://github.com/Loki-Liang/UpperHost</RepositoryUrl>
+    <Authors>OpenDeviceStudio Contributors</Authors>
+    <Company>OpenDeviceStudio</Company>
+    <RepositoryUrl>https://github.com/Loki-Liang/OpenDeviceStudio</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <Version>0.1.0-alpha.1</Version>
