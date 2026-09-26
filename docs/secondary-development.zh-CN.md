@@ -319,26 +319,35 @@ WPF / Workflow
 
 ## 11. Acquisition 二开
 
-高频连续采集走 Streaming / Dataflow：
+AddUpperHostApplication() 已默认注册由 Host 持有的 AcquisitionSessionManager。每次 Live/Replay 运行创建一个冻结的 AcquisitionSessionDefinition，把 Source、Required、Optional adapter 交给同一个 Session；产品禁止再创建第二套采集生命周期协调器。
+
+```csharp
+var manager = services.GetRequiredService<AcquisitionSessionManager>();
+await using var session = manager.CreateSession(new AcquisitionSessionDefinition(
+    AcquisitionSessionMode.LiveAcquisition,
+    sources,
+    requiredComponents,
+    optionalComponents));
+
+await session.StartAsync(startRequestToken);
+var result = await session.StopAsync();
+```
+
+高频数据热路径不经过复杂 Session orchestration：
 
 ```text
 Hardware
- -> Transport
- -> Decoder
- -> IDataSource<T>
- -> bounded Dataflow
- -> Algorithm / Storage / UI
+ -> Transport / Provider
+ -> Decoder / Canonical Raw
+ -> Raw Recorder Accepted
+ -> Processing
+ -> bounded Router
+ -> Algorithm / Processed Storage / UI
 ```
 
-必须明确：
+所有 Required Ready 后 Source 才能启动；Required fault 统一由 Session 收敛；Optional Presentation/Algorithm 默认隔离，只有冻结配置明确要求时才升级为 fatal。Replay Source 默认只读原 Raw artifact，复用同一 Processing implementation，并创建新的 ProcessingEpoch。
 
-- Channel / Queue Capacity；
-- Backpressure；
-- Drop / Loss Policy；
-- UI 降采样；
-- 原始数据保存与显示数据的职责边界。
-
-不要让 WPF UI Timer 成为采集时钟。
+还必须明确 Channel / Queue Capacity、Backpressure、Drop/Loss Policy、UI 降采样以及原始数据保存与显示数据的职责边界。不要让 WPF UI Timer 成为采集时钟。
 
 ## 12. Storage 二开
 

@@ -56,6 +56,7 @@ The product composition root is `app/UpperHost.App/App.xaml.cs`. Product code sh
 - Configuration-driven transport auto-configuration with startup fail-fast validation.
 - Protocol contracts plus request/response and streaming runtimes.
 - Bounded fan-out/backpressure primitives for streaming data.
+- A single host-owned Acquisition Session authority for Required readiness, Source start/stop, root-fault convergence, optional isolation, replay identity and terminal results.
 - Generic workflow and state-machine runtimes.
 - Typed in-process event bus for module decoupling.
 - Alarm lifecycle service and health/transport diagnostics.
@@ -126,11 +127,21 @@ Workflow steps should call device/application services instead of reaching direc
 
 ## Acquisition path
 
-Use streaming/dataflow for telemetry, cameras, DAQ, waveforms and continuously emitted device data:
+Use streaming/dataflow for telemetry, cameras, DAQ, waveforms and continuously emitted device data. The lifecycle is coordinated by one AcquisitionSession; the session coordinator is not the per-block hot path.
 
 ```text
-Hardware -> Transport -> Decoder -> Stream -> Dataflow -> Storage / Algorithm / UI
+AcquisitionSessionManager
+        |
+        v
+AcquisitionSession
+  -> Required readiness
+  -> Source start/stop
+  -> root-fault / optional-isolation policy
+        |
+Hardware -> Transport -> Decoder -> Canonical Raw -> Raw accept -> Processing / Router / UI
 ```
+
+The source must not start before all Required components are Ready. Canonical Raw must be accepted by the Raw recorder ingress before processing handoff. Presentation is optional by default and must not become the lifecycle authority.
 
 Do not force low-rate request/response devices through a high-rate streaming pipeline.
 

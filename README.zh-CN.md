@@ -114,8 +114,25 @@ UpperHost 脚手架负责：
 - Workflow、State Machine、Event、Alarm、Diagnostics。
 - 企业级 Observability：结构化日志 Scope、滚动 JSON 文件日志、Metrics、Tracing、Transport Health、可选 OpenTelemetry OTLP。
 - Dataflow、Storage、Testing、Plugin 扩展点。
+- Host-owned Acquisition Session Authority：统一 Required Ready、Source Start/Stop、Root Fault、Optional 隔离、Replay identity 与 Terminal Result。
 
-业务产品负责：
+Acquisition 运行时由单一 Session Authority 管理生命周期：
+
+```text
+AcquisitionSessionManager
+        |
+        v
+AcquisitionSession
+  -> Required Ready
+  -> Source Start / Stop
+  -> Root Fault / Optional Isolation
+        |
+Canonical Raw -> Raw Accepted -> Processing / Router / Presentation
+```
+
+Source 在所有 Required component Ready 前禁止启动；Canonical Raw 必须先被 Raw Recorder ingress 接受，之后才能交给 Processing。Presentation 默认 Optional，不能反向成为 Session 生命周期权威。
+
+业务产品负责:
 
 - 自己的设备语义。
 - 自己的协议格式。
