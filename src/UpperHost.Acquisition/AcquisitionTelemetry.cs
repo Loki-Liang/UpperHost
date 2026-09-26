@@ -44,6 +44,15 @@ internal static class AcquisitionTelemetry
         return tags;
     }
 
+    public static TagList ModeTags(AcquisitionSessionMode mode)
+    {
+        var tags = new TagList
+        {
+            { "upperhost.acquisition.mode", mode.ToString() }
+        };
+        return tags;
+    }
+
     public static TagList FaultTags(
         AcquisitionSessionMode mode,
         AcquisitionFaultCategory category,
