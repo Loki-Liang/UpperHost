@@ -5,3 +5,7 @@ Surface: UpperHost.Starters adds AddCommandDispatcher<TCommand,TResult> so a pro
 Issue: #64
 Reason: Make the single Acquisition Session authority part of the source-first composition root and expose one explicit starter entrypoint without introducing a parallel acquisition lifecycle.
 Surface: UpperHost.Starters defaults now register AcquisitionSessionManager and add AddAcquisitionRuntime() for product composition roots that opt into the runtime explicitly.
+
+Issue: #53
+Reason: Make the authoritative Automation execution runtime part of the source-first composition root instead of requiring products to build a parallel station scheduler.
+Surface: UpperHost.Starters adds AddAutomationRuntime(...) and AddUpperHostDefaults/AddUpperHostApplication now register the shared Control resource arbiter, bounded Automation journal, conservative recovery reconciler and AutomationExecutionCoordinator.
