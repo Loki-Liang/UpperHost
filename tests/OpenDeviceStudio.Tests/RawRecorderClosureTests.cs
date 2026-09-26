@@ -8,7 +8,7 @@ using OpenDeviceStudio.Storage.FileSystem;
 
 namespace OpenDeviceStudio.Tests;
 
-public sealed class RawRecorderClosureTests
+public sealed class RawRecorderTestsClosure
 {
     [Fact]
     public async Task Short_soak_keeps_queue_bounded_and_replays_every_accepted_raw_block()
