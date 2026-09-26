@@ -565,6 +565,20 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
         var duration = _timeProvider.GetElapsedTime(active.StartedTimestamp);
         AutomationExecutionState finalState;
         AutomationStationState finalStationState;
+
+        lock (active.Gate)
+        {
+            if (active.Request == ControlRequest.Stop &&
+                rootResult.Status == AutomationStepStatus.CancelledBeforeSideEffect)
+            {
+                rootResult = rootResult with
+                {
+                    Status = AutomationStepStatus.Stopped,
+                    Message = rootResult.Message ?? "Orderly stop cancelled the current step."
+                };
+            }
+        }
+
         var recoveryRequired =
             rootResult.Status is AutomationStepStatus.UnknownPhysicalOutcome or AutomationStepStatus.RecoveryRequired;
 
@@ -629,20 +643,6 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
 
         var failureReason = rootResult.Message ?? fatal?.Message;
         AutomationRecoveryEvidence? evidence = null;
-        if (recoveryRequired)
-        {
-            evidence = new AutomationRecoveryEvidence(
-                active.ExecutionId,
-                active.Plan.WorkflowId,
-                active.Plan.WorkflowVersion,
-                active.Recipe.Hash,
-                active.LastSafeCheckpoint,
-                active.HasUnknownPhysicalOutcome,
-                commandIds,
-                active.Plan.RequiredDeviceIds,
-                failureReason,
-                active.JournalSequence);
-        }
 
         try
         {
@@ -656,6 +656,21 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
         catch (Exception ex)
         {
             fatal ??= ex;
+        }
+
+        if (recoveryRequired)
+        {
+            evidence = new AutomationRecoveryEvidence(
+                active.ExecutionId,
+                active.Plan.WorkflowId,
+                active.Plan.WorkflowVersion,
+                active.Recipe.Hash,
+                active.LastSafeCheckpoint,
+                active.HasUnknownPhysicalOutcome,
+                commandIds,
+                active.Plan.RequiredDeviceIds,
+                failureReason,
+                active.JournalSequence);
         }
 
         var result = new AutomationExecutionResult(
