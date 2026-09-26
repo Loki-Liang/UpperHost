@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Protocols;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Protocols;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Protocols;
+namespace OpenDeviceStudio.Protocols;
 
 public sealed class RequestResponseClient<TCommand, TResponse>
 {

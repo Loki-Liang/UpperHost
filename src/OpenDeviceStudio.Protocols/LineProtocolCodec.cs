@@ -1,7 +1,7 @@
 using System.Text;
-using UpperHost.Abstractions.Protocols;
+using OpenDeviceStudio.Abstractions.Protocols;
 
-namespace UpperHost.Protocols;
+namespace OpenDeviceStudio.Protocols;
 
 public sealed class LineProtocolCodec : IProtocolCodec<string, string>
 {

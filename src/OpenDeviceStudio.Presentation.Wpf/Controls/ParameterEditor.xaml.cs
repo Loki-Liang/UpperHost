@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
-using UpperHost.Presentation.Wpf.Mvvm;
+using OpenDeviceStudio.Presentation.Wpf.Mvvm;
 
-namespace UpperHost.Presentation.Wpf.Controls;
+namespace OpenDeviceStudio.Presentation.Wpf.Controls;
 
 public partial class ParameterEditor : UserControl
 {

@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace UpperHost.Presentation.Wpf.Mvvm;
+namespace OpenDeviceStudio.Presentation.Wpf.Mvvm;
 
 public abstract class ObservableObject : INotifyPropertyChanged
 {

@@ -1,21 +1,21 @@
 using System.Windows;
-using UpperHost.Hosting;
+using OpenDeviceStudio.Hosting;
 
-namespace UpperHost.Presentation.Wpf;
+namespace OpenDeviceStudio.Presentation.Wpf;
 
-public abstract class UpperHostWpfApplication : Application
+public abstract class OpenDeviceStudioWpfApplication : Application
 {
-    private UpperHostApplication? _upperHost;
+    private OpenDeviceStudioApplication? _upperHost;
 
-    protected abstract void ConfigureUpperHost(UpperHostApplicationBuilder builder);
+    protected abstract void ConfigureOpenDeviceStudio(OpenDeviceStudioApplicationBuilder builder);
     protected abstract Window CreateMainWindow(IServiceProvider services);
 
     protected sealed override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHost();
-        ConfigureUpperHost(builder);
+        var builder = OpenDeviceStudioApplication.CreateBuilder(e.Args).AddOpenDeviceStudio();
+        ConfigureOpenDeviceStudio(builder);
 
         _upperHost = builder.Build();
         await _upperHost.StartAsync().ConfigureAwait(true);

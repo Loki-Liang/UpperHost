@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Presentation.Wpf.Mvvm;
+namespace OpenDeviceStudio.Presentation.Wpf.Mvvm;
 
 public sealed class ParameterEntry : ObservableObject
 {

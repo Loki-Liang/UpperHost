@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Description>WPF presentation adapter and application bootstrap for OpenDeviceStudio.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../OpenDeviceStudio.Hosting/OpenDeviceStudio.Hosting.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,9 +1,9 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Resilience;
+namespace OpenDeviceStudio.Resilience;
 
 public sealed record ReconnectPolicy(
     int MaxAttempts = 5,
@@ -142,20 +142,20 @@ public sealed class ReconnectingTransport : ITransport
 
     private async Task ReconnectAsync(int attempt, CancellationToken cancellationToken)
     {
-        var context = new UpperHostTelemetryContext(
+        var context = new OpenDeviceStudioTelemetryContext(
             Transport: Endpoint.Scheme,
             Operation: "reconnect");
-        var tags = UpperHostTelemetry.CreateMetricTags(
-            new UpperHostMetricContext(
+        var tags = OpenDeviceStudioTelemetry.CreateMetricTags(
+            new OpenDeviceStudioMetricContext(
                 Transport: Endpoint.Scheme,
                 Operation: "reconnect"));
-        UpperHostTelemetry.ReconnectAttempts.Add(1, tags);
+        OpenDeviceStudioTelemetry.ReconnectAttempts.Add(1, tags);
 
-        using var activity = UpperHostTelemetry.StartActivity(
-            "upperhost.transport.reconnect",
+        using var activity = OpenDeviceStudioTelemetry.StartActivity(
+            "opendevicestudio.transport.reconnect",
             System.Diagnostics.ActivityKind.Client,
             context);
-        activity?.SetTag("upperhost.reconnect.attempt", attempt);
+        activity?.SetTag("opendevicestudio.reconnect.attempt", attempt);
 
         await _reconnectGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
