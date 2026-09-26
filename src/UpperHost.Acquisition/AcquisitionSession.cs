@@ -778,9 +778,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
         AcquisitionSessionState terminalState,
         Exception original,
         string currentComponentId,
-        string? currentSourceId)
+        string? currentSourceId,
+        Stack<StartupCleanupHandle> startupCleanup)
     {
         TryCancel(_sessionStop);
+        _ingressGate.Close();
 
         if (terminalState == AcquisitionSessionState.Aborted)
         {
@@ -794,91 +796,90 @@ public sealed class AcquisitionSession : IAsyncDisposable
         }
 
         using var budget = CreateBudget(_definition.Options.EffectiveAbortTimeout);
-        var inFlight = new List<Task>();
+        var timedOut = false;
 
-        foreach (var source in _sources.Values.Reverse())
+        while (startupCleanup.TryPop(out var handle))
         {
-            if (source.State == AcquisitionComponentRuntimeState.Created)
-                continue;
-
             try
             {
-                var task = source.Source.StopAsync(budget.Token).AsTask();
-                inFlight.Add(task);
-                await task.WaitAsync(budget.Token).ConfigureAwait(false);
+                await handle.Component
+                    .StopAsync(budget.Token)
+                    .AsTask()
+                    .WaitAsync(budget.Token)
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (budget.IsCancellationRequested)
             {
+                timedOut = true;
                 break;
             }
             catch (Exception ex)
             {
                 AddSecondary(CreateFault(
-                    AcquisitionFaultCategory.Source,
-                    source.Source.ComponentId,
-                    source.Source.SourceId,
+                    FaultCategoryFor(handle.Kind),
+                    handle.ComponentId,
+                    handle.SourceId,
                     ex,
-                    "Source cleanup after partial startup failed."));
+                    "Startup rollback stop failed."));
             }
-        }
-
-        foreach (var required in _required.Values.OrderBy(EffectiveStopOrder))
-        {
-            if (required.State == AcquisitionComponentRuntimeState.Created)
-                continue;
 
             try
             {
-                var task = required.Registration.Component.StopAsync(budget.Token).AsTask();
-                inFlight.Add(task);
-                await task.WaitAsync(budget.Token).ConfigureAwait(false);
+                await handle.Component
+                    .FinalizeAsync(budget.Token)
+                    .AsTask()
+                    .WaitAsync(budget.Token)
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (budget.IsCancellationRequested)
             {
-                break;
-            }
-            catch (Exception ex)
-            {
-                AddSecondary(CreateFault(
-                    FaultCategoryFor(required.Registration.Component.Kind),
-                    required.Registration.Component.ComponentId,
-                    null,
-                    ex,
-                    "Required component cleanup after partial startup failed."));
-            }
-        }
-
-        foreach (var required in _required.Values.OrderBy(EffectiveFinalizeOrder))
-        {
-            if (required.State == AcquisitionComponentRuntimeState.Created)
-                continue;
-
-            try
-            {
-                var task = required.Registration.Component.FinalizeAsync(budget.Token).AsTask();
-                inFlight.Add(task);
-                await task.WaitAsync(budget.Token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException) when (budget.IsCancellationRequested)
-            {
+                timedOut = true;
                 break;
             }
             catch (Exception ex)
             {
                 AddSecondary(CreateFault(
                     AcquisitionFaultCategory.Finalization,
-                    required.Registration.Component.ComponentId,
-                    null,
+                    handle.ComponentId,
+                    handle.SourceId,
                     ex,
-                    "Required component finalization after partial startup failed."));
+                    "Startup rollback finalization failed."));
+            }
+
+            try
+            {
+                await handle.Component
+                    .DisposeAsync()
+                    .AsTask()
+                    .WaitAsync(budget.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (budget.IsCancellationRequested)
+            {
+                timedOut = true;
+                break;
+            }
+            catch (Exception ex)
+            {
+                AddSecondary(CreateFault(
+                    AcquisitionFaultCategory.Finalization,
+                    handle.ComponentId,
+                    handle.SourceId,
+                    ex,
+                    "Startup rollback dispose failed."));
             }
         }
 
         try
         {
-            await DisposeAllAsync(budget.Token, inFlight).ConfigureAwait(false);
+            await _ingressGate.WaitForDrainAsync(budget.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (budget.IsCancellationRequested)
+        {
+            timedOut = true;
+        }
+
+        if (timedOut)
         {
             AddSecondary(CreateFault(
                 AcquisitionFaultCategory.ShutdownTimeout,
