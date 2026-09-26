@@ -67,7 +67,7 @@ public sealed class RawRecorderTests
 
         var recorder = Assert.IsType<FileSystemRawRecorder>(factory.Recorder);
         var snapshot = recorder.Snapshot;
-        Assert.Equal(RawRecorderState.Completed, snapshot.State);
+        Assert.Equal(RawRecorderState.Disposed, snapshot.State);
         Assert.Equal(1, snapshot.AcceptedBlocks);
         Assert.Equal(1, snapshot.WrittenBlocks);
         Assert.Equal(snapshot.AcceptedBytes, snapshot.WrittenBytes);
