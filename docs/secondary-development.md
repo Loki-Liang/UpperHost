@@ -26,7 +26,7 @@ UpperHost is a source-first enterprise .NET upper-computer development scaffold.
 | Protocol | Command encoders, message decoders, request/response and streaming boundaries | Implement `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control runtime | Host-owned bounded command dispatcher, guards/interlocks, UnknownOutcome, resource arbitration, parameter/readback foundations | Register each typed command contract with `AddCommandDispatcher<TCommand,TResult>()`; define product safety/completion semantics |
 | Streaming / dataflow | Bounded fan-out, backpressure and loss-policy primitives | Connect device streams to bounded dataflow |
-| Workflow | `WorkflowRunner` | Define product `WorkflowDefinition` / `IWorkflowStep` |
+| Automation runtime | Host-owned `AutomationExecutionCoordinator`, compiled plan, frozen recipe, bounded parallel/join, journal and recovery | Build `AutomationExecutionPlan`; device steps call #60 through `AutomationStepContext.DispatchAsync`; `WorkflowRunner` is compatibility-only |
 | State machine | Generic `StateMachine<TState,TTrigger>` | Define product states and triggers |
 | Events | Typed `IEventBus` | Publish/subscribe product events instead of static globals |
 | Alarms | `IAlarmService` raise/acknowledge/clear lifecycle | Define product alarm rules |
@@ -229,17 +229,21 @@ Reuse existing runtime pieces instead of rebuilding them in button handlers:
 - `CommandRuntime<TCommand,TResult>` as the execution/guard/completion layer under the dispatcher
 - guards/interlocks and explicit command safety metadata
 - `IParameterProvider` plus readback (coordinated through #63 resource arbitration)
-- recipe integration through the same dispatcher
-- `WorkflowRunner`
-- `StateMachine<TState,TTrigger>`
-- `IEventBus`
-- `IAlarmService`
+- recipe values frozen through `AutomationRecipeSnapshot`
+- `AutomationExecutionCoordinator` as the single station/execution authority
+- bounded Sequence/Parallel/SafeCheckpoint nodes compiled into `AutomationExecutionPlan`
+- `AutomationStepContext.DispatchAsync` so pre-held Automation resources are not locked a second time by #60
+- `IAutomationRecoveryReconciler` + #63 authoritative rehydrate/readback before restart/resume
+- `WorkflowRunner` only for compatibility/simple non-authoritative workflows
+- `StateMachine<TState,TTrigger>`, `IEventBus`, `IAlarmService`
 
 A normal product path is:
 
 ```text
-WPF / Workflow
-  -> Application Service
+WPF / Application Service
+  -> AutomationExecutionCoordinator
+  -> shared Resource Lease
+  -> BoundedCommandDispatcher
   -> Guard / State / Interlock
   -> Device Capability
   -> Protocol
@@ -338,6 +342,7 @@ src/UpperHost.*/
 - [Architecture](architecture.md)
 - [Extending UpperHost](extending.md)
 - [Control Runtime](control-runtime.md)
+- [Automation Runtime](automation-runtime.md)
 - [Recipes and Scheduling](recipes-and-scheduling.md)
 - [Observability](observability.md)
 - [Provider design](providers.md)
