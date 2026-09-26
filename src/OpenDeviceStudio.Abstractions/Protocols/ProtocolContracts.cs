@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Protocols;
+namespace OpenDeviceStudio.Abstractions.Protocols;
 
 public interface ICommandEncoder<in TCommand>
 {

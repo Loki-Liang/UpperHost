@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace UpperHost.Acquisition;
+namespace OpenDeviceStudio.Acquisition;
 
 public enum AcquisitionSessionMode
 {

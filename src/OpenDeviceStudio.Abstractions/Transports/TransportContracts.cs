@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Transports;
+namespace OpenDeviceStudio.Abstractions.Transports;
 
 public enum TransportState
 {

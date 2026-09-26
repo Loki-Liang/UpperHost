@@ -1,38 +1,38 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-using UpperHost.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Observability;
 
-namespace UpperHost.Acquisition;
+namespace OpenDeviceStudio.Acquisition;
 
 internal static class AcquisitionTelemetry
 {
     public static Counter<long> StateTransitions { get; } =
-        UpperHostTelemetry.Meter.CreateCounter<long>(
-            "upperhost.acquisition.session.transitions",
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>(
+            "opendevicestudio.acquisition.session.transitions",
             "{transition}",
             "Acquisition session lifecycle transitions.");
 
     public static Counter<long> Faults { get; } =
-        UpperHostTelemetry.Meter.CreateCounter<long>(
-            "upperhost.acquisition.session.faults",
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>(
+            "opendevicestudio.acquisition.session.faults",
             "{fault}",
             "Acquisition session faults grouped by role-safe low-cardinality attributes.");
 
     public static UpDownCounter<long> ActiveSessions { get; } =
-        UpperHostTelemetry.Meter.CreateUpDownCounter<long>(
-            "upperhost.acquisition.session.active",
+        OpenDeviceStudioTelemetry.Meter.CreateUpDownCounter<long>(
+            "opendevicestudio.acquisition.session.active",
             "{session}",
             "Acquisition sessions currently in Running state.");
 
     public static Histogram<double> StopDuration { get; } =
-        UpperHostTelemetry.Meter.CreateHistogram<double>(
-            "upperhost.acquisition.session.stop_duration",
+        OpenDeviceStudioTelemetry.Meter.CreateHistogram<double>(
+            "opendevicestudio.acquisition.session.stop_duration",
             "s",
             "Acquisition session convergence duration.");
 
     public static Counter<long> ClosedIngressRejections { get; } =
-        UpperHostTelemetry.Meter.CreateCounter<long>(
-            "upperhost.acquisition.ingress.rejected_closed",
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>(
+            "opendevicestudio.acquisition.ingress.rejected_closed",
             "{block}",
             "Raw blocks rejected because the owning acquisition session ingress was closed.");
 
@@ -43,9 +43,9 @@ internal static class AcquisitionTelemetry
     {
         var tags = new TagList
         {
-            { "upperhost.acquisition.mode", mode.ToString() },
-            { "upperhost.acquisition.from", from.ToString() },
-            { "upperhost.acquisition.to", to.ToString() }
+            { "opendevicestudio.acquisition.mode", mode.ToString() },
+            { "opendevicestudio.acquisition.from", from.ToString() },
+            { "opendevicestudio.acquisition.to", to.ToString() }
         };
         return tags;
     }
@@ -54,7 +54,7 @@ internal static class AcquisitionTelemetry
     {
         var tags = new TagList
         {
-            { "upperhost.acquisition.mode", mode.ToString() }
+            { "opendevicestudio.acquisition.mode", mode.ToString() }
         };
         return tags;
     }
@@ -66,9 +66,9 @@ internal static class AcquisitionTelemetry
     {
         var tags = new TagList
         {
-            { "upperhost.acquisition.mode", mode.ToString() },
-            { "upperhost.acquisition.fault_category", category.ToString() },
-            { "upperhost.acquisition.component_role", role }
+            { "opendevicestudio.acquisition.mode", mode.ToString() },
+            { "opendevicestudio.acquisition.fault_category", category.ToString() },
+            { "opendevicestudio.acquisition.component_role", role }
         };
         return tags;
     }

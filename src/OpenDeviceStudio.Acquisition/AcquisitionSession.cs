@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 
-namespace UpperHost.Acquisition;
+namespace OpenDeviceStudio.Acquisition;
 
 public sealed class AcquisitionSession : IAsyncDisposable
 {

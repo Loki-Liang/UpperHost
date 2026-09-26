@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Storage;
+namespace OpenDeviceStudio.Abstractions.Storage;
 
 public interface IKeyValueStore
 {

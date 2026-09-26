@@ -1,4 +1,4 @@
-namespace UpperHost.Acquisition;
+namespace OpenDeviceStudio.Acquisition;
 
 public sealed record AcquisitionRawAcceptance(bool Accepted, string? Reason = null)
 {

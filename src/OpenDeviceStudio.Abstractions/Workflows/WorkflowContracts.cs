@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Workflows;
+namespace OpenDeviceStudio.Abstractions.Workflows;
 
 public enum WorkflowStepStatus
 {

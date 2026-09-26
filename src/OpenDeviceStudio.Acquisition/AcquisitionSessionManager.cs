@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 
-namespace UpperHost.Acquisition;
+namespace OpenDeviceStudio.Acquisition;
 
 public sealed class AcquisitionSessionManager : IAsyncDisposable
 {
@@ -94,7 +94,7 @@ public sealed class AcquisitionSessionManager : IAsyncDisposable
 
 public static class AcquisitionServiceCollectionExtensions
 {
-    public static IServiceCollection AddUpperHostAcquisition(this IServiceCollection services)
+    public static IServiceCollection AddOpenDeviceStudioAcquisition(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 
