@@ -316,20 +316,24 @@ public sealed class AcquisitionSession : IAsyncDisposable
         return WaitCompletionAsync(cancellationToken);
     }
 
-    public Task<AcquisitionSessionResult> AbortAsync(CancellationToken cancellationToken = default)
+    public async Task<AcquisitionSessionResult> AbortAsync(CancellationToken cancellationToken = default)
     {
         if (_completion.Task.IsCompleted)
-            return WaitCompletionAsync(cancellationToken);
+            return await WaitCompletionAsync(cancellationToken).ConfigureAwait(false);
 
         if (TryTerminateBeforeStart(AcquisitionFaultCategory.OperatorAbort, "Session aborted before startup."))
-            return WaitCompletionAsync(cancellationToken);
+            return await WaitCompletionAsync(cancellationToken).ConfigureAwait(false);
 
         Interlocked.Exchange(ref _abortRequested, 1);
         CloseAllIngress();
         TryCancel(_sessionStop);
-        TryCancel(_abort);
         WakeSupervisor();
-        return WaitCompletionAsync(cancellationToken);
+
+        // CancelAsync prevents a synchronous cancellation callback from re-entering
+        // graceful convergence and waiting on the very Stop task whose cancellation
+        // cannot finish until CancellationTokenSource.Cancel() returns.
+        await TryCancelAsync(_abort).ConfigureAwait(false);
+        return await WaitCompletionAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public Task<AcquisitionSessionResult> HostShutdownAsync(CancellationToken cancellationToken = default)
@@ -1476,6 +1480,18 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             if (!source.IsCancellationRequested)
                 source.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    private static async Task TryCancelAsync(CancellationTokenSource source)
+    {
+        try
+        {
+            if (!source.IsCancellationRequested)
+                await source.CancelAsync().ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
