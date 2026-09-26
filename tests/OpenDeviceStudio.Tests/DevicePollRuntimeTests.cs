@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Time.Testing;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DevicePollRuntimeTests
 {

@@ -1,9 +1,9 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Interlocks;
-using UpperHost.Control.Parameters;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Interlocks;
+using OpenDeviceStudio.Control.Parameters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ControlRuntimeTests
 {

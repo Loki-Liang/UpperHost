@@ -3,17 +3,17 @@ using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Control.Commands;
-using UpperHost.Diagnostics;
-using UpperHost.Hosting;
-using UpperHost.Observability;
-using UpperHost.Starters;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Diagnostics;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Observability;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ObservabilityTests
 {
@@ -27,12 +27,12 @@ public sealed class ObservabilityTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName)
                 listener.EnableMeasurementEvents(instrument);
         };
         meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
-            if (instrument.Name != "upperhost.command.executions")
+            if (instrument.Name != "opendevicestudio.command.executions")
                 return;
 
             Interlocked.Add(ref commandMeasurements, measurement);
@@ -42,11 +42,11 @@ public sealed class ObservabilityTests
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == UpperHostTelemetry.InstrumentationName,
+            ShouldListenTo = source => source.Name == OpenDeviceStudioTelemetry.InstrumentationName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
             ActivityStopped = activity =>
             {
-                if (activity.OperationName == "upperhost.command.execute")
+                if (activity.OperationName == "opendevicestudio.command.execute")
                     stopped = activity;
             }
         };
@@ -58,12 +58,12 @@ public sealed class ObservabilityTests
         Assert.True(result.IsSuccess);
         Assert.True(Volatile.Read(ref commandMeasurements) >= 1);
         Assert.NotNull(stopped);
-        Assert.Equal(result.ExecutionId, stopped!.GetTagItem("upperhost.command.id"));
-        Assert.Equal("Succeeded", stopped.GetTagItem("upperhost.result"));
+        Assert.Equal(result.ExecutionId, stopped!.GetTagItem("opendevicestudio.command.id"));
+        Assert.Equal("Succeeded", stopped.GetTagItem("opendevicestudio.result"));
         Assert.Contains(commandTags, tag =>
-            tag.Key == "upperhost.operation" && Equals(tag.Value, nameof(TestCommand)));
+            tag.Key == "opendevicestudio.operation" && Equals(tag.Value, nameof(TestCommand)));
         Assert.DoesNotContain(commandTags, tag =>
-            tag.Key is "upperhost.command.id" or "upperhost.session.id" or "upperhost.connection.id");
+            tag.Key is "opendevicestudio.command.id" or "opendevicestudio.session.id" or "opendevicestudio.connection.id");
     }
 
     [Fact]
@@ -71,30 +71,30 @@ public sealed class ObservabilityTests
     {
         var directory = Path.Combine(
             Path.GetTempPath(),
-            "upperhost-observability-tests",
+            "opendevicestudio-observability-tests",
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
 
         try
         {
-            var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-            var options = new UpperHostObservabilityOptions
+            var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+            var options = new OpenDeviceStudioObservabilityOptions
             {
-                ServiceName = "UpperHost.Tests",
+                ServiceName = "OpenDeviceStudio.Tests",
                 ServiceVersion = "1.0.0"
             };
             options.FileLogging.Enabled = true;
-            options.FileLogging.Path = Path.Combine(directory, "upperhost-.json");
+            options.FileLogging.Path = Path.Combine(directory, "opendevicestudio-.json");
             options.FileLogging.RetainedFileCountLimit = 2;
             options.FileLogging.FileSizeLimitBytes = 1024 * 1024;
 
-            builder.AddUpperHostObservability(options);
+            builder.AddOpenDeviceStudioObservability(options);
 
             var app = builder.Build();
             await app.StartAsync();
 
             var logger = app.Services.GetRequiredService<ILogger<ObservabilityTests>>();
-            using (logger.BeginUpperHostScope(new UpperHostLogContext(
+            using (logger.BeginOpenDeviceStudioScope(new OpenDeviceStudioLogContext(
                 DeviceId: "device-1",
                 ConnectionId: "connection-1",
                 SessionId: "session-1",
@@ -110,11 +110,11 @@ public sealed class ObservabilityTests
 
             Assert.Contains(
                 app.Services.GetServices<IHealthProbe>(),
-                probe => probe.Name == "upperhost.logging.async_buffer");
+                probe => probe.Name == "opendevicestudio.logging.async_buffer");
 
             await app.DisposeAsync();
 
-            var files = Directory.GetFiles(directory, "upperhost-*.json");
+            var files = Directory.GetFiles(directory, "opendevicestudio-*.json");
             Assert.NotEmpty(files);
             var contents = string.Join(
                 Environment.NewLine,
@@ -147,9 +147,9 @@ public sealed class ObservabilityTests
     [Fact]
     public async Task Default_starter_registers_observability_health()
     {
-        var builder = UpperHostApplication.CreateBuilder();
-        builder.Configuration["UpperHost:Transport:Type"] = "Simulator";
-        builder.AddUpperHostApplication();
+        var builder = OpenDeviceStudioApplication.CreateBuilder();
+        builder.Configuration["OpenDeviceStudio:Transport:Type"] = "Simulator";
+        builder.AddOpenDeviceStudioApplication();
 
         var app = builder.Build();
         await app.StartAsync();
@@ -161,7 +161,7 @@ public sealed class ObservabilityTests
 
             var health = app.Services.GetRequiredService<HealthService>();
             var reports = await health.CheckAllAsync();
-            Assert.Contains(reports, report => report.Name == "upperhost.transports");
+            Assert.Contains(reports, report => report.Name == "opendevicestudio.transports");
         }
         finally
         {
@@ -172,17 +172,17 @@ public sealed class ObservabilityTests
     [Fact]
     public void Invalid_otlp_endpoint_fails_fast()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-        var options = new UpperHostObservabilityOptions
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+        var options = new OpenDeviceStudioObservabilityOptions
         {
-            ServiceName = "UpperHost.Tests",
+            ServiceName = "OpenDeviceStudio.Tests",
             ServiceVersion = "1.0.0"
         };
         options.Otlp.Enabled = true;
         options.Otlp.Endpoint = "not-an-absolute-uri";
 
         Assert.Throws<InvalidOperationException>(() =>
-            builder.AddUpperHostObservability(options));
+            builder.AddOpenDeviceStudioObservability(options));
     }
 
 
@@ -194,16 +194,16 @@ public sealed class ObservabilityTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName)
                 listener.EnableMeasurementEvents(instrument);
         };
         meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
-            if (instrument.Name != "upperhost.alarms.active")
+            if (instrument.Name != "opendevicestudio.alarms.active")
                 return;
 
             var severity = tags.ToArray()
-                .FirstOrDefault(tag => tag.Key == "upperhost.alarm.severity")
+                .FirstOrDefault(tag => tag.Key == "opendevicestudio.alarm.severity")
                 .Value as string;
             measurements.Add((measurement, severity));
         });
@@ -232,23 +232,23 @@ public sealed class ObservabilityTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName)
                 listener.EnableMeasurementEvents(instrument);
         };
         meterListener.SetMeasurementEventCallback<long>((instrument, measurement, _, _) =>
         {
-            if (instrument.Name == "upperhost.transport.failures")
+            if (instrument.Name == "opendevicestudio.transport.failures")
                 Interlocked.Add(ref failures, measurement);
         });
         meterListener.Start();
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == UpperHostTelemetry.InstrumentationName,
+            ShouldListenTo = source => source.Name == OpenDeviceStudioTelemetry.InstrumentationName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
             ActivityStopped = activity =>
             {
-                if (activity.OperationName == "upperhost.transport.receive")
+                if (activity.OperationName == "opendevicestudio.transport.receive")
                     stopped = activity;
             }
         };
@@ -286,15 +286,15 @@ public sealed class ObservabilityTests
     [Fact]
     public void Configured_observability_binds_typed_options()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-        builder.Configuration["UpperHost:Observability:Logging:File:AsyncBufferSize"] = "2048";
-        builder.Configuration["UpperHost:Observability:Otlp:TraceSampleRatio"] = "0.25";
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+        builder.Configuration["OpenDeviceStudio:Observability:Logging:File:AsyncBufferSize"] = "2048";
+        builder.Configuration["OpenDeviceStudio:Observability:Otlp:TraceSampleRatio"] = "0.25";
 
-        builder.AddConfiguredUpperHostObservability();
+        builder.AddConfiguredOpenDeviceStudioObservability();
         var app = builder.Build();
 
         var options = app.Services
-            .GetRequiredService<IOptions<UpperHostObservabilityOptions>>()
+            .GetRequiredService<IOptions<OpenDeviceStudioObservabilityOptions>>()
             .Value;
 
         Assert.Equal(2048, options.FileLogging.AsyncBufferSize);
@@ -304,8 +304,8 @@ public sealed class ObservabilityTests
     [Fact]
     public void Custom_transport_registration_uses_canonical_observed_pipeline()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-        builder.AddUpperHostTransport(_ => new FakeTransport(TransportState.Closed));
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+        builder.AddOpenDeviceStudioTransport(_ => new FakeTransport(TransportState.Closed));
         var app = builder.Build();
 
         Assert.IsType<ObservedTransport>(

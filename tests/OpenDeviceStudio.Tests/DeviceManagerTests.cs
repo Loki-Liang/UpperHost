@@ -1,15 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Hosting;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Hosting;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DeviceManagerTests
 {
     [Fact]
     public async Task Registered_device_is_exposed_and_managed_after_host_start()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         var device = new FakeDevice();
         builder.Services.AddSingleton<IDevice>(device);
 

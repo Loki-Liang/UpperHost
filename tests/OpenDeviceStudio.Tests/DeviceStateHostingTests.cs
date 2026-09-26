@@ -1,10 +1,10 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
-using UpperHost.Hosting;
-using UpperHost.Starters;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DeviceStateHostingTests
 {
@@ -14,7 +14,7 @@ public sealed class DeviceStateHostingTests
         var polled = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
 
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         builder.AddDeviceState<int>();
         builder.AddDevicePolling<int>(
             _ =>
@@ -69,7 +69,7 @@ public sealed class DeviceStateHostingTests
     {
         var services = new ServiceCollection();
 
-        services.AddUpperHostControlResourceArbiter(maxSharedReadersPerResource: 3);
+        services.AddOpenDeviceStudioControlResourceArbiter(maxSharedReadersPerResource: 3);
 
         using var provider = services.BuildServiceProvider();
         Assert.NotNull(provider.GetService<ICommandResourceArbiter>());

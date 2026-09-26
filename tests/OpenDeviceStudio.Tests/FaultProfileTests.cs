@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Time.Testing;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Testing;
-using UpperHost.Transport.Simulator;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Testing;
+using OpenDeviceStudio.Transport.Simulator;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class FaultProfileTests
 {

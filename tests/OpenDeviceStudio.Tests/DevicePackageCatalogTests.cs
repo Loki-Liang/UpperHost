@@ -1,15 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Hosting;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Hosting;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DevicePackageCatalogTests
 {
     [Fact]
     public void Invalid_typed_configuration_fails_during_composition_with_exact_path()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         var descriptor = CreateDescriptor(
             "temperature-controller",
             new Version(1, 0, 0),
@@ -67,7 +67,7 @@ public sealed class DevicePackageCatalogTests
     [Fact]
     public async Task Catalog_keeps_highest_version_and_filters_by_stable_metadata()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         var schema = CreateSchema();
 
         builder.AddDevicePackageDescriptor(
@@ -96,7 +96,7 @@ public sealed class DevicePackageCatalogTests
             new DevicePackageQuery(
                 Capability: "command",
                 Transport: "Simulator",
-                Vendor: "UpperHost"));
+                Vendor: "OpenDeviceStudio"));
 
         var match = Assert.Single(matches);
         Assert.Equal("temperature-controller", match.PackageId);
@@ -106,7 +106,7 @@ public sealed class DevicePackageCatalogTests
     [Fact]
     public async Task Same_package_and_version_with_different_descriptors_fails_deterministically()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         var schema = CreateSchema();
 
         builder.AddDevicePackageDescriptor(
@@ -196,7 +196,7 @@ public sealed class DevicePackageCatalogTests
         string packageId,
         Version version,
         IDeviceConfigurationSchema schema,
-        string vendor = "UpperHost",
+        string vendor = "OpenDeviceStudio",
         IReadOnlyList<string>? capabilities = null,
         IReadOnlyList<string>? transports = null) =>
         new(

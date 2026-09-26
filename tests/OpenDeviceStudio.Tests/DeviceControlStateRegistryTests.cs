@@ -1,7 +1,7 @@
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DeviceControlStateRegistryTests
 {

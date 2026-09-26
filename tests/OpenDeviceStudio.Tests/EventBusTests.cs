@@ -1,6 +1,6 @@
-using UpperHost.Events;
+using OpenDeviceStudio.Events;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class EventBusTests
 {

@@ -1,9 +1,9 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DevicePollDispatcherIntegrationTests
 {

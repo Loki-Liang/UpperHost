@@ -1,9 +1,9 @@
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.Time.Testing;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class DeviceStateTelemetryTests
 {
@@ -14,14 +14,14 @@ public sealed class DeviceStateTelemetryTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName &&
-                instrument.Name.StartsWith("upperhost.control.", StringComparison.Ordinal))
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName &&
+                instrument.Name.StartsWith("opendevicestudio.control.", StringComparison.Ordinal))
                 meterListener.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
-            if (instrument.Name is "upperhost.control.snapshot.observations" or
-                "upperhost.control.epoch.changes")
+            if (instrument.Name is "opendevicestudio.control.snapshot.observations" or
+                "opendevicestudio.control.epoch.changes")
             {
                 Interlocked.Increment(ref observed);
                 Assert.DoesNotContain(tags.ToArray(), tag =>
