@@ -103,8 +103,8 @@ function Invoke-ApiCompat {
         $arguments += "--enable-strict-mode-for-baseline-validation"
     }
 
-    & $ApiCompatPath @arguments
-    return $LASTEXITCODE
+    & $ApiCompatPath @arguments | Out-Host
+    return [int]$LASTEXITCODE
 }
 
 if (-not (Test-Path $ApiCompatPath)) {
