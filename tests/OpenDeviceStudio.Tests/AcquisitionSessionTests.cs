@@ -746,6 +746,15 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
+    public void Session_manager_preserves_timeprovider_constructor_binary_surface()
+    {
+        var constructor = typeof(AcquisitionSessionManager).GetConstructor([typeof(TimeProvider)]);
+
+        Assert.NotNull(constructor);
+        using var manager = new AcquisitionSessionManager(TimeProvider.System);
+    }
+
+    [Fact]
     public async Task Host_owns_one_session_manager_and_stops_live_sessions()
     {
         var services = new ServiceCollection();
