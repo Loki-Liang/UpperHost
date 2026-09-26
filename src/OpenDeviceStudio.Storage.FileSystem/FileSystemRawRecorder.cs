@@ -365,9 +365,6 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
         finally
         {
-            foreach (var segment in _activeSegments.Values)
-                await segment.DisposeAsync().ConfigureAwait(false);
-
             try
             {
                 await _writerTask.ConfigureAwait(false);
@@ -376,6 +373,9 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             {
                 // Writer failure is already captured in recorder state/fault diagnostics.
             }
+
+            foreach (var segment in _activeSegments.Values)
+                await segment.DisposeAsync().ConfigureAwait(false);
 
             await _faultManifestTask.ConfigureAwait(false);
             _slots?.Dispose();
