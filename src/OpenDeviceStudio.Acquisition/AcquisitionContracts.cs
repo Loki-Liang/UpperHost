@@ -148,6 +148,7 @@ public interface IAcquisitionSource : IAcquisitionSessionComponent
     long ConnectionEpoch { get; }
     bool IsReplay { get; }
     bool IsReadOnly { get; }
+    RawSourceFlowControl RawFlowControl => RawSourceFlowControl.SupportsBackpressure;
 
     ValueTask StartAsync(CancellationToken cancellationToken = default);
 }
@@ -256,6 +257,7 @@ public sealed class AcquisitionComponentContext
         CancellationToken abortToken,
         TimeProvider timeProvider,
         AcquisitionIngressGate? ingressGate,
+        RawSourceFlowControl? sourceRawFlowControl,
         IAcquisitionRawSink<CanonicalRawBlock>? defaultCanonicalRawSink,
         Func<AcquisitionFaultCategory, Exception?, string?, bool> faultReporter)
     {
@@ -269,6 +271,7 @@ public sealed class AcquisitionComponentContext
         AbortToken = abortToken;
         TimeProvider = timeProvider;
         _ingressGate = ingressGate;
+        SourceRawFlowControl = sourceRawFlowControl;
         _defaultCanonicalRawSink = defaultCanonicalRawSink;
         _faultReporter = faultReporter;
     }
@@ -282,6 +285,7 @@ public sealed class AcquisitionComponentContext
     public CancellationToken SessionStopToken { get; }
     public CancellationToken AbortToken { get; }
     public TimeProvider TimeProvider { get; }
+    public RawSourceFlowControl? SourceRawFlowControl { get; }
 
     public RawFirstAcquisitionIngress<TBlock> CreateRawFirstIngress<TBlock>(
         IAcquisitionRawSink<TBlock> raw,
@@ -291,7 +295,11 @@ public sealed class AcquisitionComponentContext
             throw new InvalidOperationException(
                 "Raw-first ingress can only be created from a live Source component context.");
 
-        return new RawFirstAcquisitionIngress<TBlock>(_ingressGate, raw, processing);
+        return new RawFirstAcquisitionIngress<TBlock>(
+            _ingressGate,
+            SourceRawFlowControl ?? RawSourceFlowControl.SupportsBackpressure,
+            raw,
+            processing);
     }
 
     public RawFirstAcquisitionIngress<CanonicalRawBlock> CreateRawFirstIngress(
