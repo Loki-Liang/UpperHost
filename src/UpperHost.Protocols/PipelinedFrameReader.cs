@@ -7,7 +7,7 @@ namespace UpperHost.Protocols;
 
 /// <summary>
 /// Incremental frame parser contract. Implementations may discard invalid/resync bytes by
-/// slicing <paramref name="buffer"/>. Returning false means no complete frame is currently
+/// slicing the <c>buffer</c> sequence. Returning false means no complete frame is currently
 /// available; the remaining buffer must begin at the first incomplete candidate frame.
 /// </summary>
 public interface IFrameParser<TFrame>
