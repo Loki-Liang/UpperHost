@@ -19,7 +19,12 @@ public sealed class CommandScheduler<TCommand, TResult> : IAsyncDisposable
     private readonly BoundedCommandDispatcher<TCommand, TResult> _dispatcher;
 
     public CommandScheduler(CommandRuntime<TCommand, TResult> runtime)
-        : this(runtime, new BoundedCommandDispatcherOptions())
+        : this(
+            runtime,
+            new BoundedCommandDispatcherOptions(
+                Capacity: 256,
+                PerPriorityCapacity: 128,
+                MaxConcurrency: 1))
     {
     }
 

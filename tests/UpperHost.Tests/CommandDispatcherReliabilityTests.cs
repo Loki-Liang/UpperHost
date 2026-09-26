@@ -92,7 +92,8 @@ public sealed class CommandDispatcherReliabilityTests
     [Fact]
     public async Task Dispatcher_emits_low_cardinality_queue_and_rejection_metrics()
     {
-        long pendingDelta = 0;
+        var pendingIncrementSeen = 0;
+        var pendingDecrementSeen = 0;
         long rejections = 0;
         var queueWaitMeasurements = 0;
 
@@ -106,7 +107,12 @@ public sealed class CommandDispatcherReliabilityTests
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
             if (instrument.Name == "upperhost.command.dispatcher.pending")
-                Interlocked.Add(ref pendingDelta, measurement);
+            {
+                if (measurement > 0)
+                    Interlocked.Exchange(ref pendingIncrementSeen, 1);
+                if (measurement < 0)
+                    Interlocked.Exchange(ref pendingDecrementSeen, 1);
+            }
             if (instrument.Name == "upperhost.command.dispatcher.admission_rejections")
                 Interlocked.Add(ref rejections, measurement);
 
@@ -144,7 +150,8 @@ public sealed class CommandDispatcherReliabilityTests
         target.Release.TrySetResult();
         await Task.WhenAll(first, queued);
 
-        Assert.Equal(0, Volatile.Read(ref pendingDelta));
+        Assert.Equal(1, Volatile.Read(ref pendingIncrementSeen));
+        Assert.Equal(1, Volatile.Read(ref pendingDecrementSeen));
         Assert.True(Volatile.Read(ref rejections) >= 1);
         Assert.True(Volatile.Read(ref queueWaitMeasurements) >= 1);
         Assert.True(dispatcher.PendingHighWater >= 1);
