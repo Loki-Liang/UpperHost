@@ -72,6 +72,9 @@ jobs:
       - name: Test Raw Recorder Linux contract
         run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.RawRecorderTests" --blame-hang-timeout 30s --blame-hang-dump-type mini
 
+      - name: Test Signal Processing Linux contract
+        run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.SignalProcessingTests" --blame-hang-timeout 30s --blame-hang-dump-type mini
+
   build-test-scaffold:
     runs-on: windows-latest
     steps:

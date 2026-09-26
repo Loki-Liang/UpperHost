@@ -8,6 +8,8 @@
   <Project Path="src/OpenDeviceStudio.Control/OpenDeviceStudio.Control.csproj" />
   <Project Path="src/OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
   <Project Path="src/OpenDeviceStudio.Acquisition/OpenDeviceStudio.Acquisition.csproj" />
+  <Project Path="src/OpenDeviceStudio.SignalProcessing/OpenDeviceStudio.SignalProcessing.csproj" />
+  <Project Path="src/OpenDeviceStudio.SignalProcessing.NWaves/OpenDeviceStudio.SignalProcessing.NWaves.csproj" />
   <Project Path="src/OpenDeviceStudio.Workflows/OpenDeviceStudio.Workflows.csproj" />
   <Project Path="src/OpenDeviceStudio.StateMachines/OpenDeviceStudio.StateMachines.csproj" />
   <Project Path="src/OpenDeviceStudio.Diagnostics/OpenDeviceStudio.Diagnostics.csproj" />

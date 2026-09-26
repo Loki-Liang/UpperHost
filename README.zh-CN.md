@@ -19,6 +19,7 @@
 | 控制 PLC、伺服、温控器、仪器等 | Device Control 路线 |
 | 做自动工站、测试台、设备序列控制 | Automation 路线 |
 | 做 EMG、DAQ、传感器、波形等实时采集 | Acquisition 路线 |
+| 做 Filter / Algorithm / Replay 一致处理 | [Signal Processing Runtime](docs/signal-processing.zh-CN.md) |
 | 增加 TCP/串口之外的新通信方式 | [Provider 设计与接入](docs/providers.zh-CN.md) |
 | 使用 OpenHands 开发仓库 | [OpenHands 接入](docs/openhands.zh-CN.md) |
 | AI 开发总控规则 | [AGENTS.zh-CN.md](AGENTS.zh-CN.md) |

@@ -21,6 +21,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 | First time using OpenDeviceStudio | [Getting Started](docs/getting-started.md) |
 | Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
 | Understand architecture boundaries | [Architecture](docs/architecture.md) |
+| Build filters/algorithms on Acquisition data | [Signal Processing runtime](docs/signal-processing.md) |
 | Understand built-in DI, configuration, logging and secondary-development seams | [Secondary-development foundation](docs/secondary-development.md) |
 | Configure logging, metrics, tracing and health | [Observability](docs/observability.md) |
 | Add a device, transport, protocol, workflow or plugin | [Extending OpenDeviceStudio](docs/extending.md) |
@@ -56,6 +57,7 @@ The product composition root is `app/OpenDeviceStudio.App/App.xaml.cs`. Product 
 - Configuration-driven transport auto-configuration with startup fail-fast validation.
 - Protocol contracts plus request/response and streaming runtimes.
 - Bounded fan-out/backpressure primitives for streaming data.
+- Validated/frozen block-oriented Signal Processing Stage Graph with per-partition state, lineage, gap policy, replay reuse and StreamRouter-backed bounded edges.
 - A single host-owned Acquisition Session authority for Required readiness, Source start/stop, root-fault convergence, optional isolation, replay identity and terminal results.
 - Generic workflow and state-machine runtimes.
 - Typed in-process event bus for module decoupling.
