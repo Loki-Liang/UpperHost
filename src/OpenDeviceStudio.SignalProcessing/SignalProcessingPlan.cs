@@ -141,10 +141,32 @@ public static class SignalProcessingCompiler
         };
         var compiled = new List<CompiledSignalStage<T>>(orderedIds.Count);
 
+        var optionalPath = new Dictionary<string, bool>(StringComparer.Ordinal)
+        {
+            [SignalProcessingStageIds.RawInput] = false
+        };
+
         foreach (var stageId in orderedIds)
         {
             var registration = byId[stageId];
             var input = descriptors[registration.InputStageId];
+            var parentOptional = optionalPath[registration.InputStageId];
+            var currentOptional =
+                parentOptional ||
+                registration.Edge.Delivery == StreamBranchDelivery.Optional ||
+                registration.Edge.Overflow is
+                    StreamOverflowPolicy.DropOldest or
+                    StreamOverflowPolicy.DropNewest or
+                    StreamOverflowPolicy.Latest;
+
+            if (parentOptional &&
+                registration.Edge.Delivery == StreamBranchDelivery.Required)
+            {
+                throw new ArgumentException(
+                    $"Stage '{stageId}' cannot declare a Required edge beneath Optional/lossy ancestor '{registration.InputStageId}'.");
+            }
+
+            optionalPath[stageId] = currentOptional;
 
             try
             {
