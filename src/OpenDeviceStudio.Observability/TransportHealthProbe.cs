@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
 public sealed class TransportHealthProbe : IHealthProbe
 {
@@ -10,7 +10,7 @@ public sealed class TransportHealthProbe : IHealthProbe
     public TransportHealthProbe(IEnumerable<ITransport> transports) =>
         _transports = transports?.ToArray() ?? throw new ArgumentNullException(nameof(transports));
 
-    public string Name => "upperhost.transports";
+    public string Name => "opendevicestudio.transports";
 
     public Task<HealthReport> CheckAsync(CancellationToken cancellationToken = default)
     {

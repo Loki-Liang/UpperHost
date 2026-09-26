@@ -1,20 +1,20 @@
 using Microsoft.Extensions.Options;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
-internal sealed class UpperHostObservabilityOptionsValidator :
-    IValidateOptions<UpperHostObservabilityOptions>
+internal sealed class OpenDeviceStudioObservabilityOptionsValidator :
+    IValidateOptions<OpenDeviceStudioObservabilityOptions>
 {
     public ValidateOptionsResult Validate(
         string? name,
-        UpperHostObservabilityOptions options)
+        OpenDeviceStudioObservabilityOptions options)
     {
         var failures = new List<string>();
 
         if (string.IsNullOrWhiteSpace(options.ServiceName))
-            failures.Add("UpperHost:Observability:ServiceName is required.");
+            failures.Add("OpenDeviceStudio:Observability:ServiceName is required.");
         if (string.IsNullOrWhiteSpace(options.ServiceVersion))
-            failures.Add("UpperHost:Observability:ServiceVersion is required.");
+            failures.Add("OpenDeviceStudio:Observability:ServiceVersion is required.");
 
         ValidateFileLogging(options.FileLogging, failures);
         ValidateOtlp(options.Otlp, failures);
@@ -24,22 +24,22 @@ internal sealed class UpperHostObservabilityOptionsValidator :
             : ValidateOptionsResult.Fail(failures);
     }
 
-    internal static void ValidateAndThrow(UpperHostObservabilityOptions options)
+    internal static void ValidateAndThrow(OpenDeviceStudioObservabilityOptions options)
     {
-        var result = new UpperHostObservabilityOptionsValidator()
+        var result = new OpenDeviceStudioObservabilityOptionsValidator()
             .Validate(Options.DefaultName, options);
         if (result.Failed)
             throw new InvalidOperationException(string.Join(Environment.NewLine, result.Failures));
     }
 
     private static void ValidateFileLogging(
-        UpperHostFileLoggingOptions options,
+        OpenDeviceStudioFileLoggingOptions options,
         ICollection<string> failures)
     {
         if (!Enum.IsDefined(options.MinimumLevel))
         {
             failures.Add(
-                "UpperHost:Observability:Logging:File:MinimumLevel is not a supported enum value.");
+                "OpenDeviceStudio:Observability:Logging:File:MinimumLevel is not a supported enum value.");
         }
 
         if (!options.Enabled)
@@ -48,7 +48,7 @@ internal sealed class UpperHostObservabilityOptionsValidator :
         if (string.IsNullOrWhiteSpace(options.Path))
         {
             failures.Add(
-                "UpperHost:Observability:Logging:File:Path is required when file logging is enabled.");
+                "OpenDeviceStudio:Observability:Logging:File:Path is required when file logging is enabled.");
         }
         else
         {
@@ -60,31 +60,31 @@ internal sealed class UpperHostObservabilityOptionsValidator :
                 ex is ArgumentException or NotSupportedException or PathTooLongException)
             {
                 failures.Add(
-                    "UpperHost:Observability:Logging:File:Path must be a valid filesystem path.");
+                    "OpenDeviceStudio:Observability:Logging:File:Path must be a valid filesystem path.");
             }
         }
 
         if (options.FileSizeLimitBytes <= 0)
         {
             failures.Add(
-                "UpperHost:Observability:Logging:File:FileSizeLimitBytes must be greater than zero.");
+                "OpenDeviceStudio:Observability:Logging:File:FileSizeLimitBytes must be greater than zero.");
         }
 
         if (options.RetainedFileCountLimit <= 0)
         {
             failures.Add(
-                "UpperHost:Observability:Logging:File:RetainedFileCountLimit must be greater than zero.");
+                "OpenDeviceStudio:Observability:Logging:File:RetainedFileCountLimit must be greater than zero.");
         }
 
         if (options.AsyncBufferSize <= 0)
         {
             failures.Add(
-                "UpperHost:Observability:Logging:File:AsyncBufferSize must be greater than zero.");
+                "OpenDeviceStudio:Observability:Logging:File:AsyncBufferSize must be greater than zero.");
         }
     }
 
     private static void ValidateOtlp(
-        UpperHostOtlpOptions options,
+        OpenDeviceStudioOtlpOptions options,
         ICollection<string> failures)
     {
         if (double.IsNaN(options.TraceSampleRatio) ||
@@ -93,7 +93,7 @@ internal sealed class UpperHostObservabilityOptionsValidator :
             options.TraceSampleRatio > 1)
         {
             failures.Add(
-                "UpperHost:Observability:Otlp:TraceSampleRatio must be greater than 0 and at most 1.");
+                "OpenDeviceStudio:Observability:Otlp:TraceSampleRatio must be greater than 0 and at most 1.");
         }
 
         if (!options.Enabled)
@@ -104,7 +104,7 @@ internal sealed class UpperHostObservabilityOptionsValidator :
             (endpoint.Scheme != Uri.UriSchemeHttp && endpoint.Scheme != Uri.UriSchemeHttps))
         {
             failures.Add(
-                "UpperHost:Observability:Otlp:Endpoint must be an absolute HTTP or HTTPS URI when OTLP export is enabled.");
+                "OpenDeviceStudio:Observability:Otlp:Endpoint must be an absolute HTTP or HTTPS URI when OTLP export is enabled.");
         }
     }
 }

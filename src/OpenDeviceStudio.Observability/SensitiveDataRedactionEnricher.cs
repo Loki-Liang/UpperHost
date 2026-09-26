@@ -1,7 +1,7 @@
 using Serilog.Core;
 using Serilog.Events;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
 internal sealed class SensitiveDataRedactionEnricher : ILogEventEnricher
 {

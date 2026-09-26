@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using UpperHost.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Diagnostics;
 
-namespace UpperHost.Presentation.Wpf.Controls;
+namespace OpenDeviceStudio.Presentation.Wpf.Controls;
 
 public partial class AlarmPanel : UserControl
 {

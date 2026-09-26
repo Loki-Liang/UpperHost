@@ -1,7 +1,7 @@
-<UserControl x:Class="UpperHost.Presentation.Wpf.Controls.AlarmPanel"
+<UserControl x:Class="OpenDeviceStudio.Presentation.Wpf.Controls.AlarmPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:UpperHost.Presentation.Wpf.Controls">
+             xmlns:local="clr-namespace:OpenDeviceStudio.Presentation.Wpf.Controls">
     <DataGrid ItemsSource="{Binding Alarms, RelativeSource={RelativeSource AncestorType={x:Type local:AlarmPanel}}}"
               AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False">
         <DataGrid.Columns>

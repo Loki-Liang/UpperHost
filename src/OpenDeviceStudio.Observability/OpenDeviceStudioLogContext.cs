@@ -1,8 +1,8 @@
 using Microsoft.Extensions.Logging;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
-public sealed record UpperHostLogContext(
+public sealed record OpenDeviceStudioLogContext(
     string? DeviceId = null,
     string? ConnectionId = null,
     string? SessionId = null,
@@ -11,11 +11,11 @@ public sealed record UpperHostLogContext(
     string? Transport = null,
     string? Operation = null);
 
-public static class UpperHostLoggerExtensions
+public static class OpenDeviceStudioLoggerExtensions
 {
-    public static IDisposable BeginUpperHostScope(
+    public static IDisposable BeginOpenDeviceStudioScope(
         this ILogger logger,
-        UpperHostLogContext context)
+        OpenDeviceStudioLogContext context)
     {
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(context);

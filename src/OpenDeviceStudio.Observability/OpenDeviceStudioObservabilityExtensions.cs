@@ -9,49 +9,49 @@ using OpenTelemetry.Trace;
 using Serilog;
 using Serilog.Events;
 using Serilog.Formatting.Json;
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Hosting;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Hosting;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
-public static class UpperHostObservabilityExtensions
+public static class OpenDeviceStudioObservabilityExtensions
 {
-    public static UpperHostApplicationBuilder AddConfiguredUpperHostObservability(
-        this UpperHostApplicationBuilder builder)
+    public static OpenDeviceStudioApplicationBuilder AddConfiguredOpenDeviceStudioObservability(
+        this OpenDeviceStudioApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
         var section = builder.Configuration
-            .GetSection(UpperHostObservabilityOptions.SectionName);
+            .GetSection(OpenDeviceStudioObservabilityOptions.SectionName);
 
         builder.Services
-            .AddOptions<UpperHostObservabilityOptions>()
+            .AddOptions<OpenDeviceStudioObservabilityOptions>()
             .Bind(section)
             .ValidateOnStart();
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<UpperHostObservabilityOptions>,
-                UpperHostObservabilityOptionsValidator>());
+            ServiceDescriptor.Singleton<IValidateOptions<OpenDeviceStudioObservabilityOptions>,
+                OpenDeviceStudioObservabilityOptionsValidator>());
 
-        var options = section.Get<UpperHostObservabilityOptions>()
-            ?? new UpperHostObservabilityOptions();
-        UpperHostObservabilityOptionsValidator.ValidateAndThrow(options);
+        var options = section.Get<OpenDeviceStudioObservabilityOptions>()
+            ?? new OpenDeviceStudioObservabilityOptions();
+        OpenDeviceStudioObservabilityOptionsValidator.ValidateAndThrow(options);
 
         builder.Services.TryAddSingleton(options);
         ConfigureObservabilityInfrastructure(builder, options);
         return builder;
     }
 
-    public static UpperHostApplicationBuilder AddUpperHostObservability(
-        this UpperHostApplicationBuilder builder,
-        UpperHostObservabilityOptions options)
+    public static OpenDeviceStudioApplicationBuilder AddOpenDeviceStudioObservability(
+        this OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioObservabilityOptions options)
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(options);
-        UpperHostObservabilityOptionsValidator.ValidateAndThrow(options);
+        OpenDeviceStudioObservabilityOptionsValidator.ValidateAndThrow(options);
 
         builder.Services.TryAddSingleton(options);
-        builder.Services.TryAddSingleton<IOptions<UpperHostObservabilityOptions>>(
+        builder.Services.TryAddSingleton<IOptions<OpenDeviceStudioObservabilityOptions>>(
             Options.Create(options));
 
         ConfigureObservabilityInfrastructure(builder, options);
@@ -59,8 +59,8 @@ public static class UpperHostObservabilityExtensions
     }
 
     private static void ConfigureObservabilityInfrastructure(
-        UpperHostApplicationBuilder builder,
-        UpperHostObservabilityOptions options)
+        OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioObservabilityOptions options)
     {
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHealthProbe, TransportHealthProbe>());
@@ -73,8 +73,8 @@ public static class UpperHostObservabilityExtensions
     }
 
     private static void AddFileLogging(
-        UpperHostApplicationBuilder builder,
-        UpperHostFileLoggingOptions options)
+        OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioFileLoggingOptions options)
     {
         var monitor = new AsyncLogBufferMonitor();
         builder.Services.AddSingleton(monitor);
@@ -102,8 +102,8 @@ public static class UpperHostObservabilityExtensions
     }
 
     private static void AddOpenTelemetry(
-        UpperHostApplicationBuilder builder,
-        UpperHostObservabilityOptions options)
+        OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioObservabilityOptions options)
     {
         var endpoint = new Uri(options.Otlp.Endpoint!, UriKind.Absolute);
 
@@ -115,10 +115,10 @@ public static class UpperHostObservabilityExtensions
             .WithTracing(tracing => tracing
                 .SetSampler(new ParentBasedSampler(
                     new TraceIdRatioBasedSampler(options.Otlp.TraceSampleRatio)))
-                .AddSource(UpperHostTelemetry.InstrumentationName)
+                .AddSource(OpenDeviceStudioTelemetry.InstrumentationName)
                 .AddOtlpExporter(exporter => exporter.Endpoint = endpoint))
             .WithMetrics(metrics => metrics
-                .AddMeter(UpperHostTelemetry.InstrumentationName)
+                .AddMeter(OpenDeviceStudioTelemetry.InstrumentationName)
                 .AddOtlpExporter(exporter => exporter.Endpoint = endpoint));
     }
 

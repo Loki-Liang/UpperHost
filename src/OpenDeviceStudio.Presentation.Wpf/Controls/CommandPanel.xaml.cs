@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Presentation.Wpf.Controls;
+namespace OpenDeviceStudio.Presentation.Wpf.Controls;
 
 public partial class CommandPanel : UserControl
 {
