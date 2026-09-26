@@ -77,6 +77,8 @@ jobs:
 
       - name: Generate initial Public API baseline
         shell: pwsh
+        env:
+          EnableUpperHostPublicApiAnalysis: true
         run: |
           Get-ChildItem src -Filter *.csproj -Recurse | ForEach-Object {
             dotnet format $_.FullName analyzers --diagnostics RS0016 RS0017 RS0024 RS0025 --severity warn --no-restore
