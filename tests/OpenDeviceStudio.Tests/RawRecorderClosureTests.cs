@@ -95,6 +95,113 @@ public sealed class RawRecorderTestsClosure
     }
 
     [Fact]
+    public async Task Runtime_low_disk_threshold_faults_recorder_without_silent_raw_drop()
+    {
+        using var temp = new TemporaryDirectory();
+        var spaceProbe = new SequenceStorageSpaceProbe(long.MaxValue, 0);
+
+        await using var recorder = new FileSystemRawRecorder(
+            new FileSystemRawRecorderOptions(
+                RootDirectory: temp.Path,
+                QueueCapacity: 4,
+                MaxSegmentBytes: 1024 * 1024,
+                MaxSegmentDuration: TimeSpan.FromMinutes(1),
+                HardMinimumFreeBytes: 1,
+                WarningFreeBytes: 1,
+                MaxSessionBytes: 1024 * 1024,
+                Durability: RawDurabilityLevel.FlushOnFinalize,
+                FreeSpaceCheckIntervalBlocks: 1),
+            TimeProvider.System,
+            FileSystemRawSegmentStreamFactory.Instance,
+            spaceProbe);
+
+        await recorder.PrepareAsync(new RawRecordingSessionDescriptor(
+            "runtime-low-disk",
+            [new RawRecordingSourceIdentity("source-low-disk", 1)],
+            "cfg-low-disk",
+            DateTimeOffset.UtcNow));
+
+        var accepted = await recorder.AcceptAsync(CreateBlock(
+            sourceId: "source-low-disk",
+            sequence: 1,
+            configurationHash: "cfg-low-disk",
+            payload: [0x01, 0x00]));
+
+        Assert.True(accepted.Accepted, accepted.Reason);
+        await WaitUntilAsync(
+            () => recorder.Snapshot.State == RawRecorderState.Faulted,
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RawRecorderState.Faulted, recorder.Snapshot.State);
+        Assert.Contains("below hard threshold", recorder.Snapshot.FaultReason, StringComparison.OrdinalIgnoreCase);
+
+        var rejected = recorder.TryAccept(CreateBlock(
+            sourceId: "source-low-disk",
+            sequence: 2,
+            configurationHash: "cfg-low-disk",
+            payload: [0x02, 0x00]));
+        Assert.Equal(RawRecorderAcceptStatus.Faulted, rejected.Status);
+
+        await Assert.ThrowsAsync<IOException>(() => recorder.StopAsync().AsTask());
+    }
+
+    [Fact]
+    public async Task Finalize_flush_failure_faults_recorder_and_never_marks_session_completed()
+    {
+        using var temp = new TemporaryDirectory();
+        var streamFactory = new FailSegmentFlushStreamFactory();
+
+        await using var recorder = new FileSystemRawRecorder(
+            new FileSystemRawRecorderOptions(
+                RootDirectory: temp.Path,
+                QueueCapacity: 4,
+                MaxSegmentBytes: 1024 * 1024,
+                MaxSegmentDuration: TimeSpan.FromMinutes(1),
+                HardMinimumFreeBytes: 0,
+                WarningFreeBytes: 0,
+                MaxSessionBytes: 1024 * 1024,
+                Durability: RawDurabilityLevel.FlushOnFinalize,
+                FreeSpaceCheckIntervalBlocks: 1),
+            TimeProvider.System,
+            streamFactory);
+
+        await recorder.PrepareAsync(new RawRecordingSessionDescriptor(
+            "flush-failure",
+            [new RawRecordingSourceIdentity("source-flush", 1)],
+            "cfg-flush",
+            DateTimeOffset.UtcNow));
+
+        var accepted = await recorder.AcceptAsync(CreateBlock(
+            sourceId: "source-flush",
+            sequence: 1,
+            configurationHash: "cfg-flush",
+            payload: [0x01, 0x00, 0x02, 0x00]));
+        Assert.True(accepted.Accepted, accepted.Reason);
+
+        await Assert.ThrowsAnyAsync<Exception>(() => recorder.StopAsync().AsTask());
+
+        var snapshot = recorder.Snapshot;
+        Assert.Equal(RawRecorderState.Faulted, snapshot.State);
+        Assert.Equal(1, snapshot.AcceptedBlocks);
+        Assert.Equal(1, snapshot.WrittenBlocks);
+        Assert.Equal(0, snapshot.FlushedBlocks);
+
+        var rejected = recorder.TryAccept(CreateBlock(
+            sourceId: "source-flush",
+            sequence: 2,
+            configurationHash: "cfg-flush",
+            payload: [0x03, 0x00]));
+        Assert.Equal(RawRecorderAcceptStatus.Faulted, rejected.Status);
+
+        var sessionDirectory = Assert.IsType<string>(snapshot.SessionDirectory);
+        var recovery = await FileSystemRawRecoveryScanner.ScanAsync(sessionDirectory);
+        Assert.False(recovery.IsComplete);
+        Assert.Contains(
+            recovery.Issues,
+            static issue => issue.Kind == RawRecoveryIssueKind.IncompleteSession);
+    }
+
+    [Fact]
     public async Task Source_scaffold_default_composition_emits_and_verifies_real_raw_artifact()
     {
         using var temp = new TemporaryDirectory();
@@ -260,6 +367,102 @@ public sealed class RawRecorderTestsClosure
             ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (!predicate())
+        {
+            if (DateTime.UtcNow >= deadline)
+                throw new TimeoutException("Expected Raw Recorder state was not reached.");
+            await Task.Yield();
+        }
+    }
+
+    private sealed class SequenceStorageSpaceProbe(params long[] values) : IRawStorageSpaceProbe
+    {
+        private int _index = -1;
+
+        public long? GetAvailableFreeBytes(string path)
+        {
+            _ = path;
+            var index = Interlocked.Increment(ref _index);
+            return values[Math.Min(index, values.Length - 1)];
+        }
+    }
+
+    private sealed class FailSegmentFlushStreamFactory : IRawSegmentStreamFactory
+    {
+        private int _openCount;
+
+        public Stream OpenWrite(string path)
+        {
+            var stream = FileSystemRawSegmentStreamFactory.Instance.OpenWrite(path);
+            return Interlocked.Increment(ref _openCount) == 1
+                ? stream
+                : new FlushFailingStream(stream);
+        }
+    }
+
+    private sealed class FlushFailingStream(Stream inner) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => inner.CanWrite;
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public override void Flush() =>
+            throw new IOException("Injected Raw segment flush failure.");
+
+        public override Task FlushAsync(CancellationToken cancellationToken) =>
+            Task.FromException(new IOException("Injected Raw segment flush failure."));
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            inner.Read(buffer, offset, count);
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            inner.Seek(offset, origin);
+
+        public override void SetLength(long value) =>
+            inner.SetLength(value);
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            inner.Write(buffer, offset, count);
+
+        public override void Write(ReadOnlySpan<byte> buffer) =>
+            inner.Write(buffer);
+
+        public override ValueTask WriteAsync(
+            ReadOnlyMemory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            inner.WriteAsync(buffer, cancellationToken);
+
+        public override Task WriteAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken) =>
+            inner.WriteAsync(buffer, offset, count, cancellationToken);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                inner.Dispose();
+            base.Dispose(disposing);
+        }
+
+        public override async ValueTask DisposeAsync()
+        {
+            await inner.DisposeAsync();
+            GC.SuppressFinalize(this);
+        }
     }
 
     private sealed class TemporaryDirectory : IDisposable
