@@ -12,5 +12,5 @@ fi
 python scripts/validate_agent_governance.py
 python scripts/validate_architecture.py
 python scripts/validate_source_scaffold_contract.py
-dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+dotnet build OpenDeviceStudio.slnx -c Release -p:EnableWindowsTargeting=true
+dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build
