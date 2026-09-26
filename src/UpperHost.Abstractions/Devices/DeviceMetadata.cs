@@ -32,6 +32,13 @@ public interface IParameterProvider
     Task SetParameterAsync(string key, object? value, CancellationToken cancellationToken = default);
 }
 
+public interface IDirectParameterProvider : IParameterProvider
+{
+    Task<DeviceParameterDescriptor> GetParameterAsync(
+        string key,
+        CancellationToken cancellationToken = default);
+}
+
 public interface ICommandDescriptorProvider
 {
     Task<IReadOnlyList<DeviceCommandDescriptor>> GetCommandsAsync(CancellationToken cancellationToken = default);

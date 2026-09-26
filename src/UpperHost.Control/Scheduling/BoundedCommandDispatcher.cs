@@ -105,7 +105,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private readonly SemaphoreSlim _available = new(0);
     private readonly SemaphoreSlim _executionSlots;
     private readonly CancellationTokenSource _shutdown = new();
-    private readonly CommandResourceCoordinator _resources;
+    private readonly ICommandResourceArbiter _resources;
     private readonly CommandResourcePendingLimiter _resourcePending;
     private readonly ICommandConnectionEpochValidator? _epochValidator;
     private readonly TimeProvider _timeProvider;
@@ -122,16 +122,32 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         BoundedCommandDispatcherOptions? options = null,
         ICommandConnectionEpochValidator? epochValidator = null,
         TimeProvider? timeProvider = null)
+        : this(
+            runtime,
+            options ?? new BoundedCommandDispatcherOptions(),
+            epochValidator,
+            timeProvider,
+            resourceArbiter: null)
+    {
+    }
+
+    internal BoundedCommandDispatcher(
+        CommandRuntime<TCommand, TResult> runtime,
+        BoundedCommandDispatcherOptions options,
+        ICommandConnectionEpochValidator? epochValidator,
+        TimeProvider? timeProvider,
+        ICommandResourceArbiter? resourceArbiter)
     {
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-        _options = options ?? new BoundedCommandDispatcherOptions();
+        _options = options ?? throw new ArgumentNullException(nameof(options));
         _epochValidator = epochValidator;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _options.Validate();
 
         _pendingSlots = new SemaphoreSlim(_options.Capacity, _options.Capacity);
         _executionSlots = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);
-        _resources = new CommandResourceCoordinator(_options.MaxSharedReadersPerResource);
+        _resources = resourceArbiter ??
+            new CommandResourceCoordinator(_options.MaxSharedReadersPerResource);
         _resourcePending = new CommandResourcePendingLimiter(_options.PerResourcePendingCapacity);
         _lanes = Enum.GetValues<CommandPriority>().ToDictionary(
             priority => priority,

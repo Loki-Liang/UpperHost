@@ -10,7 +10,7 @@ public sealed class TemperatureControllerDevice :
     IDevice,
     IConnectable,
     ICommandable<TemperatureControllerCommand, TemperatureControllerResponse>,
-    IParameterProvider,
+    IDirectParameterProvider,
     ICommandDescriptorProvider
 {
     public const string DeviceId = "temperature-controller-1";
@@ -94,30 +94,19 @@ public sealed class TemperatureControllerDevice :
         CancellationToken cancellationToken = default)
     {
         var status = await ExecuteAsync(new ReadStatusCommand(), cancellationToken).ConfigureAwait(false);
-        return
-        [
-            new DeviceParameterDescriptor(
-                "targetCelsius",
-                "Target temperature",
-                DeviceParameterKind.Decimal,
-                status.TargetCelsius,
-                "°C",
-                5,
-                95),
-            new DeviceParameterDescriptor(
-                "actualCelsius",
-                "Actual temperature",
-                DeviceParameterKind.Decimal,
-                status.ActualCelsius,
-                "°C",
-                IsReadOnly: true),
-            new DeviceParameterDescriptor(
-                "running",
-                "Running",
-                DeviceParameterKind.Boolean,
-                status.Running,
-                IsReadOnly: true)
-        ];
+        return CreateDescriptors(status);
+    }
+
+    public async Task<DeviceParameterDescriptor> GetParameterAsync(
+        string key,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var status = await ExecuteAsync(new ReadStatusCommand(), cancellationToken).ConfigureAwait(false);
+        return CreateDescriptors(status).FirstOrDefault(descriptor =>
+                   descriptor.Key.Equals(key, StringComparison.OrdinalIgnoreCase))
+               ?? throw new KeyNotFoundException($"Unknown parameter '{key}'.");
     }
 
     public async Task SetParameterAsync(
@@ -138,16 +127,36 @@ public sealed class TemperatureControllerDevice :
             _ => throw new ArgumentException("Target temperature must be numeric.", nameof(value))
         };
 
-        var write = await ExecuteAsync(new SetTargetTemperatureCommand(target), cancellationToken).ConfigureAwait(false);
-        var readback = await ExecuteAsync(new ReadStatusCommand(), cancellationToken).ConfigureAwait(false);
-
-        if (Math.Abs(readback.TargetCelsius - target) > 0.01)
-            throw new InvalidOperationException(
-                $"Readback mismatch. Requested {target:0.00} °C but device reports {readback.TargetCelsius:0.00} °C.");
-
-        if (Math.Abs(write.TargetCelsius - readback.TargetCelsius) > 0.01)
-            throw new InvalidOperationException("Write acknowledgement and readback disagree.");
+        await ExecuteAsync(
+            new SetTargetTemperatureCommand(target),
+            cancellationToken).ConfigureAwait(false);
     }
+
+    private static IReadOnlyList<DeviceParameterDescriptor> CreateDescriptors(
+        TemperatureControllerResponse status) =>
+    [
+        new DeviceParameterDescriptor(
+            "targetCelsius",
+            "Target temperature",
+            DeviceParameterKind.Decimal,
+            status.TargetCelsius,
+            "°C",
+            5,
+            95),
+        new DeviceParameterDescriptor(
+            "actualCelsius",
+            "Actual temperature",
+            DeviceParameterKind.Decimal,
+            status.ActualCelsius,
+            "°C",
+            IsReadOnly: true),
+        new DeviceParameterDescriptor(
+            "running",
+            "Running",
+            DeviceParameterKind.Boolean,
+            status.Running,
+            IsReadOnly: true)
+    ];
 
     public Task<IReadOnlyList<DeviceCommandDescriptor>> GetCommandsAsync(
         CancellationToken cancellationToken = default)
