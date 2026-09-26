@@ -1,0 +1,3 @@
+Issue: #53
+Reason: Replace the legacy foreach-only workflow path with the authoritative enterprise Automation runtime required for stations, test stands and multi-device sequence control while preserving #60/#63 device semantics.
+Surface: UpperHost.Workflows adds AutomationExecutionCoordinator/Handle/Result and control states, compiled Sequence/Parallel/Checkpoint plans, AutomationRecipeSnapshot, typed execution data, step/resource/retry/compensation contracts, bounded execution journal contracts/implementation, recovery evidence/decision/reconciler contracts, DeviceControlStateRecoveryReconciler, and AutomationStepContext.DispatchAsync for the shared #60 resource/dispatcher path.
