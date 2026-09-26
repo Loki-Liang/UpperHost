@@ -19,14 +19,13 @@ jobs:
       - name: Validate OpenHands repository hooks
         run: bash -n .openhands/setup.sh .openhands/pre-commit.sh
 
-      - name: Validate OpenHands repository governance
+      - name: Validate layered AI/OpenHands governance
+        run: python scripts/validate_agent_governance.py
+
+      - name: Validate OpenHands repository positioning
         run: |
-          test -s AGENTS.md
-          test -s AGENTS.zh-CN.md
-          test -s .openhands/skills/repo.md
           test -s docs/scaffold.md
           test -s docs/scaffold.zh-CN.md
-          grep -Fq 'AGENTS.md' .openhands/skills/repo.md
           grep -Fq 'enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition' docs/scaffold.md
           grep -Fq '面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架' docs/scaffold.zh-CN.md
           grep -Fq 'enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition' AGENTS.md
@@ -35,7 +34,7 @@ jobs:
       - name: Validate main branch governance contract
         run: python scripts/validate_main_governance.py
 
-      - name: Test GitHub ruleset drift validator
+      - name: Test governance validators
         run: python -m unittest discover -s scripts/tests -p "test_*.py"
 
   architecture-governance:

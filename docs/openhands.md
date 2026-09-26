@@ -4,63 +4,84 @@
 
 UpperHost includes repository-native configuration for OpenHands V1 / Agent Canvas. OpenHands is a development tool only; it is not an UpperHost runtime dependency.
 
-## Default development policy
+## Layered governance
 
-OpenHands is the **default implementation executor** for normal UpperHost feature, fix, refactor, test, documentation, and architecture work. `AGENTS.md` is the repository-level authority and `.openhands/skills/repo.md` is the OpenHands execution profile.
+OpenHands is the default implementation executor. Governance is split by responsibility:
 
-The normal delivery chain is:
+    AGENTS.md
+      -> applicable agents.*.md
+      -> reusable .openhands/skills/*.md methods
+      -> ADR + Issue acceptance/evidence
+      -> implementation/tests
+      -> Five-Gate Review
+      -> CI evidence
 
-```text
-Issue/Task -> OpenHands -> focused validation -> .openhands/pre-commit.sh
-          -> Pull Request -> Windows GitHub Actions -> review -> squash merge -> main
-```
+- AGENTS.md is the thin repository constitution and rule router.
+- .github/governance/agent-governance.json is the machine-readable routing manifest.
+- agents.*.md files define long-lived specialty process/rules.
+- .openhands/skills/*.md files define reusable methods such as adversarial review, pre-mortem, invariant analysis, state-machine audit, dataflow trace, capacity/backpressure audit, fault injection, contract attack, and upgrade/rollback audit.
+- .openhands/skills/repo.md is the OpenHands execution profile. It loads rules; it does not duplicate them.
 
-Other assistants may coordinate, inspect, or review work, but production implementation should remain in OpenHands unless a fallback condition documented in `AGENTS.md` applies.
+Skills explain **how** to perform analysis. Agent rules define **when** that analysis is mandatory.
 
-## What is integrated
+## Default delivery chain
 
-- `.openhands/skills/repo.md`: automatically loaded repository guidance covering architecture, repository layout, workflow, and validation.
-- `.openhands/setup.sh`: idempotent workspace bootstrap for .NET 10 plus solution restore.
-- `.openhands/pre-commit.sh`: build and unit-test gate suitable for the Linux sandbox.
-- GitHub Actions validates the OpenHands shell hooks so repository configuration cannot silently rot.
+    CURRENT FACTS
+      -> load applicable rules
+      -> read existing architecture/code/tests
+      -> Acceptance + Evidence Matrix
+      -> implementation
+      -> focused validation
+      -> Five-Gate Review
+      -> fix findings
+      -> .openhands/pre-commit.sh
+      -> Pull Request
+      -> exact-head Windows GitHub Actions
+      -> squash merge
+      -> verify main
 
-## Connect the repository
+OpenHands must not stop after only reporting findings. Review blockers are fixed and re-reviewed.
 
-Use a current OpenHands V1 / Agent Canvas installation or OpenHands Cloud, connect GitHub, then select:
+## Five-Gate Review
 
-```text
-Loki-Liang/UpperHost
-```
+agents.review.md defines the common production quality gate:
 
-Start each implementation from current `main` and let the repository skill load before editing.
+1. architecture attack;
+2. failure attack;
+3. implementation attack;
+4. acceptance/evidence attack;
+5. maintainer attack.
 
-For a local Agent Canvas installation, use the current OpenHands installation instructions. A sandboxed setup is recommended when the agent should not have unrestricted access to the host filesystem.
+The review is backed by reusable method skills rather than one giant prompt.
+
+## Repository hooks
+
+- .openhands/setup.sh: idempotent workspace bootstrap for .NET 10 plus solution restore.
+- .openhands/pre-commit.sh: layered governance validation, architecture/source-scaffold guards, build, and unit tests.
+- scripts/validate_agent_governance.py: verifies root routing, specialty agents, OpenHands profile, and method skills cannot silently drift apart.
+- GitHub Actions reruns governance validator/tests and remains the authoritative Windows integration gate.
 
 ## Platform validation boundary
 
-UpperHost contains WPF projects and the authoritative CI runs on Windows. OpenHands commonly runs in a Linux sandbox.
+OpenHands commonly runs in Linux while UpperHost contains Windows/WPF projects. Linux pre-PR validation uses:
 
-The repository hooks therefore use:
+    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
+    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
 
-```bash
-dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
-```
+Final Windows build, full tests, package compatibility, and source-scaffold validation remain GitHub Actions responsibilities.
 
-This gives OpenHands fast compile/test feedback before code is pushed. The final GitHub Actions gate still performs the Windows build, full tests, NuGet packing, and source-scaffold application validation.
+## Recommended task instruction
+
+A normal Issue assignment can now be short because policy lives in the repository:
+
+    Implement this Issue from latest main.
+    Follow AGENTS.md and load every applicable specialty agent from the governance manifest.
+    Build the Acceptance/Evidence Matrix before coding.
+    Apply required method skills, run focused validation, then Five-Gate Review.
+    Fix review findings rather than only reporting them.
+    Run .openhands/pre-commit.sh and leave the PR at an exact-head merge-ready state.
 
 ## Secrets
 
-Do not place any OpenHands or model credential in this repository. Configure authentication in OpenHands itself or in the relevant secret store. Repository files must contain only non-secret setup and policy.
-
-## Recommended task prompt
-
-When assigning an issue to OpenHands, make the task concrete and require closure:
-
-```text
-Implement this issue against the latest main. Read AGENTS.md and .openhands/skills/repo.md first.
-Keep the existing architecture boundaries. Add or update tests with the production change.
-Run focused validation, then the repository pre-commit gate. Review the final diff and
-leave the branch/PR in a merge-ready state; do not stop after only reporting findings.
-```
+Never store OpenHands/model credentials, PATs, signing material, or device secrets in repository files.

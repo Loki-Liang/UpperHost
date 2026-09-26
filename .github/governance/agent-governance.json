@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "root_policy": "AGENTS.md",
+  "localized_root_policy": "AGENTS.zh-CN.md",
+  "openhands_profile": ".openhands/skills/repo.md",
+  "specialty_agents": [
+    "agents.architecture.md",
+    "agents.implementation.md",
+    "agents.review.md",
+    "agents.testing.md",
+    "agents.transport.md",
+    "agents.acquisition.md",
+    "agents.observability.md",
+    "agents.security.md",
+    "agents.release.md",
+    "agents.git.md",
+    "agents.compatibility.md"
+  ],
+  "method_skills": [
+    ".openhands/skills/adversarial-review.md",
+    ".openhands/skills/premortem.md",
+    ".openhands/skills/invariant-analysis.md",
+    ".openhands/skills/state-machine-audit.md",
+    ".openhands/skills/dataflow-trace.md",
+    ".openhands/skills/capacity-backpressure-audit.md",
+    ".openhands/skills/fault-injection.md",
+    ".openhands/skills/contract-attack.md",
+    ".openhands/skills/upgrade-rollback-audit.md"
+  ],
+  "root_required_markers": [
+    "## Authority and rule hierarchy",
+    "## Mandatory delivery flow",
+    "## CURRENT FACTS",
+    "## Applicable rule routing",
+    "## Definition of Done"
+  ],
+  "localized_root_required_markers": [
+    "## 权威与规则优先级",
+    "## 强制交付流程",
+    "## CURRENT FACTS",
+    "## 适用规则路由",
+    "## Definition of Done"
+  ],
+  "profile_required_markers": [
+    "## Rule loading",
+    "## Method skills",
+    "## Required execution order",
+    ".openhands/pre-commit.sh"
+  ]
+}

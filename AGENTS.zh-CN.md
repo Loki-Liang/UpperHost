@@ -2,179 +2,123 @@
 
 [English](AGENTS.md) | 简体中文
 
-本文件是 UpperHost 仓库所有 AI 辅助开发的总控规则。任何工具专用规则只能补充细节，不能削弱或绕过本文件。
+本文件是 UpperHost AI 辅助开发的仓库级最高规则。它必须保持“薄”：只负责全局开发流程、规则优先级、规则路由和完成门禁。领域长期规则放入 agents.*.md；可复用分析方法放入 .openhands/skills/。
+
+## 权威与规则优先级
+
+规则按以下顺序生效：
+
+1. AGENTS.md：仓库宪法与强制交付流程。
+2. 适用的 agents.*.md：领域长期工程规则。
+3. 已批准 ADR / 架构决策：项目已经确定的技术决策。
+4. 当前 Issue / PR 验收条件：本次交付范围和可量化要求。
+5. .openhands/skills/repo.md 等工具执行画像：只能补充执行细节。
+
+低层规则可以更严格，但不能削弱高层规则。发生冲突时必须显式解决，禁止静默选择。
 
 ## 默认开发执行器
 
-对于常规的功能开发、缺陷修复、重构、测试、文档和架构实现，**UpperHost 默认由 OpenHands 执行实际开发**。
+对于常规功能、缺陷、重构、测试、文档和架构实现，**OpenHands 是 UpperHost 默认实际开发执行器**。
 
-其他助手或调度工具可以读取 Issue、规划任务、Review Diff、检查 CI、协调交付；生产代码实现默认应交给 OpenHands。只有以下情况允许使用其他执行器：
+其他助手或调度工具可以检查 Issue、规划、Review、排查 CI 和协调交付。只有以下情况允许使用备用执行器：
 
-- OpenHands 当前不可用或无法访问仓库；
-- 任务本身是在修复 OpenHands 接入/治理规则；
-- 某项仓库管理动作无法由 OpenHands 完成。
+- OpenHands 不可用或无法访问仓库；
+- 任务本身是在修复 OpenHands / AI 治理体系；
+- 某项仓库管理动作 OpenHands 无法执行。
 
-使用备用执行器时，仍必须遵守同一套开发、测试和合并规则，并在 PR 中说明原因。
+使用备用执行器时仍必须遵守完全相同的工程规则，并在 PR 中记录原因。
+
+## 产品定位
+
+UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。
+
+项目默认源码直接二开、模块化单体。仓库级工作必须增强可复用 Runtime、Provider、Application Scaffold、Testing、Presentation、Control、Automation 或 Acquisition 能力，禁止把某个具体产品的临时方案塞入共享层。详见 docs/scaffold.zh-CN.md。
 
 ## 强制交付流程
 
-```text
-最新 main + Issue/Task
-        |
-        v
-OpenHands 实现
-        |
-        v
-生产代码 + 对应测试/文档
-        |
-        v
-Focused Validation
-        |
-        v
-.openhands/pre-commit.sh
-        |
-        v
-Pull Request
-        |
-        v
-GitHub Actions Windows 门禁
-        |
-        v
-Diff / 架构 / 测试 Review
-        |
-        v
-Squash Merge 到 main
-```
+所有生产任务按以下顺序执行：
 
-## CURRENT FACTS 规则
+    CURRENT FACTS
+      -> 适用规则
+      -> 现有架构
+      -> 验收 + 证据计划
+      -> 实现
+      -> Focused Validation
+      -> 五审
+      -> 整改 Review 发现
+      -> Full Required Validation
+      -> Pull Request
+      -> Exact-Head Required CI
+      -> Squash Merge
+      -> 核对 commit 真实进入 main
 
-每一轮开发或修复开始前，都必须重新从 GitHub 读取当前事实：
+禁止从 Issue 直接跳到写代码。
 
-- 最新 `main` SHA；
-- Issue 验收条件和依赖；
+## CURRENT FACTS
+
+每轮开发或修复开始前重新读取：
+
+- 最新 main SHA；
+- 当前 Issue 验收、依赖和交付状态；
 - 已有 PR 时的 base/head/exact-head SHA；
-- 当前 Diff 和 Review Threads；
-- 当前 CI run/job/step 状态和首个可行动失败。
+- 当前 diff、reviews 和 unresolved review threads；
+- 当前 CI run/job/step 与首个可行动失败；
+- 相关代码、测试、ADR 和文档。
 
-禁止复用过期 CI 结论或旧分支假设继续开发。
+禁止复用过期 CI 结论和旧分支假设。
 
-## 分支与合并规则
+## 适用规则路由
 
-1. 常规开发禁止直接修改 `main`。
-2. 必须从最新 `main` 创建短生命周期分支。
-3. 每个分支/PR 保持单一、可审查的交付主题。
-4. 生产实现、对应测试和必要文档必须一起推进。
-5. 只有当前 exact-head 的 required CI 通过且未解决 Review Threads 清零后才能合并。
-6. 默认使用 squash merge，保持 `main` 历史以交付为单位。
-7. 禁止“认为已经合并”；必须核对最终 commit 真实存在于 `main`。
+所有生产代码变更必须读取 agents.implementation.md、agents.testing.md、agents.review.md、agents.git.md。
 
-## 失败处理规则
+涉及以下范围时继续读取：
 
-1. 先修复首个可行动失败。
-2. 修复后，在工具支持时从失败点继续验证。
-3. 禁止反复从头执行已经通过的高成本验证。
-4. 所有可行动失败关闭后，再执行一次完整 required gate。
-5. 禁止通过反复 rerun 掩盖确定性的生产代码、测试、脚本、Workflow 或环境契约问题。
+| 范围 | 强制规则 |
+| --- | --- |
+| 模块边界、架构、新框架、公共边界 | agents.architecture.md |
+| TCP/Serial/USB/BLE、连接与重连 | agents.transport.md |
+| 实时采集、DAQ、EMG、Raw、处理、Fan-out | agents.acquisition.md |
+| Logging/Metrics/Tracing/Health | agents.observability.md |
+| 信任边界、凭据、授权、外部输入 | agents.security.md |
+| 打包、部署、Release、Rollback | agents.release.md |
+| Public API、配置、源码脚手架兼容 | agents.compatibility.md |
 
-## 测试与文档规则
+机器可校验的治理清单位于 .github/governance/agent-governance.json。
 
-- 生产行为变化必须补与风险匹配的自动化测试。
-- 先跑受影响模块的 focused tests，再跑仓库级门禁。
-- 已存在中英文成对文档时必须同步更新。
-- 公共架构边界或扩展方式变化时必须更新架构/扩展文档。
-- 验收条件要求测试或文档时，只有代码完成不能视为任务闭环。
+## 全局工程宪法
 
-## 产品定位：上位机开发脚手架
+- 禁止 Demo、PoC、教程级、只覆盖 Happy Path 的生产实现。
+- 优先复用现有能力；新增依赖、框架、抽象或分布式边界必须给出明确技术理由和取舍。
+- 有状态行为必须显式定义所有权、生命周期、取消、失败和恢复。
+- 共享可变状态必须定义同步或所有权模型。
+- Queue、Channel、Buffer、Retry 等潜在增长资源必须有界或给出明确证明。
+- 禁止吞异常；基础设施/Vendor 错误在边界转换并保留可诊断上下文。
+- Bug 修复在技术可自动化时必须增加能复现原问题的 Regression Test。
+- Review 不是报告：发现的 blocker 必须修改代码、测试、文档、Issue 验收或架构后重新审查。
+- 没有可观察证据的验收项一律未完成。
+- 禁止为了 CI 变绿而削弱测试、兼容性、分支治理或验证。
+- 禁止提交凭据、PAT、模型 Key、签名材料、设备 Secret 和机器本地配置。
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。仓库的职责是给工业上位机产品开发者提供可复用 Runtime、工程约定、Provider 接缝、测试基础设施、Reference Samples 和可直接二开的源码产品工程。
+## Definition of Done
 
-具体产品的 Device 业务语义、私有协议、Control/Interlock 规则、业务 Workflow 和产品 UI 都属于使用脚手架创建的应用工程。仓库级功能必须增强可复用的 Runtime、Provider、Starter Application、Sample、Testing 或 Presentation 能力，并明确服务于 Control、Automation 或 Acquisition 路线。
+生产任务只有在所有适用项满足后才允许称为完成：
 
-`UpperHost.Workflows` 和 `UpperHost.StateMachines` 继续作为代码/API Runtime 模块存在。
+- 架构与所有权边界明确；
+- 生产实现完成；
+- 失败、取消、停止和恢复行为明确；
+- 可观测性能够诊断声明支持的故障；
+- 验收条件已映射到可执行/可重复证据；
+- 风险匹配的自动化测试通过；
+- 适用的 fault/contract/performance 验证通过；
+- 兼容性和迁移影响已处理；
+- 必要文档已同步；
+- 五审无未关闭 blocker；
+- exact-head required CI 通过；
+- unresolved review threads = 0；
+- 最终 merge commit 已核对真实进入 main。
 
-详见 `docs/scaffold.zh-CN.md`。
-
-## 架构基线：模块化单体
-
-UpperHost 默认采用**模块化单体（Modular Monolith）**：一个可部署应用/进程，由边界清晰的模块和 Adapter 组合而成。禁止为了“分层”而擅自引入微服务、远程 RPC、重复的服务私有模型或分布式一致性。任何分布式边界都必须有独立 Issue/ADR 和明确的运维收益依据。
-
-### 模块依赖规则
-
-1. `UpperHost.Abstractions` 是稳定依赖根，禁止引用仓库内其他 Project。
-2. Control、Protocols、Dataflow、Workflows、StateMachines、Events、Resilience、Diagnostics、Testing 等平台模块必须暴露窄公共契约，禁止依赖 Presentation、产品 App、Samples、Tests。
-3. `UpperHost.Transport.*`、Storage/Provider 属于基础设施 Adapter，只能向内依赖稳定契约，禁止把 Vendor/Native 概念反向塞进 Core。
-4. `UpperHost.Presentation.*` 是最外层 Adapter；任何生产模块禁止反向依赖 Presentation。
-5. `UpperHost.Starters` 是 Composition/Convenience 模块；其他生产模块禁止反向依赖 Starters。
-6. `app/`、`samples/`、`tests/` 可以组合生产模块；生产模块绝不能引用它们。
-7. 禁止 ProjectReference 环依赖。
-8. 跨模块协作必须通过公开 Capability/Contract/Event；禁止访问其他模块内部实现、通过反射绕过边界或建立隐藏静态耦合。
-9. 公共 API 必须最小化；除非跨模块真实需要，否则类型默认保持 internal/private。
-10. 新建模块必须说明职责、所有权边界、允许依赖和对应测试；禁止为了移动文件而机械拆 Project。
-
-`scripts/validate_architecture.py` 是可执行的 ProjectReference 架构门禁，并进入 pre-commit/CI。
-
-## 工程实现规则
-
-- **DI/组合根：**依赖在 Application/Hosting/Starters 组合根装配；Domain/平台逻辑禁止可变全局单例和 Service Locator。
-- **Async/I/O：**I/O 链路全程异步；有取消语义时必须接收 `CancellationToken`；禁止 `.Result`/`.Wait()` 和无人管理的 fire-and-forget Task。
-- **资源所有权：**Socket、Stream、Native Handle、Subscription 必须有明确 Owner 并确定性释放。
-- **错误处理：**禁止吞异常；Vendor/Infrastructure 错误在模块边界转换且保留可诊断上下文；有状态组件在需要时进入明确 Fault 状态。
-- **配置：**使用 Typed Options/Configuration 并 Fail Fast；禁止在平台代码散落环境变量读取、机器路径和魔法字符串。
-- **可观测性：**关键边界使用结构化日志、Health、Metrics；禁止记录密钥或敏感凭据。
-- **并发：**共享可变状态必须有明确同步/所有权模型；Queue/Channel 默认必须有界，无界设计需要明确理由。
-- **依赖：**新增 NuGet/Native 依赖必须说明原因并放在正确模块；Core Abstractions 禁止 Vendor SDK 依赖。
-- **兼容性：**Public Contract、配置契约和 Starter Application 结构视为版本化接口；Breaking Change 必须提供迁移说明、文档和测试。
-- **代码形态：**优先小而内聚、职责单一的类型；禁止 God Class、Utility 垃圾桶、重复协议逻辑和复制粘贴 Provider。
-- **测试：**模块自己承担行为单测；模块/Provider 边界补 Integration/Contract Test；依赖硬件的行为优先用 Simulator/Fault Injection 覆盖。
-
-## 架构硬约束
-
-1. Core 必须保持行业无关。
-2. Device 使用 Capability Composition，禁止建立巨型设备继承树。
-3. Transport 负责传输机制；Protocol 负责帧和语义解析。
-4. 有序字节使用 `ITransport`；离散 Message/Frame 使用 `IMessageTransport<TMessage>`；厂商 SDK 已提供领域 API 时直接实现 Device Capability。
-5. Request/Response、Message/Frame、Streaming 必须保持明确边界。
-6. Vendor/Native 依赖只存在于 Provider 包，禁止进入 `UpperHost.Abstractions`。
-7. UI/Workflow 只能调用 Application/Device Capability，禁止直接访问 Socket 或 Native SDK。
-8. Streaming 的 Backpressure/Loss Policy 必须显式。
-9. WPF 只是 Adapter，不进入 Core。
-10. 软件 Guard/Interlock 不得宣称替代认证硬件安全机制。
-
-## 企业级基础设施质量门禁
-
-任何将横切组件标记为“企业级基础设施”的 Issue/PR，都必须按生产运行契约评审，禁止只按“接入了哪些 NuGet/组件”验收。合并前必须按实际风险覆盖以下维度：
-
-1. API 与模块边界：稳定契约、依赖方向、扩展接缝。
-2. 可靠性：故障模式、重试/恢复、确定性关闭、局部故障语义。
-3. 性能：热路径开销、分配、阻塞 I/O、有界资源使用。
-4. 背压/丢失：Queue/Buffer 必须有界，明确过载行为，并暴露 Drop/Loss 信号。
-5. 安全/隐私：Secret 处理、脱敏、诊断信息泄漏和最小数据暴露。
-6. 配置/生命周期：Typed Configuration、Fail Fast、默认值、启动与释放。
-7. 可观测语义：Metric 低基数、标准 Trace/Error 语义、Health 含义和基础设施自观测。
-8. 可扩展性：第一方/第三方 Provider 走同一个 Composition Seam，禁止复制横切 Wrapper。
-9. 验证：Unit + Boundary/Integration + Fault Path 测试必须证明运行不变量，不能只证明“服务已注册”。
-10. 文档/兼容性：公共行为、默认值、迁移影响必须记录，并同步中英文文档。
-
-Metrics 中，Command/Session/Connection/Request 等逐次变化 ID 默认禁止作为 Metric Attribute，除非有明确且可证明的有界基数设计；关联 ID 应进入 Log/Trace。Logging/Streaming 禁止无界缓冲，并且必须能观测过载和丢失。
-
-## 兼容性门禁
-
-Runtime 公共 API、配置契约和 canonical Source Scaffold 都属于版本化接口。
-
-- `build-test-scaffold` 会校验 `eng/compatibility/source-scaffold-contract.json`，并使用微软 `Microsoft.DotNet.ApiCompat.Tool` 将当前所有可复用 NuGet 包与 PR **exact base SHA** 的包逐一比较。
-- Baseline 必须来自 exact base SHA 已成功 CI 的 artifact；禁止退回到更旧的“最近一次成功 main”掩盖差异。
-- 普通 ApiCompat 失败属于 Breaking Change：必须有明确 Issue、Migration、版本变更、测试，以及本 PR 新增/修改的 `eng/compatibility/breaking/<PackageId>.md` 批准记录。
-- Strict baseline validation 用于识别新增 Public API；有意新增公共表面时，本 PR 必须新增/修改 `eng/compatibility/api-additions/<PackageId>.md`，说明新增接口及其成为公共契约的理由。
-- 禁止通过删除 Baseline、关闭 ApiCompat/Package Validation、削弱 Source-Scaffold Contract 或跳过 Gate 来让 CI 变绿。
-- pre-commit 本地校验 Source-Scaffold Contract；需要 exact-base artifact 的 Package Compatibility 继续由 PR/Windows CI 作为权威门禁。
-
-详见 `docs/compatibility.zh-CN.md`。
 ## 验证权威
 
-OpenHands 通常运行在 Linux Sandbox，提交 PR 前使用 `.openhands/setup.sh` 和 `.openhands/pre-commit.sh` 做快速验证。
+OpenHands 通常运行在 Linux Sandbox，提交 PR 前运行 .openhands/setup.sh 和 .openhands/pre-commit.sh。
 
-UpperHost 包含 WPF/Windows Target，因此最终发布/集成权威门禁仍是 GitHub Actions Windows CI。禁止把 Linux-only 通过描述成 Windows Runtime/UI 已验证。
-
-## 密钥
-
-禁止提交 OpenHands 凭据、模型 API Key、PAT、签名材料、设备密钥或机器本地配置。
+UpperHost 包含 Windows/WPF Target，因此 Windows GitHub Actions 仍是 Windows Runtime、WPF、Package 和 Source Scaffold 的权威集成/发布门禁。禁止把 Linux-only 通过描述成 Windows Runtime/UI 已验证。
