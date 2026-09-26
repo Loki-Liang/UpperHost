@@ -15,6 +15,7 @@ public sealed class StateMachine<TState, TTrigger>
 {
     private readonly Dictionary<(TState State, TTrigger Trigger), StateTransition<TState, TTrigger>> _transitions = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
+    private bool _transitionInProgress;
 
     public StateMachine(TState initialState) => State = initialState;
 
@@ -36,30 +37,70 @@ public sealed class StateMachine<TState, TTrigger>
     }
 
     public bool CanFire(TTrigger trigger) =>
-        _transitions.TryGetValue((State, trigger), out var transition) && (transition.Guard?.Invoke() ?? true);
+        !_transitionInProgress &&
+        _transitions.TryGetValue((State, trigger), out var transition) &&
+        (transition.Guard?.Invoke() ?? true);
 
     public async Task<TState> FireAsync(TTrigger trigger, CancellationToken cancellationToken = default)
     {
+        StateTransition<TState, TTrigger> transition;
+        TState previous;
+
         await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!_transitions.TryGetValue((State, trigger), out var transition))
+            if (_transitionInProgress)
+                throw new InvalidOperationException("A state transition side effect is already in progress.");
+
+            if (!_transitions.TryGetValue((State, trigger), out transition!))
                 throw new InvalidOperationException($"No transition from '{State}' with trigger '{trigger}'.");
 
             if (!(transition.Guard?.Invoke() ?? true))
                 throw new InvalidOperationException($"Guard rejected transition from '{State}' with trigger '{trigger}'.");
 
-            var previous = State;
-            if (transition.Action is not null)
-                await transition.Action(cancellationToken).ConfigureAwait(false);
-
-            State = transition.To;
-            Transitioned?.Invoke(previous, State, trigger);
-            return State;
+            previous = State;
+            _transitionInProgress = true;
         }
         finally
         {
             _gate.Release();
         }
+
+        try
+        {
+            if (transition.Action is not null)
+                await transition.Action(cancellationToken).ConfigureAwait(false);
+
+            await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                if (!EqualityComparer<TState>.Default.Equals(State, previous))
+                    throw new InvalidOperationException("State changed while a transition side effect was running.");
+
+                State = transition.To;
+                _transitionInProgress = false;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+        }
+        catch
+        {
+            await _gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+            try
+            {
+                _transitionInProgress = false;
+            }
+            finally
+            {
+                _gate.Release();
+            }
+
+            throw;
+        }
+
+        Transitioned?.Invoke(previous, State, trigger);
+        return State;
     }
 }
