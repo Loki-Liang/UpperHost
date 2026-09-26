@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Workflows;
-using UpperHost.Workflows;
+using OpenDeviceStudio.Abstractions.Workflows;
+using OpenDeviceStudio.Workflows;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class WorkflowTests
 {

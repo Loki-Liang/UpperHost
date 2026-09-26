@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Transports;
-using UpperHost.Transport.VendorSdk;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Transport.VendorSdk;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class VendorSdkTransportTests
 {
