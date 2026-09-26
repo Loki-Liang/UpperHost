@@ -185,6 +185,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             SetPhase(AcquisitionStartupPhase.PreparingSources);
             foreach (var handle in _sources.Values)
             {
+                startupCts.Token.ThrowIfCancellationRequested();
                 currentComponentId = handle.Source.ComponentId;
                 currentSourceId = handle.Source.SourceId;
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Preparing);
@@ -203,6 +204,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             }
 
             SetPhase(AcquisitionStartupPhase.RequiredReady);
+            startupCts.Token.ThrowIfCancellationRequested();
             EnsureRequiredReady();
             Transition(AcquisitionSessionState.Ready, AcquisitionStartupPhase.RequiredReady);
             OpenAllIngress();
