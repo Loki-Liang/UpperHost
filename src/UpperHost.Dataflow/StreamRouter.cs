@@ -93,6 +93,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 return CreateUnavailablePublishResult(currentState);
 
             var sequence = Interlocked.Increment(ref _publishSequence);
+            DataflowTelemetry.RouterPublishes.Add(1);
             var results = new StreamBranchPublishResult[_branches.Length];
             var requiredFailure = false;
             var acceptedRequired = 0;
@@ -318,7 +319,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             snapshot = _branches;
             DataflowTelemetry.RouterFaults.Add(
                 1,
-                DataflowTelemetry.RouterFaultTags(source.Options.Delivery));
+                DataflowTelemetry.RouterFaultTags(source.Options.Delivery, exception));
         }
 
         _routerCancellation.Cancel();
@@ -442,6 +443,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             Volatile.Write(ref _state, (int)StreamBranchState.Running);
             if (Interlocked.Exchange(ref _activeMetric, 1) == 0)
                 DataflowTelemetry.ActiveBranches.Add(1, Tags());
+            DataflowTelemetry.Capacity.Record(Options.Capacity, Tags());
             _completion = RunAsync(_linkedCancellation.Token);
         }
 
@@ -672,7 +674,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
 
             _lastFault = exception;
             Interlocked.Increment(ref _faults);
-            DataflowTelemetry.Faults.Add(1, Tags());
+            DataflowTelemetry.Faults.Add(1, DataflowTelemetry.BranchFaultTags(Options, exception));
             _channel.Writer.TryComplete(exception);
             _branchCancellation.Cancel();
             _owner.OnBranchFault(this, exception);
@@ -721,9 +723,12 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             while (true)
             {
                 var current = Volatile.Read(ref _queueHighWater);
-                if (depth <= current ||
-                    Interlocked.CompareExchange(ref _queueHighWater, depth, current) == current)
+                if (depth <= current)
+                    break;
+
+                if (Interlocked.CompareExchange(ref _queueHighWater, depth, current) == current)
                 {
+                    DataflowTelemetry.QueueHighWater.Record(depth, Tags());
                     break;
                 }
             }
