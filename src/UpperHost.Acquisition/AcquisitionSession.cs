@@ -609,11 +609,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
             Transition(AcquisitionSessionState.Stopping, AcquisitionStartupPhase.Stopping);
 
         var inFlight = new List<Task>();
-        using var budget = CreateBudget(_definition.Options.EffectiveStopTimeout);
-        // Component operations receive Abort cancellation directly. The stop deadline is
-        // kept separate and only bounds our wait; if it expires the supervisor cancels
-        // the operation token after the deadline wait has unwound. This avoids
-        // cancellation-callback re-entry under FakeTimeProvider and real timers alike.
+        using var deadline = CreateDeadline(_definition.Options.EffectiveStopTimeout);
+        // Component operations receive Abort cancellation directly. The stop deadline
+        // is an independent signal with asynchronous continuations; the timer callback
+        // never cancels component work itself. This prevents TimeProvider callbacks
+        // from re-entering the Session convergence state machine synchronously.
         using var convergenceCts = CancellationTokenSource.CreateLinkedTokenSource(_abort.Token);
         var convergenceToken = convergenceCts.Token;
 
@@ -629,7 +629,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Source.StopAsync(convergenceToken),
-                    budget.Token,
+                    deadline,
                     inFlight,
                     AcquisitionFaultCategory.Source,
                     handle.Source.ComponentId,
@@ -640,8 +640,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     SetSourceState(handle, AcquisitionComponentRuntimeState.Faulted);
             }
 
-            await WaitForAllIngressDrainAsync(convergenceToken).ConfigureAwait(false);
-            await DetachAllOptionalAsync(convergenceToken).ConfigureAwait(false);
+            await deadline
+                .WaitAsync(WaitForAllIngressDrainAsync(convergenceToken))
+                .ConfigureAwait(false);
+            await deadline
+                .WaitAsync(DetachAllOptionalAsync(convergenceToken))
+                .ConfigureAwait(false);
 
             foreach (var handle in _required.Values.OrderBy(EffectiveStopOrder))
             {
@@ -653,7 +657,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 SetRequiredState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Registration.Component.StopAsync(convergenceToken),
-                    budget.Token,
+                    deadline,
                     inFlight,
                     FaultCategoryFor(handle.Registration.Component.Kind),
                     handle.Registration.Component.ComponentId,
@@ -673,7 +677,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Registration.Component.FinalizeAsync(convergenceToken),
-                    budget.Token,
+                    deadline,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Registration.Component.ComponentId,
@@ -695,7 +699,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Source.FinalizeAsync(convergenceToken),
-                    budget.Token,
+                    deadline,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Source.ComponentId,
@@ -709,7 +713,9 @@ public sealed class AcquisitionSession : IAsyncDisposable
                         : AcquisitionComponentRuntimeState.Faulted);
             }
 
-            await DisposeAllAsync(convergenceToken, inFlight).ConfigureAwait(false);
+            await deadline
+                .WaitAsync(DisposeAllAsync(convergenceToken, inFlight))
+                .ConfigureAwait(false);
 
             if (_rootFault is null)
                 CompleteTerminal(AcquisitionSessionState.Completed);
@@ -724,7 +730,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             await AbortAndCompleteAsync(inFlight).ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (budget.IsCancellationRequested)
+        catch (TimeoutException) when (deadline.IsExpired)
         {
             var timeout = CreateFault(
                 AcquisitionFaultCategory.ShutdownTimeout,
@@ -734,8 +740,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 "Acquisition stop/finalize exceeded the configured global shutdown budget.");
             RecordRootOrSecondary(timeout, "session");
 
-            // The deadline token only released the supervisor wait. Cancel component
-            // work now, outside the deadline callback, then enter bounded abort cleanup.
+            // The deadline only releases the supervisor wait. Cancel component work
+            // from the normal async supervisor flow, never from the timer callback.
             TryCancel(convergenceCts);
             await AbortAndCompleteAsync(inFlight).ConfigureAwait(false);
         }
@@ -961,7 +967,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
     private async Task<bool> RunRequiredOperationAsync(
         Func<ValueTask> operation,
-        CancellationToken budgetToken,
+        OperationDeadline deadline,
         List<Task> inFlight,
         AcquisitionFaultCategory category,
         string componentId,
@@ -972,14 +978,14 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             var task = operation().AsTask();
             inFlight.Add(task);
-            await task.WaitAsync(budgetToken).ConfigureAwait(false);
+            await deadline.WaitAsync(task).ConfigureAwait(false);
             return true;
         }
         catch (OperationCanceledException) when (_abort.IsCancellationRequested)
         {
             throw;
         }
-        catch (OperationCanceledException) when (budgetToken.IsCancellationRequested)
+        catch (TimeoutException) when (deadline.IsExpired)
         {
             throw;
         }
@@ -1455,8 +1461,65 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private long RejectedLateIngressCount() =>
         _ingressBySource.Values.Sum(static gate => gate.RejectedAfterClose);
 
+    private OperationDeadline CreateDeadline(TimeSpan timeout) =>
+        new(_timeProvider, timeout);
+
     private OperationBudget CreateBudget(TimeSpan timeout) =>
         new(_timeProvider, timeout);
+
+    private sealed class OperationDeadline : IDisposable
+    {
+        private readonly TaskCompletionSource _expired =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ITimer _timer;
+        private int _isExpired;
+        private int _disposed;
+
+        public OperationDeadline(TimeProvider timeProvider, TimeSpan timeout)
+        {
+            _timer = timeProvider.CreateTimer(
+                static state => ((OperationDeadline)state!).Expire(),
+                this,
+                timeout,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        public bool IsExpired => Volatile.Read(ref _isExpired) != 0;
+
+        public async Task WaitAsync(Task task)
+        {
+            ArgumentNullException.ThrowIfNull(task);
+
+            if (!task.IsCompleted)
+            {
+                var completed = await Task
+                    .WhenAny(task, _expired.Task)
+                    .ConfigureAwait(false);
+
+                if (!ReferenceEquals(completed, task) && !task.IsCompleted)
+                    throw new TimeoutException("The acquisition operation exceeded its global deadline.");
+            }
+
+            await task.ConfigureAwait(false);
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            _timer.Dispose();
+        }
+
+        private void Expire()
+        {
+            if (Volatile.Read(ref _disposed) != 0)
+                return;
+
+            Interlocked.Exchange(ref _isExpired, 1);
+            _expired.TrySetResult();
+        }
+    }
 
     private sealed class OperationBudget : IDisposable
     {
