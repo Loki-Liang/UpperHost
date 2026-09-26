@@ -32,7 +32,7 @@ public sealed class CommandDispatcherHostingTests
     }
 
     [Fact]
-    public void Registration_is_idempotent_for_the_same_command_contract()
+    public async Task Registration_is_idempotent_for_the_same_command_contract()
     {
         var services = new ServiceCollection();
         services.AddSingleton<ICommandable<TestCommand, string>, TestTarget>();
@@ -40,7 +40,7 @@ public sealed class CommandDispatcherHostingTests
         services.AddUpperHostCommandDispatcher<TestCommand, string>();
         services.AddUpperHostCommandDispatcher<TestCommand, string>();
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
         var dispatchers = provider.GetServices<BoundedCommandDispatcher<TestCommand, string>>().ToArray();
 
         Assert.Single(dispatchers);
