@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
 public sealed class ObservedTransport : ITransport
 {
@@ -30,10 +30,10 @@ public sealed class ObservedTransport : ITransport
         {
             await _inner.SendAsync(data, cancellationToken).ConfigureAwait(false);
             Record("send", "success");
-            UpperHostTelemetry.TransportBytes.Add(
+            OpenDeviceStudioTelemetry.TransportBytes.Add(
                 data.Length,
-                UpperHostTelemetry.CreateMetricTags(MetricContext("send", "success")));
-            activity?.SetTag("upperhost.transport.bytes", data.Length);
+                OpenDeviceStudioTelemetry.CreateMetricTags(MetricContext("send", "success")));
+            activity?.SetTag("opendevicestudio.transport.bytes", data.Length);
             activity?.SetStatus(ActivityStatusCode.Ok);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -50,7 +50,7 @@ public sealed class ObservedTransport : ITransport
         finally
         {
             timer.Stop();
-            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
+            activity?.SetTag("opendevicestudio.elapsed_ms", timer.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -95,16 +95,16 @@ public sealed class ObservedTransport : ITransport
                 }
 
                 Record("receive", "success");
-                UpperHostTelemetry.TransportBytes.Add(
+                OpenDeviceStudioTelemetry.TransportBytes.Add(
                     chunk.Length,
-                    UpperHostTelemetry.CreateMetricTags(MetricContext("receive", "success")));
+                    OpenDeviceStudioTelemetry.CreateMetricTags(MetricContext("receive", "success")));
                 yield return chunk;
             }
         }
         finally
         {
             timer.Stop();
-            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
+            activity?.SetTag("opendevicestudio.elapsed_ms", timer.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -137,19 +137,19 @@ public sealed class ObservedTransport : ITransport
         finally
         {
             timer.Stop();
-            activity?.SetTag("upperhost.elapsed_ms", timer.Elapsed.TotalMilliseconds);
+            activity?.SetTag("opendevicestudio.elapsed_ms", timer.Elapsed.TotalMilliseconds);
         }
     }
 
     private Activity? StartActivity(string operation) =>
-        UpperHostTelemetry.StartActivity(
-            $"upperhost.transport.{operation}",
+        OpenDeviceStudioTelemetry.StartActivity(
+            $"opendevicestudio.transport.{operation}",
             ActivityKind.Client,
-            new UpperHostTelemetryContext(
+            new OpenDeviceStudioTelemetryContext(
                 Transport: Endpoint.Scheme,
                 Operation: operation));
 
-    private UpperHostMetricContext MetricContext(
+    private OpenDeviceStudioMetricContext MetricContext(
         string operation,
         string outcome,
         string? errorType = null) =>
@@ -161,16 +161,16 @@ public sealed class ObservedTransport : ITransport
 
     private void Record(string operation, string outcome, string? errorType = null)
     {
-        var tags = UpperHostTelemetry.CreateMetricTags(MetricContext(operation, outcome, errorType));
-        UpperHostTelemetry.TransportOperations.Add(1, tags);
+        var tags = OpenDeviceStudioTelemetry.CreateMetricTags(MetricContext(operation, outcome, errorType));
+        OpenDeviceStudioTelemetry.TransportOperations.Add(1, tags);
         if (errorType is not null)
-            UpperHostTelemetry.TransportFailures.Add(1, tags);
+            OpenDeviceStudioTelemetry.TransportFailures.Add(1, tags);
     }
 
     private static void MarkFailure(Activity? activity, Exception exception, string errorCode)
     {
         activity?.SetTag("error.type", exception.GetType().FullName);
-        activity?.SetTag("upperhost.error.code", errorCode);
+        activity?.SetTag("opendevicestudio.error.code", errorCode);
         activity?.SetStatus(ActivityStatusCode.Error, errorCode);
     }
 }

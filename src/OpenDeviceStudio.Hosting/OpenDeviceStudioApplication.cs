@@ -2,17 +2,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace UpperHost.Hosting;
+namespace OpenDeviceStudio.Hosting;
 
-public sealed class UpperHostApplication : IAsyncDisposable
+public sealed class OpenDeviceStudioApplication : IAsyncDisposable
 {
     private readonly IHost _host;
 
-    internal UpperHostApplication(IHost host) => _host = host;
+    internal OpenDeviceStudioApplication(IHost host) => _host = host;
 
     public IServiceProvider Services => _host.Services;
 
-    public static UpperHostApplicationBuilder CreateBuilder(string[]? args = null) => new(args ?? []);
+    public static OpenDeviceStudioApplicationBuilder CreateBuilder(string[]? args = null) => new(args ?? []);
 
     public Task StartAsync(CancellationToken cancellationToken = default) => _host.StartAsync(cancellationToken);
 
@@ -25,14 +25,14 @@ public sealed class UpperHostApplication : IAsyncDisposable
     }
 }
 
-public sealed class UpperHostApplicationBuilder
+public sealed class OpenDeviceStudioApplicationBuilder
 {
     internal HostApplicationBuilder HostBuilder { get; }
 
-    internal UpperHostApplicationBuilder(string[] args) => HostBuilder = Host.CreateApplicationBuilder(args);
+    internal OpenDeviceStudioApplicationBuilder(string[] args) => HostBuilder = Host.CreateApplicationBuilder(args);
 
     public IServiceCollection Services => HostBuilder.Services;
     public IConfigurationManager Configuration => HostBuilder.Configuration;
 
-    public UpperHostApplication Build() => new(HostBuilder.Build());
+    public OpenDeviceStudioApplication Build() => new(HostBuilder.Build());
 }

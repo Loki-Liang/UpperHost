@@ -1,26 +1,26 @@
 using System.Reflection;
 using System.Runtime.Loader;
-using UpperHost.Hosting;
-using UpperHost.Hosting.Modules;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Hosting.Modules;
 
-namespace UpperHost.Modules;
+namespace OpenDeviceStudio.Modules;
 
 public static class PluginLoader
 {
-    public static IReadOnlyList<IUpperHostModule> LoadModules(string directory)
+    public static IReadOnlyList<IOpenDeviceStudioModule> LoadModules(string directory)
     {
         if (!Directory.Exists(directory))
             return [];
 
-        var modules = new List<IUpperHostModule>();
+        var modules = new List<IOpenDeviceStudioModule>();
         foreach (var path in Directory.EnumerateFiles(directory, "*.dll", SearchOption.TopDirectoryOnly))
         {
             var assembly = AssemblyLoadContext.Default.LoadFromAssemblyPath(Path.GetFullPath(path));
             foreach (var type in GetLoadableTypes(assembly))
             {
                 if (type is { IsAbstract: false, IsInterface: false } &&
-                    typeof(IUpperHostModule).IsAssignableFrom(type) &&
-                    Activator.CreateInstance(type) is IUpperHostModule module)
+                    typeof(IOpenDeviceStudioModule).IsAssignableFrom(type) &&
+                    Activator.CreateInstance(type) is IOpenDeviceStudioModule module)
                 {
                     modules.Add(module);
                 }
@@ -30,7 +30,7 @@ public static class PluginLoader
         return modules;
     }
 
-    public static UpperHostApplicationBuilder AddModulesFromDirectory(this UpperHostApplicationBuilder builder, string directory)
+    public static OpenDeviceStudioApplicationBuilder AddModulesFromDirectory(this OpenDeviceStudioApplicationBuilder builder, string directory)
     {
         foreach (var module in LoadModules(directory))
             builder.AddModule(module);

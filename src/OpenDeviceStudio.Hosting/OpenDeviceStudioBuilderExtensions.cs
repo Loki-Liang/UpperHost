@@ -1,14 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Hosting.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Hosting.Devices;
 
-namespace UpperHost.Hosting;
+namespace OpenDeviceStudio.Hosting;
 
-public static class UpperHostBuilderExtensions
+public static class OpenDeviceStudioBuilderExtensions
 {
-    public static UpperHostApplicationBuilder AddUpperHost(this UpperHostApplicationBuilder builder)
+    public static OpenDeviceStudioApplicationBuilder AddOpenDeviceStudio(this OpenDeviceStudioApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 

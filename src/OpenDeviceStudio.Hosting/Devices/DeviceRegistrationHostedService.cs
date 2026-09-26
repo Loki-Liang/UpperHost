@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Hosting.Devices;
+namespace OpenDeviceStudio.Hosting.Devices;
 
 internal sealed class DeviceRegistrationHostedService : IHostedService
 {

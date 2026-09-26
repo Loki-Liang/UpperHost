@@ -1,13 +1,13 @@
 using Serilog.Sinks.Async;
-using UpperHost.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Diagnostics;
 
-namespace UpperHost.Observability;
+namespace OpenDeviceStudio.Observability;
 
 public sealed class AsyncLogBufferMonitor : IAsyncLogEventSinkMonitor, IHealthProbe
 {
     private IAsyncLogEventSinkInspector? _inspector;
 
-    public string Name => "upperhost.logging.async_buffer";
+    public string Name => "opendevicestudio.logging.async_buffer";
 
     public void StartMonitoring(IAsyncLogEventSinkInspector inspector)
     {
