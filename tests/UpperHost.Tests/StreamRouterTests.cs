@@ -378,6 +378,84 @@ public sealed class StreamRouterTests
     }
 
     [Fact]
+    public async Task Cancel_shutdown_releases_current_and_buffered_ownership()
+    {
+        var ownership = new CountingOwnership();
+        var started = NewSignal();
+
+        await using var router = new StreamRouter<OwnedItem>(ownership);
+        router.RegisterBranch(
+            StreamBranchOptions.Optional(
+                "cancel-optional",
+                "cancel optional",
+                capacity: 4,
+                overflow: StreamOverflowPolicy.DropWrite,
+                shutdownPolicy: StreamShutdownPolicy.Cancel),
+            async (item, token) =>
+            {
+                if (item.Value == 0)
+                {
+                    started.TrySetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                }
+            });
+        await router.StartAsync();
+
+        Assert.True((await router.PublishAsync(new OwnedItem(0))).IsSuccess);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        for (var value = 1; value <= 4; value++)
+            Assert.True((await router.PublishAsync(new OwnedItem(value))).IsSuccess);
+
+        await router.CompleteAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+
+        var snapshot = router.GetSnapshot();
+        Assert.Equal(StreamRouterState.Completed, snapshot.State);
+        Assert.Equal(StreamBranchState.Cancelled, snapshot.Branches.Single().State);
+        Assert.Equal(0, snapshot.Branches.Single().QueueDepth);
+        Assert.True(snapshot.Branches.Single().Abandoned >= 1);
+        Assert.Equal(0, ownership.Balance);
+    }
+
+    [Fact]
+    public async Task Dispose_unblocks_required_wait_publish_without_leaking_ownership()
+    {
+        var ownership = new CountingOwnership();
+        var started = NewSignal();
+
+        var router = new StreamRouter<OwnedItem>(ownership);
+        router.RegisterBranch(
+            StreamBranchOptions.Required("required", "required", capacity: 1),
+            async (item, token) =>
+            {
+                if (item.Value == 1)
+                {
+                    started.TrySetResult();
+                    await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                }
+            });
+        await router.StartAsync();
+
+        Assert.True((await router.PublishAsync(new OwnedItem(1))).IsSuccess);
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True((await router.PublishAsync(new OwnedItem(2))).IsSuccess);
+
+        var blockedPublish = router.PublishAsync(new OwnedItem(3)).AsTask();
+        await WaitUntilAsync(() => ownership.Balance == 3);
+
+        var dispose = router.DisposeAsync().AsTask();
+        await Task.WhenAll(
+            blockedPublish.WaitAsync(TimeSpan.FromSeconds(2)),
+            dispose.WaitAsync(TimeSpan.FromSeconds(2)));
+
+        var result = await blockedPublish;
+        Assert.Equal(StreamRouterState.Disposed, result.RouterState);
+        Assert.False(result.IsSuccess);
+        Assert.True(result.RequiresStop);
+        Assert.Equal(0, ownership.Balance);
+        Assert.Equal(0, router.GetSnapshot().Branches.Single().QueueDepth);
+    }
+
+    [Fact]
     public async Task Dataflow_metrics_use_only_stable_branch_qos_tags()
     {
         var measurements = new ConcurrentBag<KeyValuePair<string, object?>[]>();
