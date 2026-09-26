@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../OpenDeviceStudio.Control/OpenDeviceStudio.Control.csproj" />
   </ItemGroup>
 </Project>
