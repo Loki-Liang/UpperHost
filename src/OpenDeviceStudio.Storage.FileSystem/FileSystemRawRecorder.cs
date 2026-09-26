@@ -620,9 +620,13 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
         catch (Exception ex)
         {
+            var message = ex is RawStorageCapacityException
+                ? ex.Message
+                : "Raw recorder writer failed.";
+
             Fail(new RawRecorderFault(
                 "raw.writer.failure",
-                "Raw recorder writer failed.",
+                message,
                 ex,
                 _timeProvider.GetUtcNow()));
             throw;
@@ -780,8 +784,9 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 
         RawRecorderTelemetry.DiskAvailableBytes.Record(available.Value);
         if (available.Value < _options.HardMinimumFreeBytes)
-            throw new IOException(
-                $"Raw recorder free space {available.Value} is below hard threshold {_options.HardMinimumFreeBytes}.");
+            throw new RawStorageCapacityException(
+                available.Value,
+                _options.HardMinimumFreeBytes);
 
         if (available.Value < _options.WarningFreeBytes)
             RawRecorderTelemetry.LowDiskWarnings.Add(1);
@@ -874,15 +879,9 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         if (Interlocked.Exchange(ref _faultOnce, 1) != 0)
             return;
 
-        var diagnosticReason =
-            fault.Exception is null ||
-            fault.Message.Contains(fault.Exception.Message, StringComparison.Ordinal)
-                ? fault.Message
-                : $"{fault.Message} {fault.Exception.Message}";
-
         lock (_gate)
         {
-            _faultReason = diagnosticReason;
+            _faultReason = fault.Message;
             _state = RawRecorderState.Faulted;
         }
 
@@ -897,7 +896,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         {
             RawRecorderTelemetry.FaultObserverErrors.Add(1);
         }
-        _faultManifestTask = BestEffortManifestAsync("Faulted", diagnosticReason);
+        _faultManifestTask = BestEffortManifestAsync("Faulted", fault.Message);
     }
 
     private RawRecorderAcceptStatus CurrentRejectStatus() =>
@@ -1204,6 +1203,11 @@ internal static class RawRecorderTelemetry
         OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.sessions.completed", "{session}");
 }
 
+
+internal sealed class RawStorageCapacityException(
+    long availableBytes,
+    long hardMinimumFreeBytes) : IOException(
+        $"Raw recorder free space {availableBytes} is below hard threshold {hardMinimumFreeBytes}.");
 
 internal interface IRawStorageSpaceProbe
 {
