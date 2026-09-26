@@ -459,8 +459,16 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 
             lock (_acceptGate)
             {
+                // Reserve queue occupancy before publishing the item to the Channel.
+                // The single reader may dequeue immediately after TryWrite succeeds;
+                // accounting afterwards can transiently drive depth negative and lose
+                // the real high-water mark.
+                var depth = Interlocked.Increment(ref _queueDepth);
+                UpdateHighWater(depth);
+
                 if (!queue.Writer.TryWrite(owned))
                 {
+                    Interlocked.Decrement(ref _queueDepth);
                     return new RawRecorderAcceptResult(
                         CurrentRejectStatus(),
                         _faultReason ?? "Raw recorder ingress is closed.");
@@ -601,8 +609,6 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
 
         Interlocked.Increment(ref _acceptedBlocks);
-        var depth = Interlocked.Increment(ref _queueDepth);
-        UpdateHighWater(depth);
         RawRecorderTelemetry.AcceptedBlocks.Add(1);
         RawRecorderTelemetry.AcceptedBytes.Add(block.Payload.Length);
     }
