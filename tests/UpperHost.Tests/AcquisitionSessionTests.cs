@@ -207,6 +207,35 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
+    public async Task Abort_preempts_an_inflight_graceful_stop()
+    {
+        var stopEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new RecordingSource("source-a")
+        {
+            StopHook = async token =>
+            {
+                stopEntered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            }
+        };
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live([source]));
+
+        await session.StartAsync();
+
+        var stopping = session.StopAsync();
+        await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var aborting = session.AbortAsync();
+        var results = await Task.WhenAll(stopping, aborting).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.All(results, result => Assert.Equal(AcquisitionSessionState.Aborted, result.TerminalState));
+        Assert.Equal(1, source.StopCount);
+        Assert.Equal(1, source.AbortCount);
+    }
+
+    [Fact]
     public async Task Multi_source_isolation_marks_dependency_boundary_without_stopping_healthy_source()
     {
         var sourceA = new RecordingSource("source-a");
