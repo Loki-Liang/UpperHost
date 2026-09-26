@@ -459,8 +459,8 @@ public sealed class AcquisitionSessionTests
             }
         };
 
-        await using var manager = new AcquisitionSessionManager();
-        await using var session = manager.CreateSession(Live([source]));
+        var manager = new AcquisitionSessionManager();
+        var session = manager.CreateSession(Live([source]));
 
         await session.StartAsync();
 
@@ -473,6 +473,9 @@ public sealed class AcquisitionSessionTests
         Assert.All(results, result => Assert.Equal(AcquisitionSessionState.Aborted, result.TerminalState));
         Assert.Equal(1, source.StopCount);
         Assert.Equal(1, source.AbortCount);
+
+        await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
+        await manager.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(2));
     }
 
     [Fact]
