@@ -33,5 +33,6 @@
     <ProjectReference Include="../../src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
     <ProjectReference Include="../../src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
     <ProjectReference Include="../../src/UpperHost.Testing/UpperHost.Testing.csproj" />
+    <ProjectReference Include="../../samples/UpperHost.Sample.SerialTcpReference/UpperHost.Sample.SerialTcpReference.csproj" />
   </ItemGroup>
 </Project>
