@@ -154,10 +154,23 @@ public static class FileSystemRawRecoveryScanner
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionDirectory);
         var issues = new List<RawRecoveryIssue>();
         var manifestPath = Path.Combine(sessionDirectory, "manifest.json");
+        var tempManifestPath = manifestPath + ".tmp";
         string? sessionId = null;
         var manifestState = "Missing";
         long verifiedBlocks = 0;
         long verifiedBytes = 0;
+        long sequenceGapCount = 0;
+        long duplicateBlockCount = 0;
+        long outOfOrderBlockCount = 0;
+        var nextSequenceBySource = new Dictionary<(string SourceId, long ConnectionEpoch), long>();
+
+        if (File.Exists(tempManifestPath))
+        {
+            issues.Add(new RawRecoveryIssue(
+                RawRecoveryIssueKind.UncommittedManifest,
+                tempManifestPath,
+                "A temporary manifest exists without a confirmed replace/commit boundary."));
+        }
 
         FileSystemRawRecorder.RawSessionManifest? manifest = null;
         try
@@ -221,6 +234,33 @@ public static class FileSystemRawRecoveryScanner
                     .ConfigureAwait(false);
                 verifiedBlocks += blocks.Count;
                 verifiedBytes += blocks.Sum(static block => (long)block.Payload.Length);
+
+                foreach (var block in blocks)
+                {
+                    var key = (block.SourceId, block.ConnectionEpoch);
+                    var endExclusive = block.SequenceEndExclusive;
+
+                    if (nextSequenceBySource.TryGetValue(key, out var expected))
+                    {
+                        if (block.SequenceStart > expected)
+                        {
+                            sequenceGapCount += block.SequenceStart - expected;
+                        }
+                        else if (block.SequenceStart < expected)
+                        {
+                            if (endExclusive <= expected)
+                                duplicateBlockCount++;
+                            else
+                                outOfOrderBlockCount++;
+                        }
+
+                        nextSequenceBySource[key] = Math.Max(expected, endExclusive);
+                    }
+                    else
+                    {
+                        nextSequenceBySource[key] = endExclusive;
+                    }
+                }
             }
             catch (Exception ex) when (
                 ex is InvalidDataException
@@ -274,6 +314,9 @@ public static class FileSystemRawRecoveryScanner
             manifestState,
             verifiedBlocks,
             verifiedBytes,
+            sequenceGapCount,
+            duplicateBlockCount,
+            outOfOrderBlockCount,
             issues);
     }
 }
