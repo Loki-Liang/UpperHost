@@ -86,6 +86,8 @@ public sealed class DeviceSnapshotStore<TState> :
     IAsyncDisposable
 {
     private readonly ConcurrentDictionary<EntryKey, Entry> _entries = new();
+    private readonly ConcurrentDictionary<string, long> _deviceEpochFloors =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly TimeProvider _timeProvider;
     private long _snapshotVersion;
     private int _disposed;
@@ -97,6 +99,18 @@ public sealed class DeviceSnapshotStore<TState> :
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         Validate(observation);
+
+        var epochFloor = _deviceEpochFloors.AddOrUpdate(
+            observation.DeviceId,
+            observation.ConnectionEpoch,
+            (_, current) => Math.Max(current, observation.ConnectionEpoch));
+        if (observation.ConnectionEpoch < epochFloor)
+        {
+            var existing = Get(observation.DeviceId, observation.Partition);
+            return new DeviceObservationApplyResult<TState>(
+                DeviceObservationApplyStatus.RejectedStaleEpoch,
+                existing);
+        }
 
         var key = new EntryKey(observation.DeviceId, observation.Partition.Value);
         var entry = _entries.GetOrAdd(key, static _ => new Entry());
@@ -157,6 +171,11 @@ public sealed class DeviceSnapshotStore<TState> :
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
         if (connectionEpoch < 0)
             throw new ArgumentOutOfRangeException(nameof(connectionEpoch));
+
+        _deviceEpochFloors.AddOrUpdate(
+            deviceId,
+            connectionEpoch,
+            (_, current) => Math.Max(current, connectionEpoch));
 
         List<DeviceSnapshot<TState>> changed = [];
 
@@ -305,6 +324,7 @@ public sealed class DeviceSnapshotStore<TState> :
         }
 
         _entries.Clear();
+        _deviceEpochFloors.Clear();
         return ValueTask.CompletedTask;
     }
 

@@ -209,6 +209,46 @@ public sealed class TypedParameterRuntimeTests
         return services;
     }
 
+    [Fact]
+    public async Task Default_read_uses_exclusive_resource_claim()
+    {
+        var provider = new DirectProvider(10d);
+        var arbiter = new CapturingArbiter();
+        await using var snapshots = new DeviceSnapshotStore<double>();
+        var epoch = new FixedEpochSource(1);
+        var runtime = new TypedParameterRuntime<double>(
+            "device-1",
+            provider,
+            arbiter,
+            snapshots,
+            epoch);
+
+        await runtime.ReadAsync(new ParameterContract<double>("target"));
+
+        var claim = Assert.Single(arbiter.LastClaims!);
+        Assert.Equal(CommandResourceAccess.Exclusive, claim.Access);
+        Assert.Equal(new CommandResourceKey("device", "device-1"), claim.Resource);
+    }
+
+    private sealed class CapturingArbiter : ICommandResourceArbiter
+    {
+        public IReadOnlyList<CommandResourceClaim>? LastClaims { get; private set; }
+
+        public ValueTask<IAsyncDisposable> AcquireAsync(
+            IReadOnlyList<CommandResourceClaim> claims,
+            CancellationToken cancellationToken = default)
+        {
+            LastClaims = claims.ToArray();
+            return ValueTask.FromResult<IAsyncDisposable>(NoopLease.Instance);
+        }
+
+        private sealed class NoopLease : IAsyncDisposable
+        {
+            public static NoopLease Instance { get; } = new();
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
     private sealed record NoOpCommand;
     private sealed class NoOpTarget : ICommandable<NoOpCommand, string>
     {

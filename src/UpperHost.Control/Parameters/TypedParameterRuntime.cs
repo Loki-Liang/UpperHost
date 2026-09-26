@@ -211,7 +211,7 @@ public sealed class TypedParameterRuntime<T>
     {
         ValidateContract(contract);
 
-        var claims = resourceClaims ?? DefaultClaims(CommandResourceAccess.SharedRead);
+        var claims = resourceClaims ?? DefaultClaims(CommandResourceAccess.Exclusive);
         await using var lease = await _resourceArbiter
             .AcquireAsync(claims, cancellationToken)
             .ConfigureAwait(false);

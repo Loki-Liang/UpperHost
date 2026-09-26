@@ -93,7 +93,7 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
         _work = Channel.CreateBounded<RuntimeGroup>(
             new BoundedChannelOptions(_options.WorkCapacity)
             {
-                FullMode = BoundedChannelFullMode.DropWrite,
+                FullMode = BoundedChannelFullMode.Wait,
                 SingleReader = _options.MaxConcurrency == 1,
                 SingleWriter = false,
                 AllowSynchronousContinuations = false

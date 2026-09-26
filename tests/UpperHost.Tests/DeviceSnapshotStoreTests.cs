@@ -85,6 +85,32 @@ public sealed class DeviceSnapshotStoreTests
     }
 
     [Fact]
+    public void Old_epoch_cannot_create_first_partition_after_epoch_floor_advanced()
+    {
+        var time = new FakeTimeProvider();
+        using var store = new AsyncDisposableAdapter<DeviceSnapshotStore<int>>(
+            new DeviceSnapshotStore<int>(time));
+        var partition = new DeviceStatePartitionKey("late-first-partition");
+
+        Assert.Empty(store.Value.AdvanceConnectionEpoch(
+            "device-1",
+            connectionEpoch: 2,
+            qualityReason: "rehydrating"));
+
+        var late = store.Value.Apply(new DeviceObservation<int>(
+            "device-1",
+            partition,
+            ConnectionEpoch: 1,
+            Source: DeviceObservationSource.Push,
+            ObservedTimestamp: time.GetTimestamp(),
+            Value: 99));
+
+        Assert.Equal(DeviceObservationApplyStatus.RejectedStaleEpoch, late.Status);
+        Assert.Null(late.Snapshot);
+        Assert.Null(store.Value.Get("device-1", partition));
+    }
+
+    [Fact]
     public void Freshness_becomes_stale_without_waiting_for_another_poll()
     {
         var time = new FakeTimeProvider();
