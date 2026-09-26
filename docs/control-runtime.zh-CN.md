@@ -47,19 +47,33 @@ Command -> Guard -> Interlock(s) -> Device Capability
 
 软件联锁不是认证安全机制。急停、安全继电器、Safety PLC 及法规要求的硬件安全链必须独立工作，UpperHost 不能替代它们。
 
-## Parameter Read / Write / Readback
+## 权威 Device State 与 Polling
 
-`ParameterReadbackService` 基于现有 `IParameterProvider` 提供统一的参数读、写和读回验证。
+`DeviceSnapshotStore<TState>` 是 Poll、Push/Event、Command Completion、Parameter Readback、Rehydrate 共用的唯一 immutable read model。Observation 带 ConnectionEpoch 与单调 ObservedTimestamp；旧 Epoch 和更旧 Observation 不能覆盖新状态。Freshness 通过 `TimeProvider` 查询时派生，因此没有新 I/O 时也能自然进入 `Stale`。
+
+`DevicePollRuntime<TState>` 只维护一套有界 Schedule Calendar 和一条有界 Work Channel。每个 PollGroup 最多一个 queued/running 调用以及一个可选 coalesced follow-up；错过周期使用 Skip/Coalesce，禁止补排成无界 backlog。
+
+Polling 和 Parameter Read 默认使用 **Exclusive** 资源仲裁。只有 Provider/Protocol Capability 明确保证并发读安全时，产品才可以显式 opt-in `SharedRead`。
+
+## Typed Parameter Read / Write / Readback
+
+新产品权威路径使用 `TypedParameterRuntime<T>`，UI 不再直接调用 `IParameterProvider`。
 
 ```csharp
-var parameters = new ParameterReadbackService(device);
-var write = await parameters.WriteAsync("speed", 1200);
+var contract = new ParameterContract<double>(
+    "speed",
+    ReadbackComparer: ParameterComparers.Absolute(0.1),
+    Range: new ParameterRange<double>(0, 3000));
+
+var result = await parameters.WriteAsync(contract, 1200);
 ```
 
-默认验证写入流程：
+Runtime 在 I/O 前完成 Range/Domain 校验，复用 #60 Command/Polling 同一个 Resource Arbiter，在同一 ownership scope 内完成 Write + Readback，把真实 observed value 提交到 `DeviceSnapshotStore<T>`；如果写入可能已经发生但 Readback 无法确认最终状态，则返回 `UnknownOutcome`，不会把 Requested Value 冒充 Observed State。
 
-```text
-查参数描述 -> 拒绝只读参数 -> Write -> 再次 Read -> Compare
-```
+旧 `ParameterReadbackService` 只作为兼容/简单 facade 保留，不再是新 Source-Scaffold 产品的企业级权威路径。
 
-数值比较支持容差。需要更复杂领域等价规则的产品，应继续在业务层定义，而不是污染通用平台。
+## Reconnect / Rehydrate
+
+`DeviceControlStateRegistry` 统一管理 ConnectionEpoch 和 Required Rehydrate Barrier。Reconnect/Disconnect 会推进 Epoch、使旧 Snapshot 失效、拒绝旧 Epoch 晚到 Poll/Event；所有 Required State/Parameter Read 成功前设备都不能进入 Ready。
+
+Control Metrics 继续复用现有 `UpperHost` Meter，只使用低基数 operation/result/quality 标签。DeviceId、序列号、ParameterKey、ExecutionId 默认只进入 Log/Trace，不进入 Meter tag。

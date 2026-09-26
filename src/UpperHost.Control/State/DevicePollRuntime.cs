@@ -192,12 +192,28 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
                 if (Interlocked.CompareExchange(ref group.QueuedOrRunning, 1, 0) != 0)
                 {
                     if (group.Definition.MissedTickPolicy == PollMissedTickPolicy.Coalesce)
+                    {
                         Interlocked.Exchange(ref group.CoalescedFollowUp, 1);
+                        DeviceControlTelemetry.PollDeferred.Add(
+                            1,
+                            DeviceControlTelemetry.Tags("poll.schedule", "coalesced"));
+                    }
+                    else
+                    {
+                        DeviceControlTelemetry.PollDeferred.Add(
+                            1,
+                            DeviceControlTelemetry.Tags("poll.schedule", "skipped"));
+                    }
                     continue;
                 }
 
                 if (!_work.Writer.TryWrite(group))
+                {
                     Interlocked.Exchange(ref group.QueuedOrRunning, 0);
+                    DeviceControlTelemetry.PollDeferred.Add(
+                        1,
+                        DeviceControlTelemetry.Tags("poll.schedule", "queue_full"));
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -219,10 +235,14 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
                 await ExecutePollAsync(group, cancellationToken).ConfigureAwait(false);
 
                 if (Interlocked.Exchange(ref group.CoalescedFollowUp, 0) != 0 &&
-                    !cancellationToken.IsCancellationRequested &&
-                    _work.Writer.TryWrite(group))
+                    !cancellationToken.IsCancellationRequested)
                 {
-                    continue;
+                    if (_work.Writer.TryWrite(group))
+                        continue;
+
+                    DeviceControlTelemetry.PollDeferred.Add(
+                        1,
+                        DeviceControlTelemetry.Tags("poll.schedule", "queue_full"));
                 }
 
                 Interlocked.Exchange(ref group.QueuedOrRunning, 0);
@@ -235,7 +255,9 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
 
     private async Task ExecutePollAsync(RuntimeGroup group, CancellationToken runtimeToken)
     {
-        var observedTimestamp = _timeProvider.GetTimestamp();
+        var started = _timeProvider.GetTimestamp();
+        var outcome = "fault";
+        var observedTimestamp = started;
         var epoch = _epochSource.GetCurrentEpoch(group.Definition.DeviceId);
         var context = new DevicePollContext(
             group.Definition.GroupId,
@@ -257,9 +279,12 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
                 .ConfigureAwait(false);
 
             if (_epochSource.GetCurrentEpoch(group.Definition.DeviceId) != epoch)
+            {
+                outcome = "stale_epoch";
                 return;
+            }
 
-            _store.Apply(new DeviceObservation<TState>(
+            var applied = _store.Apply(new DeviceObservation<TState>(
                 group.Definition.DeviceId,
                 group.Definition.Partition,
                 epoch,

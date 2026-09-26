@@ -124,6 +124,9 @@ public sealed class DeviceSnapshotStore<TState> :
             {
                 if (observation.ConnectionEpoch < current.ConnectionEpoch)
                 {
+                    DeviceControlTelemetry.SnapshotObservations.Add(
+                        1,
+                        DeviceControlTelemetry.Tags("snapshot.apply", "stale_epoch"));
                     return new DeviceObservationApplyResult<TState>(
                         DeviceObservationApplyStatus.RejectedStaleEpoch,
                         ApplyFreshness(current));
@@ -132,6 +135,9 @@ public sealed class DeviceSnapshotStore<TState> :
                 if (observation.ConnectionEpoch == current.ConnectionEpoch &&
                     IsOlder(observation, current))
                 {
+                    DeviceControlTelemetry.SnapshotObservations.Add(
+                        1,
+                        DeviceControlTelemetry.Tags("snapshot.apply", "older"));
                     return new DeviceObservationApplyResult<TState>(
                         DeviceObservationApplyStatus.RejectedOlderObservation,
                         ApplyFreshness(current));
@@ -156,6 +162,9 @@ public sealed class DeviceSnapshotStore<TState> :
             subscribers = entry.Subscribers.Values.ToArray();
         }
 
+        DeviceControlTelemetry.SnapshotObservations.Add(
+            1,
+            DeviceControlTelemetry.QualityTags("snapshot.apply", snapshot.Quality));
         Publish(subscribers, snapshot);
         return new DeviceObservationApplyResult<TState>(
             DeviceObservationApplyStatus.Applied,
@@ -236,7 +245,16 @@ public sealed class DeviceSnapshotStore<TState> :
             return null;
 
         lock (entry.Gate)
-            return entry.Current is null ? null : ApplyFreshness(entry.Current);
+        {
+            if (entry.Current is null)
+                return null;
+
+            var snapshot = ApplyFreshness(entry.Current);
+            DeviceControlTelemetry.SnapshotAgeSeconds.Record(
+                _timeProvider.GetElapsedTime(snapshot.ObservedTimestamp).TotalSeconds,
+                DeviceControlTelemetry.QualityTags("snapshot.read", snapshot.Quality));
+            return snapshot;
+        }
     }
 
     public IReadOnlyList<DeviceSnapshot<TState>> GetDeviceSnapshots(string deviceId)

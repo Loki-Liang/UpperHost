@@ -238,6 +238,9 @@ public sealed class TypedParameterRuntime<T>
             ObservedAtUtc: _timeProvider.GetUtcNow(),
             StaleAfter: contract.StaleAfter)).Snapshot!;
 
+        DeviceControlTelemetry.ParameterOperations.Add(
+            1,
+            DeviceControlTelemetry.Tags("parameter.read", "success"));
         return new TypedParameterReadResult<T>(
             contract.Key,
             value,
@@ -259,7 +262,7 @@ public sealed class TypedParameterRuntime<T>
 
         if (!ValidateValue(contract, value, out var validationMessage))
         {
-            return new TypedParameterWriteResult<T>(
+            return Complete(new TypedParameterWriteResult<T>(
                 contract.Key,
                 value,
                 TypedParameterWriteStatus.Rejected,
@@ -267,7 +270,7 @@ public sealed class TypedParameterRuntime<T>
                 null,
                 null,
                 "parameter_validation_failed",
-                validationMessage);
+                validationMessage));
         }
 
         var claims = options.ResourceClaims ?? DefaultClaims(CommandResourceAccess.Exclusive);
@@ -281,7 +284,7 @@ public sealed class TypedParameterRuntime<T>
 
         if (descriptor.IsReadOnly)
         {
-            return new TypedParameterWriteResult<T>(
+            return Complete(new TypedParameterWriteResult<T>(
                 contract.Key,
                 value,
                 TypedParameterWriteStatus.Rejected,
@@ -289,7 +292,7 @@ public sealed class TypedParameterRuntime<T>
                 descriptor,
                 null,
                 "parameter_read_only",
-                $"Parameter '{contract.Key}' is read-only.");
+                $"Parameter '{contract.Key}' is read-only."));
         }
 
         var codec = contract.Codec ?? ParameterCodecs.Strict<T>();
@@ -308,7 +311,7 @@ public sealed class TypedParameterRuntime<T>
 
             if (!options.VerifyReadback)
             {
-                return new TypedParameterWriteResult<T>(
+                return Complete(new TypedParameterWriteResult<T>(
                     contract.Key,
                     value,
                     TypedParameterWriteStatus.WrittenUnverified,
@@ -316,7 +319,7 @@ public sealed class TypedParameterRuntime<T>
                     descriptor,
                     null,
                     "parameter_unverified",
-                    "Parameter write completed without readback verification.");
+                    "Parameter write completed without readback verification."));
             }
 
             using var readbackCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -356,7 +359,7 @@ public sealed class TypedParameterRuntime<T>
                 ? TypedParameterWriteStatus.Verified
                 : TypedParameterWriteStatus.ReadbackMismatch;
 
-            return new TypedParameterWriteResult<T>(
+            return Complete(new TypedParameterWriteResult<T>(
                 contract.Key,
                 value,
                 status,
@@ -368,7 +371,7 @@ public sealed class TypedParameterRuntime<T>
                     : "parameter_readback_mismatch",
                 status == TypedParameterWriteStatus.Verified
                     ? null
-                    : $"Parameter '{contract.Key}' readback does not match the requested value.");
+                    : $"Parameter '{contract.Key}' readback does not match the requested value."));
         }
         catch (OperationCanceledException ex) when (
             writeAttempted &&
@@ -456,6 +459,14 @@ public sealed class TypedParameterRuntime<T>
         return true;
     }
 
+    private static TypedParameterWriteResult<T> Complete(TypedParameterWriteResult<T> result)
+    {
+        DeviceControlTelemetry.ParameterOperations.Add(
+            1,
+            DeviceControlTelemetry.Tags("parameter.write", result.Status.ToString()));
+        return result;
+    }
+
     private static TypedParameterWriteResult<T> Unknown(
         ParameterContract<T> contract,
         T value,
@@ -463,7 +474,7 @@ public sealed class TypedParameterRuntime<T>
         string code,
         string message,
         Exception? exception = null) =>
-        new(
+        Complete(new(
             contract.Key,
             value,
             TypedParameterWriteStatus.UnknownOutcome,
@@ -472,5 +483,5 @@ public sealed class TypedParameterRuntime<T>
             null,
             code,
             message,
-            exception);
+            exception));
 }

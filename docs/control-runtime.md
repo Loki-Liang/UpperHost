@@ -47,20 +47,33 @@ Command -> Guard -> Interlock(s) -> Device capability
 
 Software interlocks are not certified safety mechanisms. Emergency stops, safety relays, safety PLCs and other required hardware safety chains remain authoritative and must operate independently of UpperHost.
 
-## Parameter read/write/readback
+## Authoritative device state and polling
 
-`ParameterReadbackService` standardizes parameter reads and verified writes over the existing `IParameterProvider` capability.
+`DeviceSnapshotStore<TState>` is the single immutable read model for poll, push/event, command completion, parameter readback and rehydrate observations. Observations carry a connection epoch and monotonic observed timestamp; stale-epoch or older observations cannot overwrite newer state. Freshness is computed with `TimeProvider`, so state can become `Stale` without waiting for another device I/O.
+
+`DevicePollRuntime<TState>` owns one bounded scheduling calendar and one bounded work channel. Each PollGroup has at most one queued/running invocation plus an optional coalesced follow-up; missed ticks are Skip/Coalesce, never an unbounded backlog.
+
+Polling and parameter reads default to **Exclusive** resource arbitration. Use `SharedRead` only when a Provider/Protocol capability explicitly guarantees concurrent reads.
+
+## Typed parameter read/write/readback
+
+New production code uses `TypedParameterRuntime<T>`, not direct UI calls to `IParameterProvider`.
 
 ```csharp
-var parameters = new ParameterReadbackService(device);
-var write = await parameters.WriteAsync("speed", 1200);
-if (!write.Verified) { /* product policy */ }
+var contract = new ParameterContract<double>(
+    "speed",
+    ReadbackComparer: ParameterComparers.Absolute(0.1),
+    Range: new ParameterRange<double>(0, 3000));
+
+var result = await parameters.WriteAsync(contract, 1200);
 ```
 
-A verified write performs:
+The runtime validates range/domain before I/O, acquires the same #60 resource arbiter used by commands/polling, performs write + readback in one ownership scope, commits verified observed state to `DeviceSnapshotStore<T>`, and reports `UnknownOutcome` when a write may have happened but readback cannot establish final device state.
 
-```text
-Find descriptor -> reject read-only -> write -> read again -> compare
-```
+`ParameterReadbackService` remains only as a compatibility/simple facade. It is not the authoritative enterprise path for new Source-Scaffold products.
 
-Numeric readback comparison supports a configurable tolerance. Products that require domain-specific equivalence should keep that policy above the generic service.
+## Reconnect and rehydrate
+
+`DeviceControlStateRegistry` owns the connection epoch and required rehydrate barrier. Reconnect/disconnect advances the epoch, invalidates old snapshots, rejects late old-epoch poll/event results and keeps the device non-Ready until all required state/parameter reads complete.
+
+Control metrics are emitted through the existing `UpperHost` Meter with low-cardinality operation/result/quality tags. Device IDs, serial numbers, parameter keys and execution IDs stay in logs/traces rather than default metric tags.

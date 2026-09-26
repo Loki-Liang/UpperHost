@@ -75,6 +75,9 @@ public sealed class DeviceControlStateRegistry :
         foreach (var sink in _snapshotSinks)
             sink.AdvanceConnectionEpoch(deviceId, epoch, "rehydrating");
 
+        DeviceControlTelemetry.EpochChanges.Add(
+            1,
+            DeviceControlTelemetry.Tags("connection.epoch", "rehydrating"));
         return snapshot;
     }
 
@@ -96,7 +99,12 @@ public sealed class DeviceControlStateRegistry :
             entry.Failures.Remove(requirement);
 
             if (entry.Pending.Count == 0 && entry.Failures.Count == 0)
+            {
                 entry.State = DeviceControlReadinessState.Ready;
+                DeviceControlTelemetry.RehydrateResults.Add(
+                    1,
+                    DeviceControlTelemetry.Tags("rehydrate", "ready"));
+            }
 
             return entry.Snapshot();
         }
@@ -121,6 +129,9 @@ public sealed class DeviceControlStateRegistry :
             entry.Pending.Remove(requirement);
             entry.Failures[requirement] = reason;
             entry.State = DeviceControlReadinessState.Faulted;
+            DeviceControlTelemetry.RehydrateResults.Add(
+                1,
+                DeviceControlTelemetry.Tags("rehydrate", "faulted"));
             return entry.Snapshot();
         }
     }
@@ -147,6 +158,9 @@ public sealed class DeviceControlStateRegistry :
         foreach (var sink in _snapshotSinks)
             sink.AdvanceConnectionEpoch(deviceId, epoch, reason);
 
+        DeviceControlTelemetry.EpochChanges.Add(
+            1,
+            DeviceControlTelemetry.Tags("connection.epoch", "offline"));
         return snapshot;
     }
 

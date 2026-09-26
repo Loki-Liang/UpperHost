@@ -61,3 +61,16 @@ A successful send is not treated as physical completion. Parameter writes are ve
 ## Device package catalog
 
 The sample also publishes a `DevicePackageDescriptor` for the simulated temperature controller. Startup validates `TemperatureControllerPackageOptions` before device construction, registers the descriptor through the host lifecycle, and the window resolves `IDevicePackageCatalog` to show the active package/version. This is the reference consumption path for Issue #22 and demonstrates how an application composes reusable catalog infrastructure.
+
+
+## Authoritative control state
+
+The reference path now uses:
+
+```text
+Polling / Command / Parameter Readback
+        -> DeviceSnapshotStore
+        -> WPF read model
+```
+
+Target writes use `TypedParameterRuntime<double>` and the same resource arbiter as commands and polling. Reconnect starts a new connection epoch and a required rehydrate barrier. The sample intentionally uses Exclusive polling access because its Provider has not declared a concurrent-read capability; `SharedRead` is opt-in only for Providers that prove it is safe.

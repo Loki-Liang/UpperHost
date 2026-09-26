@@ -68,7 +68,7 @@ public partial class App : Application
                     [
                         new CommandResourceClaim(
                             new CommandResourceKey("device", TemperatureControllerDevice.DeviceId),
-                            CommandResourceAccess.SharedRead)
+                            CommandResourceAccess.Exclusive)
                     ],
                     queueTimeout: TimeSpan.FromSeconds(1));
 
