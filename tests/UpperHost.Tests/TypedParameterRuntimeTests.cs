@@ -212,7 +212,7 @@ public sealed class TypedParameterRuntimeTests
     [Fact]
     public async Task Default_read_uses_exclusive_resource_claim()
     {
-        var provider = new DirectProvider(10d);
+        var provider = new DirectProvider("target", 10d);
         var arbiter = new CapturingArbiter();
         await using var snapshots = new DeviceSnapshotStore<double>();
         var epoch = new FixedEpochSource(1);
