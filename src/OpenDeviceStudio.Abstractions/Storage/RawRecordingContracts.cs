@@ -6,7 +6,7 @@ public enum RawSourceFlowControl { SupportsBackpressure, CannotBackpressure }
 public enum RawDurabilityLevel { Buffered, FlushOnFinalize, FlushToDiskOnFinalize }
 public enum RawRecorderState { Created, Preparing, Ready, Running, Stopping, Completed, Faulted, Aborted, Disposed }
 public enum RawRecorderAcceptStatus { Accepted, Closed, Overloaded, Faulted }
-public enum RawRecoveryIssueKind { TruncatedTail, ChecksumMismatch, CorruptSegment, MissingSegment, UnsupportedFormat, IncompleteSession }
+public enum RawRecoveryIssueKind { TruncatedTail, ChecksumMismatch, CorruptSegment, MissingSegment, UnsupportedFormat, IncompleteSession, UncommittedManifest }
 
 public sealed record RawRecordingSourceIdentity(string SourceId, long ConnectionEpoch);
 public sealed record RawRecordingSessionDescriptor(string SessionId, IReadOnlyList<RawRecordingSourceIdentity> Sources, string ConfigurationHash, DateTimeOffset StartedAt);
@@ -19,17 +19,29 @@ public sealed record RawRecorderAcceptResult(RawRecorderAcceptStatus Status, str
 
 public sealed record RawRecorderFault(string Code, string Message, Exception? Exception, DateTimeOffset OccurredAt);
 
+public sealed record RawSourceSequenceSnapshot(
+    string SourceId,
+    long ConnectionEpoch,
+    long LastSequence);
+
 public sealed record RawRecorderSnapshot(
     RawRecorderState State,
     long AcceptedBlocks,
     long WrittenBlocks,
+    long FlushedBlocks,
+    long DurableBlocks,
     long AcceptedBytes,
     long WrittenBytes,
+    long FlushedBytes,
+    long DurableBytes,
     int QueueDepth,
     int QueueCapacity,
     int QueueHighWater,
     int SegmentCount,
-    long? LastSequence,
+    long SequenceGapCount,
+    long DuplicateBlockCount,
+    long OutOfOrderBlockCount,
+    IReadOnlyList<RawSourceSequenceSnapshot> LastSequences,
     string? SessionDirectory,
     string? FaultReason);
 
@@ -41,6 +53,9 @@ public sealed record RawRecoveryReport(
     string ManifestState,
     long VerifiedBlocks,
     long VerifiedBytes,
+    long SequenceGapCount,
+    long DuplicateBlockCount,
+    long OutOfOrderBlockCount,
     IReadOnlyList<RawRecoveryIssue> Issues)
 {
     public bool IsComplete =>
