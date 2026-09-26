@@ -246,7 +246,16 @@ public sealed class AcquisitionSessionTests
     public async Task First_required_fault_wins_and_secondary_faults_are_bounded()
     {
         var required = new RecordingComponent("processing", AcquisitionComponentKind.Processing);
-        var source = new RecordingSource("source-a");
+        var stopEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseStop = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new RecordingSource("source-a")
+        {
+            StopHook = async token =>
+            {
+                stopEntered.TrySetResult();
+                await releaseStop.Task.WaitAsync(token);
+            }
+        };
         var options = new AcquisitionSessionOptions(SecondaryFaultCapacity: 1);
 
         await using var manager = new AcquisitionSessionManager();
@@ -261,6 +270,8 @@ public sealed class AcquisitionSessionTests
             AcquisitionFaultCategory.Processing,
             new InvalidOperationException("root"),
             "root"));
+        await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
         Assert.True(required.Context.TryReportFault(
             AcquisitionFaultCategory.Processing,
             new InvalidOperationException("secondary-1"),
@@ -270,6 +281,7 @@ public sealed class AcquisitionSessionTests
             new InvalidOperationException("secondary-2"),
             "secondary-2"));
 
+        releaseStop.TrySetResult();
         var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
