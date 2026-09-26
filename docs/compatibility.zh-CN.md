@@ -68,3 +68,10 @@ pre-commit 会在本地先运行 Source-Scaffold Contract；Package Compatibilit
 #27 已明确要求 tag/GitHub Release/可选 NuGet Publish 前必须通过 Compatibility Gate，因此 Release 必须复用同一策略，不能绕过 PR 证据。
 
 #42 负责更深的 clean Source-Scaffold E2E。本 Gate 保护结构/启动/配置契约并保留现有 Source-Scaffold Build Validation，但不冒充 #42 已完成。
+
+
+## Source-level API Analyzer 策略
+
+UpperHost 在 0.1 alpha 阶段不会给全部 `src/UpperHost.*` 项目机械启用 Roslyn PublicApiAnalyzers。C# 类型是 `public` 不等于它已经成为稳定支持的二开扩展面。当前仓库级 API 权威门禁是普通/Strict ApiCompat + .NET SDK Package Validation。
+
+等稳定 supported contract 边界明确后，可以只对选定的稳定契约项目/接口引入 PublicApiAnalyzers。禁止为全部 implementation project 一次性生成 `PublicAPI.*` baseline 并由此制造无意的兼容债。
