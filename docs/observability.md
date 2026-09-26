@@ -2,17 +2,17 @@
 
 English | [简体中文](observability.zh-CN.md)
 
-UpperHost provides an enterprise observability baseline without coupling core contracts to a specific backend.
+OpenDeviceStudio provides an enterprise observability baseline without coupling core contracts to a specific backend.
 
 ## Stack
 
 - Microsoft.Extensions.Logging remains the logging contract.
-- UpperHost.Observability uses Serilog for optional structured rolling-file output.
-- .NET ActivitySource and Meter define stable tracing and metrics instruments in UpperHost.Abstractions.
+- OpenDeviceStudio.Observability uses Serilog for optional structured rolling-file output.
+- .NET ActivitySource and Meter define stable tracing and metrics instruments in OpenDeviceStudio.Abstractions.
 - OpenTelemetry OTLP export is optional and disabled by default.
 - IHealthProbe / HealthService remain the health model.
 
-Serilog and OpenTelemetry types do not leak into UpperHost.Abstractions.
+Serilog and OpenTelemetry types do not leak into OpenDeviceStudio.Abstractions.
 
 ## Industrial context
 
@@ -26,14 +26,14 @@ The runnable source scaffold application enables structured rolling file logging
 
 ~~~json
 {
-  "UpperHost": {
+  "OpenDeviceStudio": {
     "Observability": {
-      "ServiceName": "UpperHost.App",
+      "ServiceName": "OpenDeviceStudio.App",
       "ServiceVersion": "0.1.0",
       "Logging": {
         "File": {
           "Enabled": true,
-          "Path": "logs/upperhost-.json",
+          "Path": "logs/opendevicestudio-.json",
           "MinimumLevel": "Information",
           "FileSizeLimitBytes": 52428800,
           "RetainedFileCountLimit": 14,
@@ -51,13 +51,13 @@ The runnable source scaffold application enables structured rolling file logging
 }
 ~~~
 
-File events are JSON, roll daily and by size, and use bounded file retention. File I/O is wrapped in a bounded asynchronous buffer so logging cannot grow memory without limit. The default does not block device/control hot paths when the buffer is full; dropped events are surfaced through the `upperhost.logging.async_buffer` health probe.
+File events are JSON, roll daily and by size, and use bounded file retention. File I/O is wrapped in a bounded asynchronous buffer so logging cannot grow memory without limit. The default does not block device/control hot paths when the buffer is full; dropped events are surfaced through the `opendevicestudio.logging.async_buffer` health probe.
 
 Known sensitive property names such as passwords, tokens, credentials, authorization values, API keys, private keys and connection strings are redacted before rendering. Applications must still avoid placing secrets in free-form message text.
 
 ## Metrics
 
-The stable Meter name is UpperHost. Baseline instruments include command executions/failures/duration, transport operations/failures/bytes, reconnect attempts, active alarms, stream frames and dropped frames.
+The stable Meter name is OpenDeviceStudio. Baseline instruments include command executions/failures/duration, transport operations/failures/bytes, reconnect attempts, active alarms, stream frames and dropped frames.
 
 CommandRuntime, starter transports, reconnect behavior and alarms publish into the common instruments.
 
@@ -65,7 +65,7 @@ Metric attributes are intentionally low-cardinality. Per-operation identifiers s
 
 ## Tracing
 
-The stable ActivitySource name is UpperHost. Command execution and observed transport operations create spans. High-cardinality correlation identifiers may be attached to traces. OTLP output is enabled only when explicitly configured, and `TraceSampleRatio` controls parent-based ratio sampling.
+The stable ActivitySource name is OpenDeviceStudio. Command execution and observed transport operations create spans. High-cardinality correlation identifiers may be attached to traces. OTLP output is enabled only when explicitly configured, and `TraceSampleRatio` controls parent-based ratio sampling.
 
 ## Health
 
@@ -75,8 +75,8 @@ When async file logging is enabled, `AsyncLogBufferMonitor` exposes queue utiliz
 
 ## Transport registration
 
-Starter transports and custom providers should be registered through `AddUpperHostTransport<TTransport>()`. This composition seam first applies ConnectionManager physical-lifecycle ownership, then optional resilience, then the common observed transport pipeline, instead of requiring every Serial/TCP/CAN/BLE/vendor provider to copy lifecycle or observability wrappers independently.
+Starter transports and custom providers should be registered through `AddOpenDeviceStudioTransport<TTransport>()`. This composition seam first applies ConnectionManager physical-lifecycle ownership, then optional resilience, then the common observed transport pipeline, instead of requiring every Serial/TCP/CAN/BLE/vendor provider to copy lifecycle or observability wrappers independently.
 
 ## Custom backends
 
-Consumer applications can add or replace monitoring backends through standard Microsoft logging and OpenTelemetry extension points. Core UpperHost modules must not depend on a product-specific monitoring backend.
+Consumer applications can add or replace monitoring backends through standard Microsoft logging and OpenTelemetry extension points. Core OpenDeviceStudio modules must not depend on a product-specific monitoring backend.

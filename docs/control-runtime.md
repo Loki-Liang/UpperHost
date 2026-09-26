@@ -2,7 +2,7 @@
 
 English | [简体中文](control-runtime.zh-CN.md)
 
-`UpperHost.Control` standardizes the application-side control path without moving product semantics into the platform.
+`OpenDeviceStudio.Control` standardizes the application-side control path without moving product semantics into the platform.
 
 ## Command runtime
 
@@ -45,7 +45,7 @@ Guards are deterministic application policy seams: state validation, authorizati
 Command -> Guard -> Interlock(s) -> Device capability
 ```
 
-Software interlocks are not certified safety mechanisms. Emergency stops, safety relays, safety PLCs and other required hardware safety chains remain authoritative and must operate independently of UpperHost.
+Software interlocks are not certified safety mechanisms. Emergency stops, safety relays, safety PLCs and other required hardware safety chains remain authoritative and must operate independently of OpenDeviceStudio.
 
 ## Authoritative device state and polling
 
@@ -76,4 +76,4 @@ The runtime validates range/domain before I/O, acquires the same #60 resource ar
 
 `DeviceControlStateRegistry` owns the connection epoch and required rehydrate barrier. Reconnect/disconnect advances the epoch, invalidates old snapshots, rejects late old-epoch poll/event results and keeps the device non-Ready until all required state/parameter reads complete.
 
-Control metrics are emitted through the existing `UpperHost` Meter with low-cardinality operation/result/quality tags. Device IDs, serial numbers, parameter keys and execution IDs stay in logs/traces rather than default metric tags.
+Control metrics are emitted through the existing `OpenDeviceStudio` Meter with low-cardinality operation/result/quality tags. Device IDs, serial numbers, parameter keys and execution IDs stay in logs/traces rather than default metric tags.

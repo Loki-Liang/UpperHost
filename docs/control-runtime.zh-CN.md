@@ -2,7 +2,7 @@
 
 [English](control-runtime.md) | 简体中文
 
-`UpperHost.Control` 用于统一上位机应用侧的控制执行路径，同时避免把具体 PLC、伺服、医疗或仪器业务语义塞进平台 Core。
+`OpenDeviceStudio.Control` 用于统一上位机应用侧的控制执行路径，同时避免把具体 PLC、伺服、医疗或仪器业务语义塞进平台 Core。
 
 ## Command Runtime
 
@@ -45,7 +45,7 @@ builder.AddCommandDispatcher<MoveCommand, MoveResult>(
 Command -> Guard -> Interlock(s) -> Device Capability
 ```
 
-软件联锁不是认证安全机制。急停、安全继电器、Safety PLC 及法规要求的硬件安全链必须独立工作，UpperHost 不能替代它们。
+软件联锁不是认证安全机制。急停、安全继电器、Safety PLC 及法规要求的硬件安全链必须独立工作，OpenDeviceStudio 不能替代它们。
 
 ## 权威 Device State 与 Polling
 
@@ -76,4 +76,4 @@ Runtime 在 I/O 前完成 Range/Domain 校验，复用 #60 Command/Polling 同�
 
 `DeviceControlStateRegistry` 统一管理 ConnectionEpoch 和 Required Rehydrate Barrier。Reconnect/Disconnect 会推进 Epoch、使旧 Snapshot 失效、拒绝旧 Epoch 晚到 Poll/Event；所有 Required State/Parameter Read 成功前设备都不能进入 Ready。
 
-Control Metrics 继续复用现有 `UpperHost` Meter，只使用低基数 operation/result/quality 标签。DeviceId、序列号、ParameterKey、ExecutionId 默认只进入 Log/Trace，不进入 Meter tag。
+Control Metrics 继续复用现有 `OpenDeviceStudio` Meter，只使用低基数 operation/result/quality 标签。DeviceId、序列号、ParameterKey、ExecutionId 默认只进入 Log/Trace，不进入 Meter tag。

@@ -1,8 +1,8 @@
-# Extending UpperHost
+# Extending OpenDeviceStudio
 
 English | [简体中文](extending.zh-CN.md)
 
-UpperHost is a source-first development scaffold: extensions should add reusable device/protocol/provider capabilities while product-specific behavior stays in `app/UpperHost.App`.
+OpenDeviceStudio is a source-first development scaffold: extensions should add reusable device/protocol/provider capabilities while product-specific behavior stays in `app/OpenDeviceStudio.App`.
 
 ## Add a device
 
@@ -25,7 +25,7 @@ New USB, CAN, BLE or vendor SDK connectivity should be delivered as independent 
 
 ## Reuse the provider contract and fault test kit
 
-Hardware-dependent providers should reuse `UpperHost.Testing` rather than inventing per-product test harnesses.
+Hardware-dependent providers should reuse `OpenDeviceStudio.Testing` rather than inventing per-product test harnesses.
 
 Wrap a transport with a deterministic fault profile:
 
@@ -47,9 +47,9 @@ await TransportContractTestKit.VerifyAsync(
     cancellationToken => CreateMyProviderFixtureAsync(cancellationToken));
 ```
 
-The shared contract verifies open/close/reopen lifecycle, send/receive semantics, cancellation, deterministic disposal and resource ownership. UpperHost runs this same contract against Simulator, TCP loopback and Serial through its provider test seam. Simulator/loopback/fake-channel evidence is test evidence only; it must never be reported as real hardware validation.
+The shared contract verifies open/close/reopen lifecycle, send/receive semantics, cancellation, deterministic disposal and resource ownership. OpenDeviceStudio runs this same contract against Simulator, TCP loopback and Serial through its provider test seam. Simulator/loopback/fake-channel evidence is test evidence only; it must never be reported as real hardware validation.
 
-For Serial, `ISerialByteChannel` is the provider-specific seam used by `SerialTransport`. Product code normally uses the default `System.IO.Ports` adapter; tests can supply a deterministic in-memory channel without changing `UpperHost.Abstractions`.
+For Serial, `ISerialByteChannel` is the provider-specific seam used by `SerialTransport`. Product code normally uses the default `System.IO.Ports` adapter; tests can supply a deterministic in-memory channel without changing `OpenDeviceStudio.Abstractions`.
 
 ## Add a protocol
 
@@ -82,7 +82,7 @@ Each step delegates hardware details to capabilities/services instead of directl
 
 ## Add a plugin
 
-Implement `IUpperHostModule` and register services inside `ConfigureServices`. Deploy the assembly to a trusted plugin directory and call `AddModulesFromDirectory` during bootstrap.
+Implement `IOpenDeviceStudioModule` and register services inside `ConfigureServices`. Deploy the assembly to a trusted plugin directory and call `AddModulesFromDirectory` during bootstrap.
 
 Plugins are trusted in-process extensions, not a security sandbox.
 
@@ -91,14 +91,14 @@ Plugins are trusted in-process extensions, not a security sandbox.
 Clone the repository and run the canonical product entry directly:
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git MyMachine
+git clone https://github.com/Loki-Liang/OpenDeviceStudio.git MyMachine
 cd MyMachine
-dotnet run --project app/UpperHost.App/UpperHost.App.csproj
+dotnet run --project app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj
 ```
 
-The default transport is `simulator`. Change `app/UpperHost.App/appsettings.json` to `serial` or `tcp` when a real endpoint is required. Additional providers should remain isolated behind the existing provider/starter boundaries.
+The default transport is `simulator`. Change `app/OpenDeviceStudio.App/appsettings.json` to `serial` or `tcp` when a real endpoint is required. Additional providers should remain isolated behind the existing provider/starter boundaries.
 
-If this is your first UpperHost application, start with [Getting Started](getting-started.md).
+If this is your first OpenDeviceStudio application, start with [Getting Started](getting-started.md).
 
 ## Device packages, descriptors and catalog
 

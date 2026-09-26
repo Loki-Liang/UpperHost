@@ -1,12 +1,12 @@
-# UpperHost 零基础入门
+# OpenDeviceStudio 零基础入门
 
 简体中文 | [English](getting-started.md)
 
-这份文档面向第一次使用 UpperHost、甚至第一次开发上位机的开发者。目标不是先理解脚手架源码，而是从空环境通过 UpperHost 工程骨架走到一个可运行的 Simulator 上位机应用，并知道产品代码应该放在哪里。
+这份文档面向第一次使用 OpenDeviceStudio、甚至第一次开发上位机的开发者。目标不是先理解脚手架源码，而是从空环境通过 OpenDeviceStudio 工程骨架走到一个可运行的 Simulator 上位机应用，并知道产品代码应该放在哪里。
 
-## 1. 先理解 UpperHost 是什么
+## 1. 先理解 OpenDeviceStudio 是什么
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可直接运行并二开的产品工程骨架、公共 Runtime 和扩展边界，三条上位机开发路线地位相同：
+OpenDeviceStudio 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可直接运行并二开的产品工程骨架、公共 Runtime 和扩展边界，三条上位机开发路线地位相同：
 
 - **控制 Control**：命令、参数、读回、状态、联锁、诊断。
 - **自动化 Automation**：多设备协同、状态机、工作流、告警、故障恢复。
@@ -32,23 +32,23 @@ git --version
 
 ## 3. 拉取脚手架并直接运行
 
-UpperHost 采用源码直接二开的使用方式。仓库本身就是产品工程骨架，不要求先构建框架、打包模板或生成第二个项目。
+OpenDeviceStudio 采用源码直接二开的使用方式。仓库本身就是产品工程骨架，不要求先构建框架、打包模板或生成第二个项目。
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+git clone https://github.com/Loki-Liang/OpenDeviceStudio.git MyDeviceApp
 cd MyDeviceApp
-dotnet run --project app/UpperHost.App/UpperHost.App.csproj
+dotnet run --project app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj
 ```
 
-第一次运行默认使用 Simulator。看到 UpperHost WPF 窗口，说明 Hosting、DI、Configuration、Observability 和基础 Transport Starter 已经接通。
+第一次运行默认使用 Simulator。看到 OpenDeviceStudio WPF 窗口，说明 Hosting、DI、Configuration、Observability 和基础 Transport Starter 已经接通。
 
-如果这是你自己的产品仓库，随后把 Git remote 指向自己的仓库并继续开发即可。UpperHost 的推荐职责边界是：
+如果这是你自己的产品仓库，随后把 Git remote 指向自己的仓库并继续开发即可。OpenDeviceStudio 的推荐职责边界是：
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
   产品启动、产品 UI、产品组合根
 
-src/UpperHost.*/
+src/OpenDeviceStudio.*/
   跨项目可复用的 Runtime、Provider、基础设施
 
 samples/
@@ -57,10 +57,10 @@ samples/
 
 ## 4. 从产品入口开始二开
 
-不要先修改 Runtime。优先在 `app/UpperHost.App` 的产品边界内组织你的业务代码，例如：
+不要先修改 Runtime。优先在 `app/OpenDeviceStudio.App` 的产品边界内组织你的业务代码，例如：
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
 ├─ Devices/
 ├─ Protocols/
 ├─ Workflows/
@@ -70,7 +70,7 @@ app/UpperHost.App/
 └─ appsettings.json
 ```
 
-只有某项能力确定能够跨多个产品复用时，才把它抽到对应的 `src/UpperHost.*` 模块。
+只有某项能力确定能够跨多个产品复用时，才把它抽到对应的 `src/OpenDeviceStudio.*` 模块。
 
 ## 5. 写代码前只需要先理解 5 个概念
 
@@ -189,7 +189,7 @@ Hardware
 
 ## 8. 配置从 Simulator 开始
 
-当前可运行源码脚手架从 `appsettings.json` 的 `UpperHost:Transport` 读取基础 Transport 配置。
+当前可运行源码脚手架从 `appsettings.json` 的 `OpenDeviceStudio:Transport` 读取基础 Transport 配置。
 
 第一次开发优先使用 `simulator`。只有需要真实硬件时，再切换 `tcp`、`serial` 或安装其他 Provider。
 
@@ -209,7 +209,7 @@ Hardware
 
 ## 10. 软件安全边界
 
-UpperHost 可以承载软件层 Guard、Interlock、状态验证和业务保护，但**不能代替**：
+OpenDeviceStudio 可以承载软件层 Guard、Interlock、状态验证和业务保护，但**不能代替**：
 
 - 硬件急停；
 - 安全继电器；
@@ -222,7 +222,7 @@ UpperHost 可以承载软件层 Guard、Interlock、状态验证和业务保护�
 
 - [二次开发基础能力](secondary-development.zh-CN.md)
 - [架构说明](architecture.zh-CN.md)
-- [扩展 UpperHost](extending.zh-CN.md)
+- [扩展 OpenDeviceStudio](extending.zh-CN.md)
 - Device Control Sample（P0）
 - AutomationStation Sample（P1）
 - DataAcquisition Sample（P2）

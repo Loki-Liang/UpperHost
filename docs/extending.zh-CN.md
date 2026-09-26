@@ -1,8 +1,8 @@
-# 扩展 UpperHost
+# 扩展 OpenDeviceStudio
 
 简体中文 | [English](extending.md)
 
-UpperHost 是源码直接二开的上位机开发脚手架：扩展应增加可复用的 Device/Protocol/Provider 能力，具体产品业务继续放在 `app/UpperHost.App`。
+OpenDeviceStudio 是源码直接二开的上位机开发脚手架：扩展应增加可复用的 Device/Protocol/Provider 能力，具体产品业务继续放在 `app/OpenDeviceStudio.App`。
 
 ## 增加 Device
 
@@ -27,7 +27,7 @@ Transport 只负责连接和字节传输。以下内容不要放进 Transport：
 
 ## 复用 Provider Contract 与 Fault Test Kit
 
-依赖硬件的 Provider 应直接复用 `UpperHost.Testing`，不要让每个二开产品重新造一套测试基础设施。
+依赖硬件的 Provider 应直接复用 `OpenDeviceStudio.Testing`，不要让每个二开产品重新造一套测试基础设施。
 
 给任意 `ITransport` 套用确定性故障配置：
 
@@ -49,9 +49,9 @@ await TransportContractTestKit.VerifyAsync(
     cancellationToken => CreateMyProviderFixtureAsync(cancellationToken));
 ```
 
-公共 Contract 校验 open/close/reopen 生命周期、send/receive 语义、取消、确定性释放与资源所有权。UpperHost 自己会让 Simulator、TCP loopback、Serial 测试通道运行同一 Contract。Simulator、loopback、fake-channel 只能算自动化测试证据，绝不能写成真实硬件验证结果。
+公共 Contract 校验 open/close/reopen 生命周期、send/receive 语义、取消、确定性释放与资源所有权。OpenDeviceStudio 自己会让 Simulator、TCP loopback、Serial 测试通道运行同一 Contract。Simulator、loopback、fake-channel 只能算自动化测试证据，绝不能写成真实硬件验证结果。
 
-Serial 的 `ISerialByteChannel` 是 `SerialTransport` 的 Provider 专属测试/适配 seam。产品代码默认仍使用 `System.IO.Ports`；测试可注入确定性的内存通道，不需要污染 `UpperHost.Abstractions`。
+Serial 的 `ISerialByteChannel` 是 `SerialTransport` 的 Provider 专属测试/适配 seam。产品代码默认仍使用 `System.IO.Ports`；测试可注入确定性的内存通道，不需要污染 `OpenDeviceStudio.Abstractions`。
 
 ## 增加 Protocol
 
@@ -92,7 +92,7 @@ connect -> self-test -> configure -> home -> run -> stop
 
 ## 增加 Plugin
 
-实现 `IUpperHostModule`，在 `ConfigureServices` 中注册依赖。把程序集部署到受信任的插件目录，并在 bootstrap 中调用 `AddModulesFromDirectory`。
+实现 `IOpenDeviceStudioModule`，在 `ConfigureServices` 中注册依赖。把程序集部署到受信任的插件目录，并在 bootstrap 中调用 `AddModulesFromDirectory`。
 
 Plugin 是受信任的进程内扩展，不是安全沙箱。
 
@@ -101,12 +101,12 @@ Plugin 是受信任的进程内扩展，不是安全沙箱。
 拉取仓库后直接运行正式产品入口：
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git MyMachine
+git clone https://github.com/Loki-Liang/OpenDeviceStudio.git MyMachine
 cd MyMachine
-dotnet run --project app/UpperHost.App/UpperHost.App.csproj
+dotnet run --project app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj
 ```
 
-默认使用 `simulator`。需要真实设备时，在 `app/UpperHost.App/appsettings.json` 中切换到 `serial` 或 `tcp`；其他 Provider 继续通过现有 Provider/Starter 边界扩展。
+默认使用 `simulator`。需要真实设备时，在 `app/OpenDeviceStudio.App/appsettings.json` 中切换到 `serial` 或 `tcp`；其他 Provider 继续通过现有 Provider/Starter 边界扩展。
 
 第一次使用请先阅读：[零基础入门](getting-started.zh-CN.md)。
 
