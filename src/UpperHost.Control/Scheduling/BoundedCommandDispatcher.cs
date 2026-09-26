@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using UpperHost.Abstractions.Observability;
 using UpperHost.Control.Commands;
 
 namespace UpperHost.Control.Scheduling;
@@ -113,6 +114,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private Task? _pump;
     private int _state;
     private int _pending;
+    private int _pendingHighWater;
     private int _scheduleIndex;
 
     public BoundedCommandDispatcher(
@@ -145,6 +147,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
     public int Capacity => _options.Capacity;
     public int PendingCount => Volatile.Read(ref _pending);
+    public int PendingHighWater => Volatile.Read(ref _pendingHighWater);
     public bool IsRunning => Volatile.Read(ref _state) == 1;
 
     public Task StartAsync(CancellationToken cancellationToken = default)
@@ -189,7 +192,10 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 return Cancelled();
             if (admissionCts.IsCancellationRequested)
                 return ExpiredBeforeDispatch();
-            return Rejected("dispatcher_capacity", "Command dispatcher capacity is full.");
+            return RejectAdmission(
+                options.Priority,
+                "dispatcher_capacity",
+                "Command dispatcher capacity is full.");
         }
 
         var resourceClaims = NormalizeResourceClaims(options);
@@ -203,7 +209,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             if (resourcePendingReservation is null)
             {
                 _pendingSlots.Release();
-                return Rejected(
+                return RejectAdmission(
+                    options.Priority,
                     "resource_pending_capacity",
                     "At least one command resource has reached its pending capacity.");
             }
@@ -226,7 +233,10 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 {
                     resourcePendingReservation.Dispose();
                     _pendingSlots.Release();
-                    return Rejected("priority_capacity", $"Priority lane '{options.Priority}' is full.");
+                    return RejectAdmission(
+                        options.Priority,
+                        "priority_capacity",
+                        $"Priority lane '{options.Priority}' is full.");
                 }
             }
             else
@@ -235,7 +245,11 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             }
 
             resourcePendingReservation = null;
-            Interlocked.Increment(ref _pending);
+            var pending = Interlocked.Increment(ref _pending);
+            UpdatePendingHighWater(pending);
+            CommandDispatcherTelemetry.PendingCommands.Add(
+                1,
+                CommandDispatcherTelemetry.PriorityTags(options.Priority));
             _available.Release();
             return await completion.Task.ConfigureAwait(false);
         }
@@ -251,7 +265,10 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         {
             resourcePendingReservation?.Dispose();
             _pendingSlots.Release();
-            return Rejected("dispatcher_stopping", "Command dispatcher is stopping.");
+            return RejectAdmission(
+                options.Priority,
+                "dispatcher_stopping",
+                "Command dispatcher is stopping.");
         }
         catch
         {
@@ -382,6 +399,12 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             envelope.ResourcePendingReservation.Dispose();
             Interlocked.Decrement(ref _pending);
             _pendingSlots.Release();
+            CommandDispatcherTelemetry.PendingCommands.Add(
+                -1,
+                CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
+            CommandDispatcherTelemetry.QueueWaitSeconds.Record(
+                _timeProvider.GetElapsedTime(envelope.EnqueuedTimestamp).TotalSeconds,
+                CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
             return true;
         }
 
@@ -404,9 +427,13 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 return;
             }
 
+            var resourceWaitStarted = _timeProvider.GetTimestamp();
             await using var lease = await _resources
                 .AcquireAsync(envelope.ResourceClaims, dispatchCts.Token)
                 .ConfigureAwait(false);
+            CommandDispatcherTelemetry.ResourceWaitSeconds.Record(
+                _timeProvider.GetElapsedTime(resourceWaitStarted).TotalSeconds,
+                CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
 
             if (envelope.CancellationToken.IsCancellationRequested)
             {
@@ -432,6 +459,9 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                     connectionEpoch,
                     envelope.ResourceClaims.Select(static claim => claim.Resource).ToArray()))
             {
+                CommandDispatcherTelemetry.EpochInvalidations.Add(
+                    1,
+                    CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
                 envelope.Completion.TrySetResult(
                     Rejected(
                         "connection_epoch_stale",
@@ -506,6 +536,9 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 envelope.ResourcePendingReservation.Dispose();
                 Interlocked.Decrement(ref _pending);
                 _pendingSlots.Release();
+                CommandDispatcherTelemetry.PendingCommands.Add(
+                    -1,
+                    CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
                 envelope.Completion.TrySetResult(Cancelled());
             }
         }
@@ -577,6 +610,28 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             .OrderBy(static pair => pair.Key)
             .Select(static pair => new CommandResourceClaim(pair.Key, pair.Value))
             .ToArray();
+    }
+
+    private void UpdatePendingHighWater(int pending)
+    {
+        while (true)
+        {
+            var observed = Volatile.Read(ref _pendingHighWater);
+            if (pending <= observed ||
+                Interlocked.CompareExchange(ref _pendingHighWater, pending, observed) == observed)
+                return;
+        }
+    }
+
+    private static CommandExecutionResult<TResult> RejectAdmission(
+        CommandPriority priority,
+        string code,
+        string message)
+    {
+        CommandDispatcherTelemetry.AdmissionRejections.Add(
+            1,
+            CommandDispatcherTelemetry.ResultTags(priority, code));
+        return Rejected(code, message);
     }
 
     private static CommandExecutionResult<TResult> Rejected(string code, string message) =>
