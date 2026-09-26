@@ -57,6 +57,8 @@ public static class UpperHostStarterExtensions
         builder.Services.TryAddSingleton<AutomationExecutionCoordinator>();
         builder.Services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, AutomationExecutionJournalHostedService>());
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, AutomationExecutionCoordinatorHostedService>());
         return builder;
     }
 
@@ -136,4 +138,25 @@ internal sealed class AutomationExecutionJournalHostedService(
 
     public Task StopAsync(CancellationToken cancellationToken) =>
         journal.StopAsync(cancellationToken);
+}
+
+
+internal sealed class AutomationExecutionCoordinatorHostedService(
+    AutomationExecutionCoordinator coordinator,
+    IHostApplicationLifetime applicationLifetime) : IHostedService, IDisposable
+{
+    private IDisposable? _stoppingRegistration;
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        _stoppingRegistration = applicationLifetime.ApplicationStopping.Register(
+            coordinator.SignalHostStopping);
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken) =>
+        coordinator.WaitForHostStopAsync(cancellationToken);
+
+    public void Dispose() => _stoppingRegistration?.Dispose();
 }
