@@ -1,4 +1,4 @@
-# UpperHost Transport Agent
+# OpenDeviceStudio Transport Agent
 
 ## Scope
 

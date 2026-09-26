@@ -48,11 +48,11 @@ foreach ($candidate in $candidates) {
 
     # Download into an isolated probe directory first so a candidate without the
     # expected artifact cannot contaminate the final baseline directory.
-    $probeDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("upperhost-baseline-" + [Guid]::NewGuid().ToString("N"))
+    $probeDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("opendevicestudio-baseline-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force $probeDirectory | Out-Null
 
     try {
-        gh run download $candidate.databaseId --repo $Repository --name upperhost-packages --dir $probeDirectory 2>$null
+        gh run download $candidate.databaseId --repo $Repository --name opendevicestudio-packages --dir $probeDirectory 2>$null
         if ($LASTEXITCODE -ne 0) {
             continue
         }
