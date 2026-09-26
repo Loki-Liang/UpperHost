@@ -129,12 +129,19 @@ public sealed class CommandRuntime<TCommand, TResult>
 
     public CommandRuntime(
         ICommandable<TCommand, TResult> target,
-        IEnumerable<ICommandGuard<TCommand>>? guards = null,
-        TimeProvider? timeProvider = null)
+        IEnumerable<ICommandGuard<TCommand>>? guards = null)
+        : this(target, guards, TimeProvider.System)
+    {
+    }
+
+    public CommandRuntime(
+        ICommandable<TCommand, TResult> target,
+        IEnumerable<ICommandGuard<TCommand>>? guards,
+        TimeProvider timeProvider)
     {
         _legacyTarget = target ?? throw new ArgumentNullException(nameof(target));
         _guards = guards?.ToArray() ?? [];
-        _timeProvider = timeProvider ?? TimeProvider.System;
+        _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
     }
 
     public CommandRuntime(
