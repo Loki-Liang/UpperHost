@@ -111,8 +111,10 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
             return GetSnapshot();
         }
 
-        if (previous != (int)SignalProcessingRuntimeState.Running &&
-            previous != (int)SignalProcessingRuntimeState.Completing)
+        if (previous == (int)SignalProcessingRuntimeState.Completing)
+            return await Completion.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        if (previous != (int)SignalProcessingRuntimeState.Running)
         {
             throw new InvalidOperationException(
                 $"Signal processing runtime cannot complete from state {(SignalProcessingRuntimeState)previous}.");
@@ -595,6 +597,7 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
                                 SignalQualityFlags.GapDetected |
                                 SignalQualityFlags.ResetAfterGap |
                                 SignalQualityFlags.Discontinuous);
+                            partition.ExpectedNextSequence = endExclusive;
                             break;
 
                         case SignalGapPolicy.DropUntilReinitialized:
@@ -620,9 +623,15 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
                 }
             }
 
-            partition.ExpectedNextSequence = expected.HasValue
-                ? Math.Max(expected.Value, endExclusive)
-                : endExclusive;
+            if (!partition.ExpectedNextSequence.HasValue ||
+                _compiled.Registration.Factory.GapPolicy != SignalGapPolicy.ResetAndMarkQuality ||
+                !expected.HasValue ||
+                input.SequenceStart == expected.Value)
+            {
+                partition.ExpectedNextSequence = expected.HasValue
+                    ? Math.Max(expected.Value, endExclusive)
+                    : endExclusive;
+            }
             return input;
         }
 
