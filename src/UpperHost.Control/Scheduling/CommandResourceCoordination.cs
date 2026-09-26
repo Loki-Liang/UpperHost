@@ -176,13 +176,15 @@ internal sealed class CommandResourceCoordinator(int maxSharedReadersPerResource
         IReadOnlyList<CommandResourceClaim> claims,
         CancellationToken cancellationToken)
     {
-        if (claims.Count == 0)
+        ArgumentNullException.ThrowIfNull(claims);
+        var normalized = NormalizeClaims(claims);
+        if (normalized.Count == 0)
             return EmptyLease.Instance;
 
-        var acquired = new List<(CommandResourceKey Key, Entry Entry, IAsyncDisposable Lease)>(claims.Count);
+        var acquired = new List<(CommandResourceKey Key, Entry Entry, IAsyncDisposable Lease)>(normalized.Count);
         try
         {
-            foreach (var claim in claims)
+            foreach (var claim in normalized)
             {
                 var entry = AcquireReference(claim.Resource);
                 try
@@ -211,6 +213,26 @@ internal sealed class CommandResourceCoordinator(int maxSharedReadersPerResource
 
             throw;
         }
+    }
+
+    private static IReadOnlyList<CommandResourceClaim> NormalizeClaims(
+        IReadOnlyList<CommandResourceClaim> claims)
+    {
+        var normalized = new Dictionary<CommandResourceKey, CommandResourceAccess>();
+
+        foreach (var claim in claims)
+        {
+            if (normalized.TryGetValue(claim.Resource, out var current) &&
+                current == CommandResourceAccess.Exclusive)
+                continue;
+
+            normalized[claim.Resource] = claim.Access;
+        }
+
+        return normalized
+            .OrderBy(static pair => pair.Key)
+            .Select(static pair => new CommandResourceClaim(pair.Key, pair.Value))
+            .ToArray();
     }
 
     private Entry AcquireReference(CommandResourceKey key)
