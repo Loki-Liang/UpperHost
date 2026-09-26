@@ -1,8 +1,8 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class CommandResourceArbitrationTests
 {

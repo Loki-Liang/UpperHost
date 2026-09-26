@@ -1,17 +1,17 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Scheduling;
-using UpperHost.Hosting;
-using UpperHost.Starters;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class CommandDispatcherHostingTests
 {
     [Fact]
     public async Task Starter_registration_owns_dispatcher_with_host_lifecycle()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
         builder.Services.AddSingleton<ICommandable<TestCommand, string>, TestTarget>();
         builder.AddCommandDispatcher<TestCommand, string>(
             new BoundedCommandDispatcherOptions(Capacity: 8, PerPriorityCapacity: 8, MaxConcurrency: 2));
@@ -37,8 +37,8 @@ public sealed class CommandDispatcherHostingTests
         var services = new ServiceCollection();
         services.AddSingleton<ICommandable<TestCommand, string>, TestTarget>();
 
-        services.AddUpperHostCommandDispatcher<TestCommand, string>();
-        services.AddUpperHostCommandDispatcher<TestCommand, string>();
+        services.AddOpenDeviceStudioCommandDispatcher<TestCommand, string>();
+        services.AddOpenDeviceStudioCommandDispatcher<TestCommand, string>();
 
         await using var provider = services.BuildServiceProvider();
         var dispatchers = provider.GetServices<BoundedCommandDispatcher<TestCommand, string>>().ToArray();

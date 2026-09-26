@@ -1,10 +1,10 @@
 using System.Diagnostics.Metrics;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class CommandDispatcherReliabilityTests
 {
@@ -100,20 +100,20 @@ public sealed class CommandDispatcherReliabilityTests
         using var listener = new MeterListener();
         listener.InstrumentPublished = (instrument, meterListener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName &&
-                instrument.Name.StartsWith("upperhost.command.dispatcher.", StringComparison.Ordinal))
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName &&
+                instrument.Name.StartsWith("opendevicestudio.command.dispatcher.", StringComparison.Ordinal))
                 meterListener.EnableMeasurementEvents(instrument);
         };
         listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, state) =>
         {
-            if (instrument.Name == "upperhost.command.dispatcher.pending")
+            if (instrument.Name == "opendevicestudio.command.dispatcher.pending")
             {
                 if (measurement > 0)
                     Interlocked.Exchange(ref pendingIncrementSeen, 1);
                 if (measurement < 0)
                     Interlocked.Exchange(ref pendingDecrementSeen, 1);
             }
-            if (instrument.Name == "upperhost.command.dispatcher.admission_rejections")
+            if (instrument.Name == "opendevicestudio.command.dispatcher.admission_rejections")
                 Interlocked.Add(ref rejections, measurement);
 
             Assert.DoesNotContain(tags.ToArray(), tag =>
@@ -123,7 +123,7 @@ public sealed class CommandDispatcherReliabilityTests
         });
         listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
         {
-            if (instrument.Name == "upperhost.command.dispatcher.queue_wait")
+            if (instrument.Name == "opendevicestudio.command.dispatcher.queue_wait")
                 Interlocked.Increment(ref queueWaitMeasurements);
         });
         listener.Start();

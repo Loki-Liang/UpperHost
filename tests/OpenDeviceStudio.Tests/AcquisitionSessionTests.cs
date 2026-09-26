@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Time.Testing;
-using UpperHost.Acquisition;
+using OpenDeviceStudio.Acquisition;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class AcquisitionSessionTests
 {
@@ -749,8 +749,8 @@ public sealed class AcquisitionSessionTests
     public async Task Host_owns_one_session_manager_and_stops_live_sessions()
     {
         var services = new ServiceCollection();
-        services.AddUpperHostAcquisition();
-        services.AddUpperHostAcquisition();
+        services.AddOpenDeviceStudioAcquisition();
+        services.AddOpenDeviceStudioAcquisition();
 
         await using var provider = services.BuildServiceProvider();
         var managers = provider.GetServices<AcquisitionSessionManager>().ToArray();

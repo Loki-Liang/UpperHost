@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Diagnostics;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Diagnostics;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class AlarmTests
 {

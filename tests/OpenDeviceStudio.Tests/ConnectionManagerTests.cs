@@ -1,16 +1,16 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Connections;
-using UpperHost.Hosting;
-using UpperHost.Resilience;
-using UpperHost.Starters;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Connections;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Resilience;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ConnectionManagerTests
 {
@@ -129,8 +129,8 @@ public sealed class ConnectionManagerTests
     public async Task Starter_transport_lifecycle_is_owned_by_connection_manager()
     {
         var raw = new CountingTransport();
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHostDefaults();
-        builder.AddUpperHostTransport(_ => raw);
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudioDefaults();
+        builder.AddOpenDeviceStudioTransport(_ => raw);
 
         await using var app = builder.Build();
         var transport = app.Services.GetRequiredService<ITransport>();
@@ -168,23 +168,23 @@ public sealed class ConnectionManagerTests
         using var meterListener = new MeterListener();
         meterListener.InstrumentPublished = (instrument, listener) =>
         {
-            if (instrument.Meter.Name == UpperHostTelemetry.InstrumentationName)
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName)
                 listener.EnableMeasurementEvents(instrument);
         };
         meterListener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
         {
             var captured = tags.ToArray();
             if (!captured.Any(tag =>
-                    tag.Key == "upperhost.transport" &&
+                    tag.Key == "opendevicestudio.transport" &&
                     Equals(tag.Value, endpoint.Scheme)))
             {
                 return;
             }
 
-            if (instrument.Name == "upperhost.connection.active_leases")
+            if (instrument.Name == "opendevicestudio.connection.active_leases")
                 Interlocked.Add(ref activeLeases, measurement);
 
-            if (instrument.Name == "upperhost.connection.operations")
+            if (instrument.Name == "opendevicestudio.connection.operations")
             {
                 lock (metricTags)
                     metricTags.AddRange(captured);
@@ -194,13 +194,13 @@ public sealed class ConnectionManagerTests
 
         using var activityListener = new ActivityListener
         {
-            ShouldListenTo = source => source.Name == UpperHostTelemetry.InstrumentationName,
+            ShouldListenTo = source => source.Name == OpenDeviceStudioTelemetry.InstrumentationName,
             Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
                 ActivitySamplingResult.AllData,
             ActivityStopped = activity =>
             {
-                if (activity.OperationName == "upperhost.connection.open" &&
-                    Equals(activity.GetTagItem("upperhost.connection.id"), connectionId))
+                if (activity.OperationName == "opendevicestudio.connection.open" &&
+                    Equals(activity.GetTagItem("opendevicestudio.connection.id"), connectionId))
                 {
                     acquireActivity = activity;
                 }
@@ -216,12 +216,12 @@ public sealed class ConnectionManagerTests
 
         Assert.Equal(0, Volatile.Read(ref activeLeases));
         Assert.NotNull(acquireActivity);
-        Assert.Equal(connectionId, acquireActivity!.GetTagItem("upperhost.connection.id"));
+        Assert.Equal(connectionId, acquireActivity!.GetTagItem("opendevicestudio.connection.id"));
 
         lock (metricTags)
         {
             Assert.DoesNotContain(metricTags, tag =>
-                tag.Key is "upperhost.connection.id" or "upperhost.session.id" or "upperhost.command.id");
+                tag.Key is "opendevicestudio.connection.id" or "opendevicestudio.session.id" or "opendevicestudio.command.id");
         }
     }
 

@@ -1,28 +1,28 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using UpperHost.Hosting;
-using UpperHost.Observability;
-using UpperHost.Starters;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Observability;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ConfigurationOptionsTests
 {
     [Fact]
     public async Task Configured_transport_binds_typed_options()
     {
-        var builder = UpperHostApplication.CreateBuilder();
-        builder.Configuration["UpperHost:Transport:Type"] = "Tcp";
-        builder.Configuration["UpperHost:Transport:Tcp:Host"] = "device.local";
-        builder.Configuration["UpperHost:Transport:Tcp:Port"] = "9100";
-        builder.Configuration["UpperHost:Transport:Tcp:ReadBufferSize"] = "32768";
+        var builder = OpenDeviceStudioApplication.CreateBuilder();
+        builder.Configuration["OpenDeviceStudio:Transport:Type"] = "Tcp";
+        builder.Configuration["OpenDeviceStudio:Transport:Tcp:Host"] = "device.local";
+        builder.Configuration["OpenDeviceStudio:Transport:Tcp:Port"] = "9100";
+        builder.Configuration["OpenDeviceStudio:Transport:Tcp:ReadBufferSize"] = "32768";
 
-        builder.AddUpperHostApplication();
+        builder.AddOpenDeviceStudioApplication();
         await using var app = builder.Build();
 
         var options = app.Services
-            .GetRequiredService<IOptions<UpperHostTransportOptions>>()
+            .GetRequiredService<IOptions<OpenDeviceStudioTransportOptions>>()
             .Value;
 
         Assert.Equal("Tcp", options.Type);
@@ -34,42 +34,42 @@ public sealed class ConfigurationOptionsTests
     [Fact]
     public void Missing_serial_port_fails_with_canonical_path_before_runtime_io()
     {
-        var builder = UpperHostApplication.CreateBuilder();
-        builder.Configuration["UpperHost:Transport:Type"] = "Serial";
+        var builder = OpenDeviceStudioApplication.CreateBuilder();
+        builder.Configuration["OpenDeviceStudio:Transport:Type"] = "Serial";
 
         var error = Assert.Throws<InvalidOperationException>(
-            () => builder.AddUpperHostApplication());
+            () => builder.AddOpenDeviceStudioApplication());
 
-        Assert.Contains("UpperHost:Transport:Serial:PortName", error.Message);
+        Assert.Contains("OpenDeviceStudio:Transport:Serial:PortName", error.Message);
     }
 
     [Fact]
     public void Cross_field_resilience_validation_fails_with_canonical_paths()
     {
-        var builder = UpperHostApplication.CreateBuilder();
-        builder.Configuration["UpperHost:Transport:Resilience:InitialDelayMs"] = "5000";
-        builder.Configuration["UpperHost:Transport:Resilience:MaximumDelayMs"] = "1000";
+        var builder = OpenDeviceStudioApplication.CreateBuilder();
+        builder.Configuration["OpenDeviceStudio:Transport:Resilience:InitialDelayMs"] = "5000";
+        builder.Configuration["OpenDeviceStudio:Transport:Resilience:MaximumDelayMs"] = "1000";
 
         var error = Assert.Throws<InvalidOperationException>(
-            () => builder.AddUpperHostApplication());
+            () => builder.AddOpenDeviceStudioApplication());
 
         Assert.Contains(
-            "UpperHost:Transport:Resilience:MaximumDelayMs",
+            "OpenDeviceStudio:Transport:Resilience:MaximumDelayMs",
             error.Message);
         Assert.Contains(
-            "UpperHost:Transport:Resilience:InitialDelayMs",
+            "OpenDeviceStudio:Transport:Resilience:InitialDelayMs",
             error.Message);
     }
 
     [Fact]
     public async Task Transport_defaults_are_deterministic()
     {
-        var builder = UpperHostApplication.CreateBuilder();
-        builder.AddUpperHostApplication();
+        var builder = OpenDeviceStudioApplication.CreateBuilder();
+        builder.AddOpenDeviceStudioApplication();
         await using var app = builder.Build();
 
         var options = app.Services
-            .GetRequiredService<IOptions<UpperHostTransportOptions>>()
+            .GetRequiredService<IOptions<OpenDeviceStudioTransportOptions>>()
             .Value;
 
         Assert.Equal("Simulator", options.Type);
@@ -86,14 +86,14 @@ public sealed class ConfigurationOptionsTests
     [Fact]
     public void Configured_observability_validation_reports_canonical_uri_path()
     {
-        var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-        builder.Configuration["UpperHost:Observability:Otlp:Enabled"] = "true";
-        builder.Configuration["UpperHost:Observability:Otlp:Endpoint"] = "relative-endpoint";
+        var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+        builder.Configuration["OpenDeviceStudio:Observability:Otlp:Enabled"] = "true";
+        builder.Configuration["OpenDeviceStudio:Observability:Otlp:Endpoint"] = "relative-endpoint";
 
         var error = Assert.Throws<InvalidOperationException>(
-            () => builder.AddConfiguredUpperHostObservability());
+            () => builder.AddConfiguredOpenDeviceStudioObservability());
 
-        Assert.Contains("UpperHost:Observability:Otlp:Endpoint", error.Message);
+        Assert.Contains("OpenDeviceStudio:Observability:Otlp:Endpoint", error.Message);
     }
 
     [Fact]
@@ -101,23 +101,23 @@ public sealed class ConfigurationOptionsTests
     {
         var directory = Path.Combine(
             Path.GetTempPath(),
-            "upperhost-configuration-secret-tests",
+            "opendevicestudio-configuration-secret-tests",
             Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
 
         try
         {
-            var builder = UpperHostApplication.CreateBuilder().AddUpperHost();
-            var options = new UpperHostObservabilityOptions
+            var builder = OpenDeviceStudioApplication.CreateBuilder().AddOpenDeviceStudio();
+            var options = new OpenDeviceStudioObservabilityOptions
             {
-                ServiceName = "UpperHost.Tests",
+                ServiceName = "OpenDeviceStudio.Tests",
                 ServiceVersion = "1.0.0"
             };
             options.FileLogging.Enabled = true;
-            options.FileLogging.Path = Path.Combine(directory, "upperhost-.json");
+            options.FileLogging.Path = Path.Combine(directory, "opendevicestudio-.json");
             options.FileLogging.AsyncBufferSize = 128;
 
-            builder.AddUpperHostObservability(options);
+            builder.AddOpenDeviceStudioObservability(options);
 
             var app = builder.Build();
             await app.StartAsync();
@@ -135,7 +135,7 @@ public sealed class ConfigurationOptionsTests
 
             var contents = string.Join(
                 Environment.NewLine,
-                Directory.GetFiles(directory, "upperhost-*.json").Select(File.ReadAllText));
+                Directory.GetFiles(directory, "opendevicestudio-*.json").Select(File.ReadAllText));
 
             Assert.Contains("[REDACTED]", contents, StringComparison.Ordinal);
             Assert.DoesNotContain("password-value", contents, StringComparison.Ordinal);

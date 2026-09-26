@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Transport.Ble;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Transport.Ble;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class BleTransportTests
 {
