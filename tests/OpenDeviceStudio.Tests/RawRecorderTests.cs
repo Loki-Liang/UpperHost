@@ -139,7 +139,6 @@ public sealed class RawRecorderTests
         Assert.Equal(RawRecorderAcceptStatus.Overloaded, overloaded.Status);
         Assert.Equal(RawRecorderState.Faulted, recorder.Snapshot.State);
         Assert.Equal(2, recorder.Snapshot.AcceptedBlocks);
-        Assert.Equal(0, recorder.Snapshot.DroppedBlocksOrZero());
 
         streamFactory.ReleaseWrites.TrySetResult();
 
@@ -629,7 +628,3 @@ public sealed class RawRecorderTests
     }
 }
 
-internal static class RawRecorderSnapshotTestExtensions
-{
-    public static long DroppedBlocksOrZero(this RawRecorderSnapshot snapshot) => 0;
-}
