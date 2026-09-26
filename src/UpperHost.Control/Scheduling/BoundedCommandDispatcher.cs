@@ -262,11 +262,14 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                     break;
 
                 await _available.WaitAsync(cancellationToken).ConfigureAwait(false);
+                await _executionSlots.WaitAsync(cancellationToken).ConfigureAwait(false);
 
                 if (!TryDequeue(out var envelope))
+                {
+                    _executionSlots.Release();
                     continue;
+                }
 
-                await _executionSlots.WaitAsync(cancellationToken).ConfigureAwait(false);
                 var task = ExecuteAsync(envelope, cancellationToken);
                 lock (_activeGate)
                     _active.Add(task);
