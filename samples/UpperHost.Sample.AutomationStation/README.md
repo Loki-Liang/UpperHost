@@ -2,36 +2,39 @@
 
 English | [简体中文](README.zh-CN.md)
 
-This console sample demonstrates the **automation** path independently from protocol/transport details already covered by the Device Control sample.
+This console sample exercises the production Automation route rather than a demo-only runner.
 
-## What it demonstrates
-
-- Three registered devices: safety door, X axis and inspection camera.
-- `CommandRuntime` for axis commands.
-- `IInterlock<AxisCommand>` blocking motion when the safety door is open.
-- `StateMachine<StationState,StationTrigger>` as station lifecycle truth.
-- `WorkflowRunner` for `home -> move -> capture -> judge` sequencing.
-- A successful cycle and a deterministic rejected cycle.
+## Authoritative path
 
 ```text
-Station state machine
-        |
-     Workflow
-        |
-+-------+--------+
-| Axis runtime   | Camera
-|   -> Interlock |
-+-------+--------+
-        |
-      Devices
+AutomationExecutionCoordinator
+  -> compiled plan + frozen recipe snapshot
+  -> shared ICommandResourceArbiter
+  -> AutomationStepContext.DispatchAsync
+  -> BoundedCommandDispatcher
+  -> CommandRuntime / DoorClosedInterlock
+  -> Axis / Camera devices
 ```
 
-Run on any platform with .NET 10:
+The sample includes:
+
+- one Host-owned station/execution authority;
+- immutable recipe values and recipe hash;
+- exclusive axis/camera resource claims shared with manual command dispatch;
+- `home -> SafeRecovery checkpoint -> move -> SafePause checkpoint`;
+- bounded parallel inspection branches and deterministic join;
+- typed branch output merged before judging;
+- #60 command/interlock/UnknownOutcome mapping through `AutomationStepResult.FromCommand`;
+- graceful Host shutdown of the journal and command dispatchers.
+
+Run:
 
 ```powershell
 dotnet run --project samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj
 ```
 
-The first cycle succeeds with the door closed. The sample then resets, opens the door and runs again; the first axis command is rejected before it reaches the axis device and the station ends in `Faulted`.
+Cycle 1 runs with the safety door closed and should complete. The station is reset, the door is opened, and Cycle 2 is rejected by the existing #60 software interlock before the axis device performs motion.
 
-This interlock is a software application constraint and does not replace certified hardware safety mechanisms.
+Pause/Stop/Abort, UnknownOutcome recovery, shared Manual/Automation contention and journal ordering are covered by `AutomationRuntimeTests` so those failure paths do not depend on timing a console demo.
+
+The software interlock does not replace a hardware emergency stop, safety relay or safety PLC.
