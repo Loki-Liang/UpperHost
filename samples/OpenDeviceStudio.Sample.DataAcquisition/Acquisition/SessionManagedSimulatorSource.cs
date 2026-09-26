@@ -1,6 +1,6 @@
-using UpperHost.Acquisition;
+using OpenDeviceStudio.Acquisition;
 
-namespace UpperHost.Sample.DataAcquisition.Acquisition;
+namespace OpenDeviceStudio.Sample.DataAcquisition.Acquisition;
 
 public sealed class SessionManagedSimulatorSource : IAcquisitionSource
 {

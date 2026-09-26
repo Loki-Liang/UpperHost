@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Data;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Data;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Sample.DataAcquisition.Acquisition;
+namespace OpenDeviceStudio.Sample.DataAcquisition.Acquisition;
 
 public sealed class SimulatorAcquisitionDevice : IDevice, IConnectable, IDataSource<SampleFrame>
 {
@@ -24,7 +24,7 @@ public sealed class SimulatorAcquisitionDevice : IDevice, IConnectable, IDataSou
     public DeviceDescriptor Descriptor { get; } = new(
         "sim-daq-1",
         "Simulated Multi-Channel DAQ",
-        "UpperHost",
+        "OpenDeviceStudio",
         "DAQ-SIM",
         "SIM-DAQ-0001");
 

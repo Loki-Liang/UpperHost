@@ -33,7 +33,7 @@ The current FanOutHub + JSON Lines path is still the **legacy sample data path**
 ## Run
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.DataAcquisition/UpperHost.Sample.DataAcquisition.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.DataAcquisition/OpenDeviceStudio.Sample.DataAcquisition.csproj
 ```
 
 The simulator produces 500 four-channel frames. The console reports the Session terminal state, produced frames, consumer counts and the storage artifact path.

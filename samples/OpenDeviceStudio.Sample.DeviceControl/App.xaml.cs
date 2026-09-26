@@ -1,31 +1,31 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Abstractions.Protocols;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Control.Parameters;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
-using UpperHost.Hosting;
-using UpperHost.Protocols;
-using UpperHost.Starters;
-using UpperHost.Sample.DeviceControl.Device;
-using UpperHost.Sample.DeviceControl.Domain;
-using UpperHost.Sample.DeviceControl.Protocol;
-using UpperHost.Sample.DeviceControl.Simulator;
-using UpperHost.Transport.Simulator;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Protocols;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Control.Parameters;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Protocols;
+using OpenDeviceStudio.Starters;
+using OpenDeviceStudio.Sample.DeviceControl.Device;
+using OpenDeviceStudio.Sample.DeviceControl.Domain;
+using OpenDeviceStudio.Sample.DeviceControl.Protocol;
+using OpenDeviceStudio.Sample.DeviceControl.Simulator;
+using OpenDeviceStudio.Transport.Simulator;
 
-namespace UpperHost.Sample.DeviceControl;
+namespace OpenDeviceStudio.Sample.DeviceControl;
 
 public partial class App : Application
 {
-    private UpperHostApplication? _host;
+    private OpenDeviceStudioApplication? _host;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHost();
+        var builder = OpenDeviceStudioApplication.CreateBuilder(e.Args).AddOpenDeviceStudio();
         builder.AddDevicePackage(
             TemperatureControllerPackage.Descriptor,
             new TemperatureControllerPackageOptions());

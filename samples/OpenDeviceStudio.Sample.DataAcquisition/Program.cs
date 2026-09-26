@@ -1,6 +1,6 @@
-using UpperHost.Acquisition;
-using UpperHost.Sample.DataAcquisition.Acquisition;
-using UpperHost.Sample.DataAcquisition.Consumers;
+using OpenDeviceStudio.Acquisition;
+using OpenDeviceStudio.Sample.DataAcquisition.Acquisition;
+using OpenDeviceStudio.Sample.DataAcquisition.Consumers;
 
 var device = new SimulatorAcquisitionDevice(
     channelCount: 4,
@@ -10,7 +10,7 @@ var device = new SimulatorAcquisitionDevice(
 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
 var storagePath = Path.Combine(
     Path.GetTempPath(),
-    "UpperHost",
+    "OpenDeviceStudio",
     "DataAcquisitionSample",
     $"samples-{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}.jsonl");
 

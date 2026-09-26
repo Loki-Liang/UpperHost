@@ -1,4 +1,4 @@
-namespace UpperHost.Sample.DataAcquisition.Acquisition;
+namespace OpenDeviceStudio.Sample.DataAcquisition.Acquisition;
 
 public sealed record SampleFrame(
     long Sequence,

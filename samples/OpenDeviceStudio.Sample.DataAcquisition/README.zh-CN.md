@@ -33,7 +33,7 @@ SampleDataflow <- SessionManagedSimulatorSource
 ## 运行
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.DataAcquisition/UpperHost.Sample.DataAcquisition.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.DataAcquisition/OpenDeviceStudio.Sample.DataAcquisition.csproj
 ```
 
 Simulator 生成 500 帧、4 通道数据。程序最终输出 Session 终态、生产帧数、Consumer 统计和存储文件路径。

@@ -1,6 +1,6 @@
-using UpperHost.Sample.DataAcquisition.Acquisition;
+using OpenDeviceStudio.Sample.DataAcquisition.Acquisition;
 
-namespace UpperHost.Sample.DataAcquisition.Consumers;
+namespace OpenDeviceStudio.Sample.DataAcquisition.Consumers;
 
 public sealed record DisplayStatistics(int ReceivedFrames, long SequenceGaps);
 
