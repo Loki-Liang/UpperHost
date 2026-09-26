@@ -223,6 +223,10 @@ public sealed class TypedParameterRuntime<T>
         var codec = contract.Codec ?? ParameterCodecs.Strict<T>();
         var value = codec.Decode(descriptor.Value);
 
+        var currentEpoch = _epochSource.GetCurrentEpoch(_deviceId);
+        if (currentEpoch != epoch)
+            throw new DeviceEpochChangedException(_deviceId, epoch, currentEpoch);
+
         var snapshot = _snapshots.Apply(new DeviceObservation<T>(
             _deviceId,
             Partition(contract.Key),

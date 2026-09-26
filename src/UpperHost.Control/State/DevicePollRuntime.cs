@@ -256,6 +256,9 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
             var sample = await group.Definition.Operation(context, timeoutCts.Token)
                 .ConfigureAwait(false);
 
+            if (_epochSource.GetCurrentEpoch(group.Definition.DeviceId) != epoch)
+                return;
+
             _store.Apply(new DeviceObservation<TState>(
                 group.Definition.DeviceId,
                 group.Definition.Partition,

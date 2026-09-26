@@ -165,6 +165,32 @@ public sealed class TypedParameterRuntimeTests
     }
 
     [Fact]
+    public async Task Direct_read_rejects_result_if_epoch_changes_before_commit()
+    {
+        var provider = new EpochRaceProvider("speed", 1200);
+        var services = CreateArbiterServices();
+        await using var serviceProvider = services.BuildServiceProvider();
+        var arbiter = serviceProvider.GetRequiredService<ICommandResourceArbiter>();
+        await using var snapshots = new DeviceSnapshotStore<int>();
+        var epoch = new MutableEpochSource { CurrentEpoch = 1 };
+        var runtime = new TypedParameterRuntime<int>(
+            "device-1", provider, arbiter, snapshots, epoch);
+
+        var read = runtime.ReadAsync(new ParameterContract<int>("speed"));
+        await provider.ReadStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        epoch.CurrentEpoch = 2;
+        provider.ReleaseRead.TrySetResult();
+
+        var exception = await Assert.ThrowsAsync<DeviceEpochChangedException>(() => read);
+        Assert.Equal(1, exception.StartedEpoch);
+        Assert.Equal(2, exception.CurrentEpoch);
+        Assert.Null(snapshots.Get(
+            "device-1",
+            new DeviceStatePartitionKey("parameter:speed")));
+    }
+
+    [Fact]
     public void Double_comparers_handle_nan_infinity_and_relative_values()
     {
         Assert.True(ParameterComparers.Absolute(0.01).AreEquivalent(double.NaN, double.NaN));
@@ -195,6 +221,44 @@ public sealed class TypedParameterRuntimeTests
     private sealed class FixedEpochSource(long epoch) : IDeviceConnectionEpochSource
     {
         public long GetCurrentEpoch(string deviceId) => epoch;
+    }
+
+    private sealed class MutableEpochSource : IDeviceConnectionEpochSource
+    {
+        public long CurrentEpoch { get; set; }
+        public long GetCurrentEpoch(string deviceId) => CurrentEpoch;
+    }
+
+    private sealed class EpochRaceProvider(string key, object? value) : IDirectParameterProvider
+    {
+        public TaskCompletionSource ReadStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource ReleaseRead { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<IReadOnlyList<DeviceParameterDescriptor>> GetParametersAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<DeviceParameterDescriptor>>(
+            [
+                new DeviceParameterDescriptor(
+                    key, key, DeviceParameterKind.Integer, value)
+            ]);
+
+        public async Task<DeviceParameterDescriptor> GetParameterAsync(
+            string requestedKey,
+            CancellationToken cancellationToken = default)
+        {
+            ReadStarted.TrySetResult();
+            await ReleaseRead.Task.WaitAsync(cancellationToken);
+            return new DeviceParameterDescriptor(
+                key, key, DeviceParameterKind.Integer, value);
+        }
+
+        public Task SetParameterAsync(
+            string requestedKey,
+            object? newValue,
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 
     private sealed class DirectProvider(string key, object? value) : IDirectParameterProvider
