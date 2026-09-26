@@ -12,6 +12,13 @@ public sealed record CommandResourceClaim(
     CommandResourceKey Resource,
     CommandResourceAccess Access = CommandResourceAccess.Exclusive);
 
+public interface ICommandResourceArbiter
+{
+    ValueTask<IAsyncDisposable> AcquireAsync(
+        IReadOnlyList<CommandResourceClaim> claims,
+        CancellationToken cancellationToken = default);
+}
+
 internal sealed class CommandResourcePendingLimiter(int capacity)
 {
     private readonly ConcurrentDictionary<CommandResourceKey, Entry> _entries = new();
@@ -161,6 +168,7 @@ internal sealed class CommandResourcePendingLimiter(int capacity)
 }
 
 internal sealed class CommandResourceCoordinator(int maxSharedReadersPerResource)
+    : ICommandResourceArbiter
 {
     private readonly ConcurrentDictionary<CommandResourceKey, Entry> _entries = new();
 
