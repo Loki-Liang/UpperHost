@@ -13,5 +13,6 @@ python scripts/validate_agent_governance.py
 python scripts/validate_architecture.py
 python scripts/validate_source_scaffold_contract.py
 python scripts/validate_acquisition_verification.py
+python scripts/validate_acquisition_release_readiness.py
 dotnet build OpenDeviceStudio.slnx -c Release -p:EnableWindowsTargeting=true
 dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build

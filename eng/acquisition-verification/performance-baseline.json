@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "status": "Uninitialized",
+  "environmentId": "windows-x64-acquisition-stable-v1",
+  "sourceSha": null,
+  "updatedAtUtc": null,
+  "policy": {
+    "maxMeanRegressionPercent": 10,
+    "maxAllocationRegressionPercent": 10,
+    "minimumMeasuredIterations": 8,
+    "requiresExplicitReviewForBaselineChange": true
+  },
+  "benchmarks": {}
+}

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "components": {
+    "rawRecorder": {
+      "status": "Production",
+      "issue": 58,
+      "evidence": [
+        "tests/OpenDeviceStudio.Tests/RawRecorderTests.cs",
+        "tests/OpenDeviceStudio.Tests/AcquisitionVerificationTests.cs"
+      ],
+      "note": "FileSystem Raw Recorder is merged and exercised with integrity, recovery, overload, and short-soak evidence."
+    },
+    "router": {
+      "status": "Production",
+      "issue": 56,
+      "evidence": [
+        "tests/OpenDeviceStudio.Tests/StreamRouterTests.cs",
+        "tests/OpenDeviceStudio.Tests/AcquisitionVerificationTests.cs"
+      ],
+      "note": "Production StreamRouter is merged with Required/Optional QoS and bounded overload evidence."
+    },
+    "processing": {
+      "status": "Blocked",
+      "issue": 59,
+      "evidence": [],
+      "note": "The #62 harness may use a representative identity consumer, but it must not be reported as production Signal Processing evidence until #59 is merged."
+    },
+    "presentation": {
+      "status": "Blocked",
+      "issue": 24,
+      "evidence": [],
+      "note": "Router-level slow optional consumer evidence exists; production Presentation/WPF evidence remains blocked on #24."
+    },
+    "byteParser": {
+      "status": "Blocked",
+      "issue": 30,
+      "evidence": [],
+      "note": "Parser microbenchmark/fault evidence cannot be claimed until the reference byte-stream parser is merged."
+    }
+  },
+  "requiredForIssueClosure": [
+    "rawRecorder",
+    "router",
+    "processing",
+    "presentation",
+    "byteParser"
+  ]
+}
