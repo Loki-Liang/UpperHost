@@ -14,5 +14,6 @@
   "block_deletions": true,
   "require_conversation_resolution": true,
   "require_exact_head_validation": true,
-  "admin_application_required": true
+  "admin_application_required": true,
+  "allowed_bypass_actors": []
 }

@@ -64,3 +64,31 @@
 - 文档中的 check 名称与当前 workflow job ID 一致。
 
 后续 #42 Source-Scaffold E2E、#41 Public API Compatibility 等变成正式 Release Gate 后，必须同步加入 policy 与 GitHub ruleset。
+
+## Active ruleset 漂移校验
+
+仓库侧合同校验与 GitHub 平台侧真实执行是两个独立层次。仓库新增
+scripts/validate_main_ruleset.py，用于把 GitHub active ruleset 的 JSON
+快照与 .github/governance/main-branch-policy.json 做精确比对。
+
+该脚本只读，不要求仓库管理写权限。使用有权限的管理员上下文执行：
+
+```bash
+gh api repos/Loki-Liang/UpperHost/rulesets/<ruleset-id> \
+  | python scripts/validate_main_ruleset.py --ruleset -
+```
+
+当前合同明确 allowed_bypass_actors = []，即不允许 bypass actor。未来如确有
+紧急管理 bypass，必须先通过受 Review 的仓库变更，把准确的 actor type、actor id
+与 bypass mode 写入 policy，再修改 GitHub ruleset，禁止网页侧单独漂移。
+
+CI 会运行 ruleset validator 的 deliberate-break 单测，确保以下错误一定能被发现：
+
+- required check 缺失；
+- strict freshness 被关闭；
+- review conversation resolution 被关闭；
+- 出现未批准 bypass actor；
+- ruleset 没有命中受保护的 main/default branch。
+
+普通 Pull Request CI token 必须继续没有修改 ruleset 的权限。修改 GitHub
+仓库设置属于管理员动作；校验动作保持只读。
