@@ -98,34 +98,54 @@ public sealed record SignalDescriptor(
         $"{SampleFormat}|{ChannelCount}|{ChannelLayoutId}|{SampleRateHz:R}|{Units}|{ClockDomain}";
 }
 
-public sealed record SignalInputRange(
-    long SequenceStart,
-    long SequenceEndExclusive,
-    DateTimeOffset TimeStart,
-    DateTimeOffset TimeEnd)
+public sealed record SignalInputRange
 {
-    public SignalInputRange
+    public SignalInputRange(
+        long sequenceStart,
+        long sequenceEndExclusive,
+        DateTimeOffset timeStart,
+        DateTimeOffset timeEnd)
     {
-        if (SequenceEndExclusive <= SequenceStart)
-            throw new ArgumentOutOfRangeException(nameof(SequenceEndExclusive));
-        if (TimeEnd < TimeStart)
-            throw new ArgumentOutOfRangeException(nameof(TimeEnd));
+        if (sequenceEndExclusive <= sequenceStart)
+            throw new ArgumentOutOfRangeException(nameof(sequenceEndExclusive));
+        if (timeEnd < timeStart)
+            throw new ArgumentOutOfRangeException(nameof(timeEnd));
+
+        SequenceStart = sequenceStart;
+        SequenceEndExclusive = sequenceEndExclusive;
+        TimeStart = timeStart;
+        TimeEnd = timeEnd;
     }
+
+    public long SequenceStart { get; }
+    public long SequenceEndExclusive { get; }
+    public DateTimeOffset TimeStart { get; }
+    public DateTimeOffset TimeEnd { get; }
 }
 
-public sealed record SignalWindowContract(
-    int LengthSamples,
-    int StrideSamples,
-    SignalTimestampAnchor TimestampAnchor,
-    SignalTailPolicy TailPolicy)
+public sealed record SignalWindowContract
 {
-    public SignalWindowContract
+    public SignalWindowContract(
+        int lengthSamples,
+        int strideSamples,
+        SignalTimestampAnchor timestampAnchor,
+        SignalTailPolicy tailPolicy)
     {
-        if (LengthSamples <= 0)
-            throw new ArgumentOutOfRangeException(nameof(LengthSamples));
-        if (StrideSamples <= 0)
-            throw new ArgumentOutOfRangeException(nameof(StrideSamples));
+        if (lengthSamples <= 0)
+            throw new ArgumentOutOfRangeException(nameof(lengthSamples));
+        if (strideSamples <= 0)
+            throw new ArgumentOutOfRangeException(nameof(strideSamples));
+
+        LengthSamples = lengthSamples;
+        StrideSamples = strideSamples;
+        TimestampAnchor = timestampAnchor;
+        TailPolicy = tailPolicy;
     }
+
+    public int LengthSamples { get; }
+    public int StrideSamples { get; }
+    public SignalTimestampAnchor TimestampAnchor { get; }
+    public SignalTailPolicy TailPolicy { get; }
 }
 
 public sealed record SignalStageLineage(
@@ -447,17 +467,27 @@ public interface ISignalStageFactory<T>
     ISignalStage<T> Create(SignalStageInstanceContext context);
 }
 
-public sealed record SignalEdgeOptions(
-    int Capacity = 64,
-    StreamBranchDelivery Delivery = StreamBranchDelivery.Required,
-    StreamOverflowPolicy Overflow = StreamOverflowPolicy.Wait,
-    StreamBranchFailurePolicy FailurePolicy = StreamBranchFailurePolicy.Propagate)
+public sealed record SignalEdgeOptions
 {
-    public SignalEdgeOptions
+    public SignalEdgeOptions(
+        int capacity = 64,
+        StreamBranchDelivery delivery = StreamBranchDelivery.Required,
+        StreamOverflowPolicy overflow = StreamOverflowPolicy.Wait,
+        StreamBranchFailurePolicy failurePolicy = StreamBranchFailurePolicy.Propagate)
     {
-        if (Capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(Capacity));
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+
+        Capacity = capacity;
+        Delivery = delivery;
+        Overflow = overflow;
+        FailurePolicy = failurePolicy;
     }
+
+    public int Capacity { get; }
+    public StreamBranchDelivery Delivery { get; }
+    public StreamOverflowPolicy Overflow { get; }
+    public StreamBranchFailurePolicy FailurePolicy { get; }
 
     internal StreamBranchOptions ToRouterOptions(string stageId) =>
         new(
