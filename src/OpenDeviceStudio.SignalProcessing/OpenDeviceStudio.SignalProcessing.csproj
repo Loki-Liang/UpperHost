@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Validated block-oriented signal processing graph and runtime for OpenDeviceStudio acquisition workloads.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
+  </ItemGroup>
+</Project>

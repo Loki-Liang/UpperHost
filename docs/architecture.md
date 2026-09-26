@@ -152,17 +152,24 @@ The default `OpenDeviceStudio.Storage.FileSystem` adapter uses a bounded no-drop
 
 `SupportsBackpressure` sources may await bounded recorder capacity. `CannotBackpressure` sources are forced through the non-blocking `TryAccept` path; saturation faults the Required Raw path rather than silently dropping data. File-system details remain behind `IRawRecorder`, so products can replace the default adapter with EDF/EDF+, Parquet, HDF5, vendor-native or database storage without changing the Acquisition Session authority.
 
-## Streaming runtime
+## Streaming and Signal Processing runtime
 
 Streaming workloads follow a separate first-class path:
 
 ```text
 Transport receive
   -> decoder
-  -> typed stream
-  -> dataflow
-  -> storage / algorithm / presentation
+  -> Canonical Raw
+  -> Required Raw recorder Accepted
+  -> product Raw-to-Signal projection
+  -> OpenDeviceStudio.SignalProcessing
+       -> validated/frozen Stage Graph
+       -> StreamRouter bounded edges
+       -> Required processing / algorithms
+       -> Optional algorithms / presentation
 ```
+
+SignalProcessing owns processing topology, per-partition stage state, continuity/gap policy, derived lineage and online/replay reuse. It does not parse transport bytes, own Raw persistence, or depend on WPF/FileSystem. Third-party DSP libraries belong in adapters such as OpenDeviceStudio.SignalProcessing.NWaves, never in the Core public contract.
 
 Do not force low-rate request/response devices through a high-rate streaming pipeline.
 
@@ -176,7 +183,7 @@ Protocol code converts domain commands to bytes and incoming bytes to domain mes
 
 ## Backpressure
 
-`FanOutHub<T>` gives each consumer its own bounded channel. A UI consumer can use drop-oldest semantics while a lossless storage path can use wait semantics in a separate hub/pipeline. Backpressure policy is therefore explicit rather than accidental.
+`StreamRouter<T>` is the production streaming fan-out contract. Every branch has independent bounded Capacity, Required/Optional delivery, overflow and failure policy. Required paths cannot use lossy overflow; Optional paths cannot use Wait. SignalProcessing graph edges reuse this same runtime so a slow optional algorithm or presentation branch cannot silently stall Required Raw/processing paths. `FanOutHub<T>` remains only as a compatibility primitive, not the production reference path.
 
 ## State machines and workflows
 
