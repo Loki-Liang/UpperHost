@@ -1190,6 +1190,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             _abort.Token,
             _timeProvider,
             sourceId is null ? null : _ingressBySource[sourceId],
+            sourceId is null ? null : _sources[sourceId].Source.RawFlowControl,
             sourceId is null ? null : _defaultCanonicalRawSink,
             (category, exception, message) =>
                 ReportFault(componentId, sourceId, category, exception, message));
