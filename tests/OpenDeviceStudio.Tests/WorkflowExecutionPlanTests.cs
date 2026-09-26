@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using OpenDeviceStudio.Control.Scheduling;
 using OpenDeviceStudio.Abstractions.Workflows;
 using OpenDeviceStudio.Workflows;
 
@@ -151,11 +153,11 @@ public sealed class WorkflowExecutionPlanTests
             "1",
             Action("first"));
 
-        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        var services = new ServiceCollection();
         services.AddOpenDeviceStudioControlResourceArbiter();
         using var provider = services.BuildServiceProvider();
-        using var coordinator = new WorkflowExecutionCoordinator(
-            provider.GetRequiredService<OpenDeviceStudio.Control.Scheduling.ICommandResourceArbiter>());
+        var coordinator = new WorkflowExecutionCoordinator(
+            provider.GetRequiredService<ICommandResourceArbiter>());
 
         Assert.Throws<InvalidOperationException>(
             () => coordinator.Start(
