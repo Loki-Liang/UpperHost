@@ -434,10 +434,36 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
-    public async Task Multi_source_isolation_marks_dependency_boundary_without_stopping_healthy_source()
+    public async Task Multi_source_isolation_closes_only_failed_source_ingress_and_keeps_healthy_source_live()
     {
-        var sourceA = new RecordingSource("source-a");
-        var sourceB = new RecordingSource("source-b", connectionEpoch: 7);
+        var callsA = new List<string>();
+        var callsB = new List<string>();
+        var rawA = new RecordingRawSink(callsA);
+        var rawB = new RecordingRawSink(callsB);
+        var processingA = new RecordingProcessingSink(callsA);
+        var processingB = new RecordingProcessingSink(callsB);
+        RawFirstAcquisitionIngress<int>? ingressA = null;
+        RawFirstAcquisitionIngress<int>? ingressB = null;
+
+        RecordingSource? sourceA = null;
+        RecordingSource? sourceB = null;
+        sourceA = new RecordingSource("source-a")
+        {
+            StartHook = _ =>
+            {
+                ingressA = sourceA!.Context!.CreateRawFirstIngress(rawA, processingA);
+                return ValueTask.CompletedTask;
+            }
+        };
+        sourceB = new RecordingSource("source-b", connectionEpoch: 7)
+        {
+            StartHook = _ =>
+            {
+                ingressB = sourceB!.Context!.CreateRawFirstIngress(rawB, processingB);
+                return ValueTask.CompletedTask;
+            }
+        };
+
         var observer = new RecordingIsolationObserver();
         var options = new AcquisitionSessionOptions(
             MultiSourceFailurePolicy: AcquisitionMultiSourceFailurePolicy.IsolateFailedSource);
@@ -450,6 +476,8 @@ public sealed class AcquisitionSessionTests
             options: options));
 
         await session.StartAsync();
+        await ingressA!.PublishAsync(1);
+        await ingressB!.PublishAsync(1);
 
         Assert.True(sourceB.Context!.TryReportFault(
             AcquisitionFaultCategory.Source,
@@ -465,8 +493,18 @@ public sealed class AcquisitionSessionTests
         Assert.Equal(0, sourceA.StopCount);
         Assert.Equal(1, sourceB.StopCount);
 
+        await Assert.ThrowsAsync<AcquisitionIngressClosedException>(
+            async () => await ingressB.PublishAsync(2));
+        await ingressA.PublishAsync(2);
+
+        Assert.Equal(["raw:1", "processing:1", "raw:2", "processing:2"], callsA);
+        Assert.Equal(["raw:1", "processing:1"], callsB);
+        Assert.True(session.GetSnapshot().IngressAccepting);
+        Assert.Equal(1, session.GetSnapshot().RejectedLateIngress);
+
         var result = await session.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
         Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
+        Assert.Equal(1, result.RejectedLateIngress);
         Assert.Contains(result.Sources, item =>
             item.SourceId == "source-b" && item.State == AcquisitionComponentRuntimeState.Isolated);
     }
