@@ -30,7 +30,7 @@ OpenDeviceStudio 的定位是源码直接二开的企业级 .NET 上位机开发
 | State Machine | 通用 `StateMachine<TState,TTrigger>` | 产品定义状态与触发器 |
 | Event | Typed `IEventBus` | 发布/订阅产品事件，不使用全局静态事件 |
 | Alarm | `IAlarmService` raise / acknowledge / clear 生命周期 | 产品定义报警规则与触发条件 |
-| Storage | `IKeyValueStore` 抽象 + JSON FileSystem Provider | 使用 `AddFileSystemStorage()` 或实现新的 `IKeyValueStore` |
+| Storage | `IKeyValueStore` + JSON Provider；默认 Canonical RawData `IRawRecorder` + FileSystem Arrow Adapter | `AddFileSystemStorage()`；采集 Raw artifact 通过配置或替换 `IRawRecorderFactory` |
 | Module / Plugin | `IOpenDeviceStudioModule` + 受信任进程内模块加载 | 模块内 `ConfigureServices`；仅从受信任位置加载 |
 | Presentation | WPF Adapter 与可复用设备/参数/命令/告警控件 | 产品 UI 放在 `app/OpenDeviceStudio.App`，Core 不依赖 WPF |
 | Testing | Simulator、FaultInjectingTransport、模块/Provider 测试基础设施 | 真实硬件前先覆盖 Simulator / Fault Path |
@@ -348,6 +348,10 @@ Hardware
 所有 Required Ready 后 Source 才能启动；Required fault 统一由 Session 收敛；Optional Presentation/Algorithm 默认隔离，只有冻结配置明确要求时才升级为 fatal。Replay Source 默认只读原 Raw artifact，复用同一 Processing implementation，并创建新的 ProcessingEpoch。
 
 还必须明确 Channel / Queue Capacity、Backpressure、Drop/Loss Policy、UI 降采样以及原始数据保存与显示数据的职责边界。不要让 WPF UI Timer 成为采集时钟。
+
+产品使用 `AddOpenDeviceStudioApplication()` 时 Raw Recording 默认开启，配置位于 `OpenDeviceStudio:Acquisition:RawRecording`。Queue Capacity、Session Quota、Segment 与 Durability 配置非法时启动阶段直接 fail-fast。替换默认存储时只注册一个 `IRawRecorderFactory`；显式关闭必须调用 `DisableRawRecording(reason)`，或配置 `Enabled=false` 且提供非空 `DisabledReason`，不能用“忘了注册 Recorder”作为关闭方式。
+
+Source 通过 `RawFlowControl` 明确能力：只有 Provider 真正能够安全等待容量时才使用 `SupportsBackpressure`；不能阻塞的 SDK/Callback Source 使用 `CannotBackpressure`，Raw ingress 会强制走 `TryAccept`，过载直接让 Required Raw path Fault。
 
 ## 12. Storage 二开
 
