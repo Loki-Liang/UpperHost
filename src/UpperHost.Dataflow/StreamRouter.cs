@@ -639,7 +639,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private readonly StreamRouter<T> _owner;
         private readonly BranchRuntime _branch;
 
-        private StreamBranchSubscription(StreamRouter<T> owner, BranchRuntime branch)
+        internal StreamBranchSubscription(StreamRouter<T> owner, BranchRuntime branch)
         {
             _owner = owner;
             _branch = branch;
@@ -659,7 +659,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             _owner.DetachBranchAsync(_branch, mode, cancellationToken);
     }
 
-    private sealed class BranchRuntime
+    internal sealed class BranchRuntime
     {
         private readonly Channel<Envelope> _channel;
         private readonly Func<StreamItem<T>, CancellationToken, ValueTask> _consumer;
