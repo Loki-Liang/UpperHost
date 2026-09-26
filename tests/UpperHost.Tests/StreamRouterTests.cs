@@ -124,7 +124,7 @@ public sealed class StreamRouterTests
         await router.PublishAsync(2);
         var third = await router.PublishAsync(3);
 
-        var uiResult = Assert.Single(third.Branches.Where(static branch => branch.BranchId == "ui"));
+        var uiResult = Assert.Single(third.Branches, static branch => branch.BranchId == "ui");
         Assert.Equal(StreamBranchPublishStatus.Accepted, uiResult.Status);
         Assert.Equal(1, uiResult.DroppedCount);
 
@@ -179,8 +179,8 @@ public sealed class StreamRouterTests
         Assert.True(result.IsPartialRequiredDelivery);
         Assert.Equal(StreamRouterState.Faulted, result.RouterState);
 
-        var aResult = Assert.Single(result.Branches.Where(static branch => branch.BranchId == "a"));
-        var bResult = Assert.Single(result.Branches.Where(static branch => branch.BranchId == "b"));
+        var aResult = Assert.Single(result.Branches, static branch => branch.BranchId == "a");
+        var bResult = Assert.Single(result.Branches, static branch => branch.BranchId == "b");
         Assert.Equal(StreamBranchPublishStatus.Accepted, aResult.Status);
         Assert.Equal(StreamBranchPublishStatus.Rejected, bResult.Status);
         Assert.Equal(1, b.GetSnapshot().Rejected);
