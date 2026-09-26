@@ -17,6 +17,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private readonly TimeProvider _timeProvider;
     private readonly IRawSegmentStreamFactory _streamFactory;
     private readonly object _gate = new();
+    private readonly SemaphoreSlim _manifestGate = new(1, 1);
     private readonly CancellationTokenSource _faultCancellation = new();
     private readonly Dictionary<SegmentKey, SegmentWriter> _activeSegments = new();
     private readonly List<RawSegmentManifest> _segments = [];
@@ -393,6 +394,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             await _faultManifestTask.ConfigureAwait(false);
             _slots?.Dispose();
             _faultCancellation.Dispose();
+            _manifestGate.Dispose();
             lock (_gate)
                 _state = RawRecorderState.Disposed;
         }
@@ -512,9 +514,13 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         SegmentKey key,
         CancellationToken cancellationToken)
     {
-        var index = _segments.Count(item =>
-            string.Equals(item.SourceId, key.SourceId, StringComparison.Ordinal) &&
-            item.ConnectionEpoch == key.ConnectionEpoch);
+        int index;
+        lock (_gate)
+        {
+            index = _segments.Count(item =>
+                string.Equals(item.SourceId, key.SourceId, StringComparison.Ordinal) &&
+                item.ConnectionEpoch == key.ConnectionEpoch);
+        }
 
         var sourcePart = SafePathPart(key.SourceId);
         var finalName = $"raw-{sourcePart}-e{key.ConnectionEpoch}-{index:D6}.arrow";
@@ -533,18 +539,21 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             _streamFactory,
             cancellationToken).ConfigureAwait(false);
 
-        _segments.Add(new RawSegmentManifest(
-            finalName,
-            partialName,
-            key.SourceId,
-            key.ConnectionEpoch,
-            index,
-            "Active",
-            0,
-            0,
-            null,
-            null,
-            null));
+        lock (_gate)
+        {
+            _segments.Add(new RawSegmentManifest(
+                finalName,
+                partialName,
+                key.SourceId,
+                key.ConnectionEpoch,
+                index,
+                "Active",
+                0,
+                0,
+                null,
+                null,
+                null));
+        }
 
         Interlocked.Increment(ref _segmentCount);
         await WriteManifestAsync("Running", null, cancellationToken).ConfigureAwait(false);
@@ -566,21 +575,24 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         await segment.FinalizeAsync(_options.Durability, cancellationToken).ConfigureAwait(false);
         var fileHash = await ComputeFileHashAsync(segment.FinalPath, cancellationToken).ConfigureAwait(false);
 
-        var index = _segments.FindIndex(item =>
-            item.SourceId == segment.SourceId &&
-            item.ConnectionEpoch == segment.ConnectionEpoch &&
-            item.SegmentIndex == segment.SegmentIndex);
-        if (index >= 0)
+        lock (_gate)
         {
-            _segments[index] = _segments[index] with
+            var index = _segments.FindIndex(item =>
+                item.SourceId == segment.SourceId &&
+                item.ConnectionEpoch == segment.ConnectionEpoch &&
+                item.SegmentIndex == segment.SegmentIndex);
+            if (index >= 0)
             {
-                State = "Completed",
-                BlockCount = segment.BlockCount,
-                PayloadBytes = segment.PayloadBytes,
-                FirstSequence = segment.FirstSequence,
-                LastSequence = segment.LastSequence,
-                Sha256 = fileHash
-            };
+                _segments[index] = _segments[index] with
+                {
+                    State = "Completed",
+                    BlockCount = segment.BlockCount,
+                    PayloadBytes = segment.PayloadBytes,
+                    FirstSequence = segment.FirstSequence,
+                    LastSequence = segment.LastSequence,
+                    Sha256 = fileHash
+                };
+            }
         }
 
         await WriteManifestAsync(
@@ -616,54 +628,69 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         string? reason,
         CancellationToken cancellationToken)
     {
-        if (_manifestPath is null || _descriptor is null)
-            return;
-
-        var manifest = new RawSessionManifest(
-            1,
-            "arrow-ipc-stream",
-            _descriptor.SessionId,
-            state,
-            _descriptor.StartedAt,
-            state is "Completed" or "Aborted" or "Faulted" or "Incomplete"
-                ? _timeProvider.GetUtcNow()
-                : null,
-            _descriptor.ConfigurationHash,
-            _options.Durability.ToString(),
-            _descriptor.Sources,
-            _segments.ToArray(),
-            reason);
-
-        var temp = _manifestPath + ".tmp";
-        await using (var stream = new FileStream(
-            temp,
-            new FileStreamOptions
-            {
-                Mode = FileMode.Create,
-                Access = FileAccess.Write,
-                Share = FileShare.None,
-                Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
-                BufferSize = 16 * 1024
-            }))
+        await _manifestGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            await JsonSerializer.SerializeAsync(
-                stream,
-                manifest,
-                new JsonSerializerOptions
-                {
-                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                    WriteIndented = true
-                },
-                cancellationToken).ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            if (_options.Durability == RawDurabilityLevel.FlushToDiskOnFinalize &&
-                state is "Completed" or "Aborted" or "Faulted" or "Incomplete")
-            {
-                stream.Flush(flushToDisk: true);
-            }
-        }
+            RawSessionManifest manifest;
+            string manifestPath;
 
-        File.Move(temp, _manifestPath, overwrite: true);
+            lock (_gate)
+            {
+                if (_manifestPath is null || _descriptor is null)
+                    return;
+
+                manifestPath = _manifestPath;
+                manifest = new RawSessionManifest(
+                    1,
+                    "arrow-ipc-stream",
+                    _descriptor.SessionId,
+                    state,
+                    _descriptor.StartedAt,
+                    state is "Completed" or "Aborted" or "Faulted" or "Incomplete"
+                        ? _timeProvider.GetUtcNow()
+                        : null,
+                    _descriptor.ConfigurationHash,
+                    _options.Durability.ToString(),
+                    _descriptor.Sources,
+                    _segments.ToArray(),
+                    reason);
+            }
+
+            var temp = manifestPath + ".tmp";
+            await using (var stream = new FileStream(
+                temp,
+                new FileStreamOptions
+                {
+                    Mode = FileMode.Create,
+                    Access = FileAccess.Write,
+                    Share = FileShare.None,
+                    Options = FileOptions.Asynchronous | FileOptions.SequentialScan,
+                    BufferSize = 16 * 1024
+                }))
+            {
+                await JsonSerializer.SerializeAsync(
+                    stream,
+                    manifest,
+                    new JsonSerializerOptions
+                    {
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                        WriteIndented = true
+                    },
+                    cancellationToken).ConfigureAwait(false);
+                await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+                if (_options.Durability == RawDurabilityLevel.FlushToDiskOnFinalize &&
+                    state is "Completed" or "Aborted" or "Faulted" or "Incomplete")
+                {
+                    stream.Flush(flushToDisk: true);
+                }
+            }
+
+            File.Move(temp, manifestPath, overwrite: true);
+        }
+        finally
+        {
+            _manifestGate.Release();
+        }
     }
 
     private async Task BestEffortManifestAsync(string state, string reason)
@@ -825,11 +852,24 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             CancellationToken cancellationToken)
         {
             var stream = streamFactory.OpenWrite(partialPath);
-            var writer = new ArrowStreamWriter(stream, Schema, leaveOpen: true);
-            await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
-            return new SegmentWriter(
-                stream, writer, partialPath, finalPath, sourceId,
-                connectionEpoch, segmentIndex, options, createdAt);
+            ArrowStreamWriter? writer = null;
+            try
+            {
+                writer = new ArrowStreamWriter(stream, Schema, leaveOpen: true);
+                await writer.WriteStartAsync(cancellationToken).ConfigureAwait(false);
+                return new SegmentWriter(
+                    stream, writer, partialPath, finalPath, sourceId,
+                    connectionEpoch, segmentIndex, options, createdAt);
+            }
+            catch
+            {
+                writer?.Dispose();
+                if (stream is IAsyncDisposable asyncDisposable)
+                    await asyncDisposable.DisposeAsync().ConfigureAwait(false);
+                else
+                    stream.Dispose();
+                throw;
+            }
         }
 
         public bool ShouldRotate(int nextPayloadBytes, DateTimeOffset now) =>
@@ -944,19 +984,19 @@ public sealed class FileSystemRawRecorder : IRawRecorder
 internal static class RawRecorderTelemetry
 {
     public static Counter<long> AcceptedBlocks { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.accepted.blocks", "{block}");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.accepted.blocks", "{block}");
     public static Counter<long> AcceptedBytes { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.accepted.bytes", "By");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.accepted.bytes", "By");
     public static Counter<long> WrittenBlocks { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.written.blocks", "{block}");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.written.blocks", "{block}");
     public static Counter<long> WrittenBytes { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.written.bytes", "By");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.written.bytes", "By");
     public static Counter<long> LowDiskWarnings { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.low_disk.warning", "{warning}");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.low_disk.warning", "{warning}");
     public static Counter<long> Faults { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.faults", "{fault}");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.faults", "{fault}");
     public static Counter<long> SessionsCompleted { get; } =
-        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("upperhost.raw.sessions.completed", "{session}");
+        OpenDeviceStudioTelemetry.Meter.CreateCounter<long>("opendevicestudio.raw.sessions.completed", "{session}");
 }
 
 
