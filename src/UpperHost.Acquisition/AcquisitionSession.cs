@@ -832,7 +832,31 @@ public sealed class AcquisitionSession : IAsyncDisposable
             await DisposeAllAsync(budget.Token, pending).ConfigureAwait(false);
             var stillRunning = pending.Where(static task => !task.IsCompleted).ToArray();
             if (stillRunning.Length > 0)
-                await Task.WhenAll(stillRunning).WaitAsync(budget.Token).ConfigureAwait(false);
+            {
+                try
+                {
+                    await Task.WhenAll(stillRunning)
+                        .WaitAsync(budget.Token)
+                        .ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (
+                    _abort.IsCancellationRequested &&
+                    !budget.IsCancellationRequested)
+                {
+                    // Stop/finalize work canceled by the deliberate Abort is quiescent,
+                    // not an Abort failure. The tasks are observed here so cancellation
+                    // cannot escape and strand Session Completion.
+                }
+                catch (Exception ex) when (!budget.IsCancellationRequested)
+                {
+                    AddSecondary(CreateFault(
+                        AcquisitionFaultCategory.Finalization,
+                        "session-inflight",
+                        null,
+                        ex,
+                        "One or more in-flight acquisition operations faulted while aborting."));
+                }
+            }
         }
         catch (OperationCanceledException) when (budget.IsCancellationRequested)
         {
