@@ -187,6 +187,75 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
             .ConfigureAwait(false);
     }
 
+    public SignalOptionalTapSubscription<T> AttachOptionalTap(
+        string stageId,
+        string tapId,
+        int capacity,
+        StreamOverflowPolicy overflow,
+        Func<SignalBlock<T>, CancellationToken, ValueTask> consumer)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stageId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(tapId);
+        ArgumentNullException.ThrowIfNull(consumer);
+
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+
+        if (overflow is not (
+            StreamOverflowPolicy.DropOldest or
+            StreamOverflowPolicy.DropNewest or
+            StreamOverflowPolicy.Latest))
+        {
+            throw new ArgumentException(
+                "Presentation taps must use an explicit non-blocking lossy overflow policy.",
+                nameof(overflow));
+        }
+
+        var state = State;
+        if (state is not (
+            SignalProcessingRuntimeState.Created or
+            SignalProcessingRuntimeState.Running))
+        {
+            throw new InvalidOperationException(
+                $"Presentation taps cannot attach while Signal Processing state is {state}.");
+        }
+
+        var router = ResolveTapRouter(stageId);
+        var branchId = $"presentation:{tapId}";
+        var subscription = router.RegisterBranch(
+            new StreamBranchOptions(
+                branchId,
+                $"Presentation tap {tapId}",
+                capacity,
+                StreamBranchDelivery.Optional,
+                overflow,
+                StreamBranchFailurePolicy.Isolate,
+                StreamOrderingPolicy.SerializedPublisherFifo),
+            (item, token) => consumer(item.Value, token));
+
+        return new SignalOptionalTapSubscription<T>(
+            stageId,
+            tapId,
+            subscription);
+    }
+
+    private StreamRouter<SignalBlock<T>> ResolveTapRouter(string stageId)
+    {
+        if (string.Equals(
+                stageId,
+                SignalProcessingStageIds.RawInput,
+                StringComparison.Ordinal))
+        {
+            return _inputRouter;
+        }
+
+        if (_nodes.TryGetValue(stageId, out var node))
+            return node.Router;
+
+        throw new KeyNotFoundException(
+            $"Signal stage '{stageId}' is not part of this compiled plan.");
+    }
+
     public SignalProcessingSnapshot GetSnapshot()
     {
         var stages = _plan.TopologicalOrder
