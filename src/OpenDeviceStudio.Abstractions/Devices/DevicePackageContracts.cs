@@ -1,6 +1,6 @@
 using System.Globalization;
 
-namespace UpperHost.Abstractions.Devices;
+namespace OpenDeviceStudio.Abstractions.Devices;
 
 public enum DeviceConfigurationValueKind
 {

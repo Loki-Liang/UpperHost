@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Diagnostics;
+namespace OpenDeviceStudio.Abstractions.Diagnostics;
 
 public enum HealthStatus
 {

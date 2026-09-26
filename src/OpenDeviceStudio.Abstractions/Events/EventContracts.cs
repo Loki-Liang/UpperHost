@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Events;
+namespace OpenDeviceStudio.Abstractions.Events;
 
 public interface IEventBus
 {

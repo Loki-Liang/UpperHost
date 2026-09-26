@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Abstractions.Devices;
+namespace OpenDeviceStudio.Abstractions.Devices;
 
 public sealed record DiscoveredDevice(
     DeviceDescriptor Descriptor,

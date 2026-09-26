@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Abstractions.Connections;
+namespace OpenDeviceStudio.Abstractions.Connections;
 
 public sealed record ConnectionId
 {

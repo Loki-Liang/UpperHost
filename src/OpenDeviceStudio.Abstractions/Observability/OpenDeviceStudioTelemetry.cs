@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
 
-namespace UpperHost.Abstractions.Observability;
+namespace OpenDeviceStudio.Abstractions.Observability;
 
-public sealed record UpperHostTelemetryContext(
+public sealed record OpenDeviceStudioTelemetryContext(
     string? DeviceId = null,
     string? ConnectionId = null,
     string? SessionId = null,
@@ -14,7 +14,7 @@ public sealed record UpperHostTelemetryContext(
     string? Result = null,
     string? ErrorCode = null);
 
-public sealed record UpperHostMetricContext(
+public sealed record OpenDeviceStudioMetricContext(
     string? Protocol = null,
     string? Transport = null,
     string? Operation = null,
@@ -22,9 +22,9 @@ public sealed record UpperHostMetricContext(
     string? ErrorType = null,
     string? AlarmSeverity = null);
 
-public static class UpperHostTelemetry
+public static class OpenDeviceStudioTelemetry
 {
-    public const string InstrumentationName = "UpperHost";
+    public const string InstrumentationName = "OpenDeviceStudio";
     public const string InstrumentationVersion = "0.1.0";
 
     public static ActivitySource ActivitySource { get; } =
@@ -34,61 +34,61 @@ public static class UpperHostTelemetry
         new(InstrumentationName, InstrumentationVersion);
 
     public static Counter<long> CommandExecutions { get; } =
-        Meter.CreateCounter<long>("upperhost.command.executions", "{execution}",
+        Meter.CreateCounter<long>("opendevicestudio.command.executions", "{execution}",
             "Number of command executions by command type and outcome.");
 
     public static Counter<long> CommandFailures { get; } =
-        Meter.CreateCounter<long>("upperhost.command.failures", "{failure}",
+        Meter.CreateCounter<long>("opendevicestudio.command.failures", "{failure}",
             "Number of non-successful command executions.");
 
     public static Histogram<double> CommandDurationSeconds { get; } =
-        Meter.CreateHistogram<double>("upperhost.command.duration", "s",
+        Meter.CreateHistogram<double>("opendevicestudio.command.duration", "s",
             "Command execution duration in seconds.");
 
     public static Counter<long> TransportOperations { get; } =
-        Meter.CreateCounter<long>("upperhost.transport.operations", "{operation}",
+        Meter.CreateCounter<long>("opendevicestudio.transport.operations", "{operation}",
             "Number of transport operations.");
 
     public static Counter<long> TransportFailures { get; } =
-        Meter.CreateCounter<long>("upperhost.transport.failures", "{failure}",
+        Meter.CreateCounter<long>("opendevicestudio.transport.failures", "{failure}",
             "Number of failed transport operations.");
 
     public static Counter<long> TransportBytes { get; } =
-        Meter.CreateCounter<long>("upperhost.transport.bytes", "By",
-            "Bytes transferred through UpperHost transports.");
+        Meter.CreateCounter<long>("opendevicestudio.transport.bytes", "By",
+            "Bytes transferred through OpenDeviceStudio transports.");
 
     public static Counter<long> ReconnectAttempts { get; } =
-        Meter.CreateCounter<long>("upperhost.transport.reconnect.attempts", "{attempt}",
+        Meter.CreateCounter<long>("opendevicestudio.transport.reconnect.attempts", "{attempt}",
             "Transport reconnect attempts.");
 
     public static Counter<long> ConnectionOperations { get; } =
-        Meter.CreateCounter<long>("upperhost.connection.operations", "{operation}",
+        Meter.CreateCounter<long>("opendevicestudio.connection.operations", "{operation}",
             "Number of managed connection lifecycle operations.");
 
     public static Counter<long> ConnectionFailures { get; } =
-        Meter.CreateCounter<long>("upperhost.connection.failures", "{failure}",
+        Meter.CreateCounter<long>("opendevicestudio.connection.failures", "{failure}",
             "Number of failed managed connection lifecycle operations.");
 
     public static UpDownCounter<long> ActiveConnectionLeases { get; } =
-        Meter.CreateUpDownCounter<long>("upperhost.connection.active_leases", "{lease}",
+        Meter.CreateUpDownCounter<long>("opendevicestudio.connection.active_leases", "{lease}",
             "Current active managed connection leases.");
 
     public static UpDownCounter<long> ActiveAlarms { get; } =
-        Meter.CreateUpDownCounter<long>("upperhost.alarms.active", "{alarm}",
+        Meter.CreateUpDownCounter<long>("opendevicestudio.alarms.active", "{alarm}",
             "Current active alarms by severity.");
 
     public static Counter<long> StreamFrames { get; } =
-        Meter.CreateCounter<long>("upperhost.stream.frames", "{frame}",
+        Meter.CreateCounter<long>("opendevicestudio.stream.frames", "{frame}",
             "Stream frames observed.");
 
     public static Counter<long> StreamDroppedFrames { get; } =
-        Meter.CreateCounter<long>("upperhost.stream.dropped_frames", "{frame}",
+        Meter.CreateCounter<long>("opendevicestudio.stream.dropped_frames", "{frame}",
             "Stream frames dropped by bounded pipelines.");
 
     public static Activity? StartActivity(
         string name,
         ActivityKind kind = ActivityKind.Internal,
-        UpperHostTelemetryContext? context = null)
+        OpenDeviceStudioTelemetryContext? context = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         var activity = ActivitySource.StartActivity(name, kind);
@@ -97,32 +97,32 @@ public static class UpperHostTelemetry
         return activity;
     }
 
-    public static TagList CreateMetricTags(UpperHostMetricContext? context)
+    public static TagList CreateMetricTags(OpenDeviceStudioMetricContext? context)
     {
         var tags = new TagList();
         if (context is null)
             return tags;
 
-        Add(ref tags, "upperhost.protocol", context.Protocol);
-        Add(ref tags, "upperhost.transport", context.Transport);
-        Add(ref tags, "upperhost.operation", context.Operation);
-        Add(ref tags, "upperhost.result", context.Outcome);
+        Add(ref tags, "opendevicestudio.protocol", context.Protocol);
+        Add(ref tags, "opendevicestudio.transport", context.Transport);
+        Add(ref tags, "opendevicestudio.operation", context.Operation);
+        Add(ref tags, "opendevicestudio.result", context.Outcome);
         Add(ref tags, "error.type", context.ErrorType);
-        Add(ref tags, "upperhost.alarm.severity", context.AlarmSeverity);
+        Add(ref tags, "opendevicestudio.alarm.severity", context.AlarmSeverity);
         return tags;
     }
 
-    private static void Apply(Activity activity, UpperHostTelemetryContext context)
+    private static void Apply(Activity activity, OpenDeviceStudioTelemetryContext context)
     {
-        Set(activity, "upperhost.device.id", context.DeviceId);
-        Set(activity, "upperhost.connection.id", context.ConnectionId);
-        Set(activity, "upperhost.session.id", context.SessionId);
-        Set(activity, "upperhost.command.id", context.CommandId);
-        Set(activity, "upperhost.protocol", context.Protocol);
-        Set(activity, "upperhost.transport", context.Transport);
-        Set(activity, "upperhost.operation", context.Operation);
-        Set(activity, "upperhost.result", context.Result);
-        Set(activity, "upperhost.error.code", context.ErrorCode);
+        Set(activity, "opendevicestudio.device.id", context.DeviceId);
+        Set(activity, "opendevicestudio.connection.id", context.ConnectionId);
+        Set(activity, "opendevicestudio.session.id", context.SessionId);
+        Set(activity, "opendevicestudio.command.id", context.CommandId);
+        Set(activity, "opendevicestudio.protocol", context.Protocol);
+        Set(activity, "opendevicestudio.transport", context.Transport);
+        Set(activity, "opendevicestudio.operation", context.Operation);
+        Set(activity, "opendevicestudio.result", context.Result);
+        Set(activity, "opendevicestudio.error.code", context.ErrorCode);
     }
 
     private static void Add(ref TagList tags, string key, string? value)

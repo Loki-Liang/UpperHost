@@ -1,4 +1,4 @@
-namespace UpperHost.Abstractions.Data;
+namespace OpenDeviceStudio.Abstractions.Data;
 
 public interface IDataSource<T>
 {
