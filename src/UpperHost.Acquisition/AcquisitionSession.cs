@@ -329,13 +329,17 @@ public sealed class AcquisitionSession : IAsyncDisposable
         TryCancel(_sessionStop);
         WakeSupervisor();
 
-        // Start cancellation without making Session Completion depend on all token
-        // callbacks returning first. A callback is allowed to observe/contribute to
-        // convergence, so awaiting CancelAsync before Completion can create a cycle.
-        // The cancellation task remains owned and is observed after terminal convergence.
-        var abortCancellation = TryCancelAsync(_abort);
+        // Cancellation callbacks may synchronously cascade through the active
+        // convergence token. Dispatch cancellation independently so AbortAsync never
+        // occupies that callback chain while waiting for the same Session Completion.
+        // The task is still owned and observed after terminal convergence.
+        var abortCancellation = Task.Run(
+            () => TryCancel(_abort),
+            CancellationToken.None);
         var result = await WaitCompletionAsync(cancellationToken).ConfigureAwait(false);
-        await abortCancellation.ConfigureAwait(false);
+        await abortCancellation
+            .WaitAsync(_definition.Options.EffectiveAbortTimeout, cancellationToken)
+            .ConfigureAwait(false);
         return result;
     }
 
@@ -1493,18 +1497,6 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             if (!source.IsCancellationRequested)
                 source.Cancel();
-        }
-        catch (ObjectDisposedException)
-        {
-        }
-    }
-
-    private static async Task TryCancelAsync(CancellationTokenSource source)
-    {
-        try
-        {
-            if (!source.IsCancellationRequested)
-                await source.CancelAsync().ConfigureAwait(false);
         }
         catch (ObjectDisposedException)
         {
