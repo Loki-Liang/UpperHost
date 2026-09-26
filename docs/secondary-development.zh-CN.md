@@ -26,7 +26,7 @@ UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手�
 | Protocol | Command Encoder、Message Decoder、Request/Response / Streaming 边界 | 实现 `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control Runtime | Host-owned bounded Command Dispatcher、Guard / Interlock、UnknownOutcome、资源仲裁、参数/Readback 基础能力 | 每个强类型命令合同通过 `AddCommandDispatcher<TCommand,TResult>()` 注册；产品定义安全和完成语义 |
 | Streaming / Dataflow | 有界 Fan-out、背压与丢弃策略基础能力 | 将设备 Stream 接入 Dataflow，明确容量和 loss policy |
-| Workflow | `WorkflowRunner` | 产品定义 `WorkflowDefinition` / `IWorkflowStep` |
+| Automation Runtime | Host-owned `AutomationExecutionCoordinator`、Compiled Plan、Frozen Recipe、bounded Parallel/Join、Journal/Recovery | 编译 `AutomationExecutionPlan`；设备 Step 通过 `AutomationStepContext.DispatchAsync` 调 #60；`WorkflowRunner` 仅兼容 |
 | State Machine | 通用 `StateMachine<TState,TTrigger>` | 产品定义状态与触发器 |
 | Event | Typed `IEventBus` | 发布/订阅产品事件，不使用全局静态事件 |
 | Alarm | `IAlarmService` raise / acknowledge / clear 生命周期 | 产品定义报警规则与触发条件 |
@@ -296,8 +296,12 @@ Decoder 必须处理分片、粘包、多帧、非法帧以及校验/长度失�
 - Execution：Dispatcher 下层复用 `CommandRuntime<TCommand,TResult>` 的 Guard/完成语义
 - Guard / Interlock：产品定义安全前置条件和 Command Safety Metadata
 - Parameter：`IParameterProvider` + Readback，后续由 #63 复用同一资源仲裁
-- Recipe：通过同一个 Dispatcher 下发设备修改，不再创建第二套 Scheduler
-- Workflow：`WorkflowRunner`
+- Recipe：使用 `AutomationRecipeSnapshot` 冻结已解析值与 Hash
+- Automation：`AutomationExecutionCoordinator` 是唯一 Station / Execution Authority
+- Plan：Sequence / bounded Parallel / SafeCheckpoint 编译为 `AutomationExecutionPlan`
+- Device Step：通过 `AutomationStepContext.DispatchAsync` 调 #60，避免预持有资源再次自锁
+- Recovery：`IAutomationRecoveryReconciler` 必须先复用 #63 Rehydrate/Readback 才能决定 Restart/Resume
+- Compatibility：`WorkflowRunner` 仅用于简单非权威流程
 - State：`StateMachine<TState,TTrigger>`
 - Event：`IEventBus`
 - Alarm：`IAlarmService`
@@ -305,8 +309,10 @@ Decoder 必须处理分片、粘包、多帧、非法帧以及校验/长度失�
 典型调用链：
 
 ```text
-WPF / Workflow
-  -> Application Service
+WPF / Application Service
+  -> AutomationExecutionCoordinator
+  -> shared Resource Lease
+  -> BoundedCommandDispatcher
   -> Guard / State / Interlock
   -> Device Capability
   -> Protocol
@@ -434,6 +440,7 @@ src/UpperHost.*/
 - [架构说明](architecture.zh-CN.md)
 - [扩展 UpperHost](extending.zh-CN.md)
 - [Control Runtime](control-runtime.zh-CN.md)
+- [Automation Runtime](automation-runtime.zh-CN.md)
 - [Recipe 与 Scheduling](recipes-and-scheduling.zh-CN.md)
 - [Observability](observability.zh-CN.md)
 - [Provider 设计](providers.zh-CN.md)
