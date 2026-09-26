@@ -382,18 +382,13 @@ public sealed class StreamRouter<T> : IAsyncDisposable
 
     public IReadOnlyList<StreamBranchSnapshot> GetBranchSnapshots()
     {
-        var required = Volatile.Read(ref _requiredBranches);
-        var optional = Volatile.Read(ref _optionalBranches);
-        var snapshots = new StreamBranchSnapshot[required.Length + optional.Length];
-        var index = 0;
-
-        foreach (var branch in required)
-            snapshots[index++] = branch.GetSnapshot();
-
-        foreach (var branch in optional)
-            snapshots[index++] = branch.GetSnapshot();
-
-        return snapshots;
+        lock (_topologyGate)
+        {
+            return _branches.Values
+                .OrderBy(static branch => branch.Options.BranchId, StringComparer.Ordinal)
+                .Select(static branch => branch.GetSnapshot())
+                .ToArray();
+        }
     }
 
     public async ValueTask<StreamRouterSnapshot> CompleteAsync(
@@ -459,7 +454,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         foreach (var branch in branches)
         {
             branch.DisposeRuntime();
-            StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
+            if (branch.TryDeactivateMetric())
+                StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
         }
 
     }
@@ -501,7 +497,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         branch.StopAccepting(mode);
         await branch.WaitForCompletionAsync(cancellationToken).ConfigureAwait(false);
         branch.DisposeRuntime();
-        StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
+        if (branch.TryDeactivateMetric())
+            StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
     }
 
     private void OnBranchFault(BranchRuntime branch, Exception error)
@@ -529,7 +526,6 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             else if (_branches.TryGetValue(branch.Options.BranchId, out var current) &&
                      ReferenceEquals(current, branch))
             {
-                _branches.Remove(branch.Options.BranchId);
                 RebuildTopologyLocked();
                 Interlocked.Increment(ref _topologyGeneration);
                 detachOptional = true;
@@ -546,7 +542,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         else if (detachOptional)
         {
             branch.StopAccepting(StreamCompletionMode.Cancel);
-            StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
+            if (branch.TryDeactivateMetric())
+                StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
         }
     }
 
@@ -571,12 +568,16 @@ public sealed class StreamRouter<T> : IAsyncDisposable
     private void RebuildTopologyLocked()
     {
         var required = _branches.Values
-            .Where(static branch => branch.Options.Delivery == StreamBranchDelivery.Required)
+            .Where(static branch =>
+                branch.Options.Delivery == StreamBranchDelivery.Required &&
+                branch.IsRoutable)
             .OrderBy(static branch => branch.Options.BranchId, StringComparer.Ordinal)
             .ToArray();
 
         var optional = _branches.Values
-            .Where(static branch => branch.Options.Delivery == StreamBranchDelivery.Optional)
+            .Where(static branch =>
+                branch.Options.Delivery == StreamBranchDelivery.Optional &&
+                branch.IsRoutable)
             .OrderBy(static branch => branch.Options.BranchId, StringComparer.Ordinal)
             .ToArray();
 
@@ -630,7 +631,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private readonly StreamRouter<T> _owner;
         private readonly BranchRuntime _branch;
 
-        internal StreamBranchSubscription(StreamRouter<T> owner, BranchRuntime branch)
+        private StreamBranchSubscription(StreamRouter<T> owner, BranchRuntime branch)
         {
             _owner = owner;
             _branch = branch;
@@ -675,6 +676,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private int _started;
         private int _stopRequested;
         private int _disposed;
+        private int _activeMetric = 1;
 
         public BranchRuntime(
             StreamBranchOptions options,
@@ -702,6 +704,14 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         public Task Completion => _completion.Task;
 
         public StreamBranchState State => (StreamBranchState)Volatile.Read(ref _state);
+
+        public bool IsRoutable =>
+            Volatile.Read(ref _stopRequested) == 0 &&
+            Volatile.Read(ref _fault) is null &&
+            State is StreamBranchState.Configuring or StreamBranchState.Running;
+
+        public bool TryDeactivateMetric() =>
+            Interlocked.Exchange(ref _activeMetric, 0) != 0;
 
         public void Start()
         {
@@ -1077,42 +1087,43 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             T Item);
     }
 
-    private static class StreamRouterTelemetry
+}
+
+internal static class StreamRouterTelemetry
+{
+    private static readonly Meter Meter = new(StreamRouterMetrics.MeterName);
+
+    public static readonly Counter<long> Published =
+        Meter.CreateCounter<long>("upperhost.streamrouter.published");
+
+    public static readonly Counter<long> Accepted =
+        Meter.CreateCounter<long>("upperhost.streamrouter.branch.accepted");
+
+    public static readonly Counter<long> Delivered =
+        Meter.CreateCounter<long>("upperhost.streamrouter.branch.delivered");
+
+    public static readonly Counter<long> Dropped =
+        Meter.CreateCounter<long>("upperhost.streamrouter.branch.dropped");
+
+    public static readonly Counter<long> Rejected =
+        Meter.CreateCounter<long>("upperhost.streamrouter.branch.rejected");
+
+    public static readonly Counter<long> Faults =
+        Meter.CreateCounter<long>("upperhost.streamrouter.branch.faults");
+
+    public static readonly UpDownCounter<long> ActiveBranches =
+        Meter.CreateUpDownCounter<long>("upperhost.streamrouter.active_branches");
+
+    public static readonly Histogram<double> QueueLatencyMs =
+        Meter.CreateHistogram<double>("upperhost.streamrouter.branch.queue_latency", "ms");
+
+    public static TagList BranchTags(StreamBranchOptions options)
     {
-        private static readonly Meter Meter = new(StreamRouterMetrics.MeterName);
-
-        public static readonly Counter<long> Published =
-            Meter.CreateCounter<long>("upperhost.streamrouter.published");
-
-        public static readonly Counter<long> Accepted =
-            Meter.CreateCounter<long>("upperhost.streamrouter.branch.accepted");
-
-        public static readonly Counter<long> Delivered =
-            Meter.CreateCounter<long>("upperhost.streamrouter.branch.delivered");
-
-        public static readonly Counter<long> Dropped =
-            Meter.CreateCounter<long>("upperhost.streamrouter.branch.dropped");
-
-        public static readonly Counter<long> Rejected =
-            Meter.CreateCounter<long>("upperhost.streamrouter.branch.rejected");
-
-        public static readonly Counter<long> Faults =
-            Meter.CreateCounter<long>("upperhost.streamrouter.branch.faults");
-
-        public static readonly UpDownCounter<long> ActiveBranches =
-            Meter.CreateUpDownCounter<long>("upperhost.streamrouter.active_branches");
-
-        public static readonly Histogram<double> QueueLatencyMs =
-            Meter.CreateHistogram<double>("upperhost.streamrouter.branch.queue_latency", "ms");
-
-        public static TagList BranchTags(StreamBranchOptions options)
+        var tags = new TagList
         {
-            var tags = new TagList
-            {
-                { "branch.id", options.BranchId },
-                { "branch.delivery", options.Delivery.ToString() }
-            };
-            return tags;
-        }
+            { "branch.id", options.BranchId },
+            { "branch.delivery", options.Delivery.ToString() }
+        };
+        return tags;
     }
 }
