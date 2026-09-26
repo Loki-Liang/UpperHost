@@ -10,37 +10,31 @@ public enum CommandPriority
     Low = 30
 }
 
+/// <summary>
+/// Compatibility facade for the original scheduler API. New code should resolve and use
+/// <see cref="BoundedCommandDispatcher{TCommand,TResult}"/> from the application composition root.
+/// </summary>
 public sealed class CommandScheduler<TCommand, TResult> : IAsyncDisposable
 {
-    private sealed record ScheduledCommand(
-        TCommand Command,
-        CommandExecutionOptions? Options,
-        CancellationToken CancellationToken,
-        TaskCompletionSource<CommandExecutionResult<TResult>> Completion);
-
-    private readonly CommandRuntime<TCommand, TResult> _runtime;
-    private readonly PriorityQueue<ScheduledCommand, (int Priority, long Sequence)> _queue = new();
-    private readonly object _gate = new();
-    private readonly SemaphoreSlim _available = new(0);
-    private readonly CancellationTokenSource _shutdown = new();
-    private readonly Task _worker;
-    private long _sequence;
-    private bool _disposed;
+    private readonly BoundedCommandDispatcher<TCommand, TResult> _dispatcher;
 
     public CommandScheduler(CommandRuntime<TCommand, TResult> runtime)
+        : this(runtime, new BoundedCommandDispatcherOptions())
     {
-        _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
-        _worker = Task.Run(RunAsync);
     }
 
-    public int PendingCount
+    public CommandScheduler(
+        CommandRuntime<TCommand, TResult> runtime,
+        BoundedCommandDispatcherOptions options)
     {
-        get
-        {
-            lock (_gate)
-                return _queue.Count;
-        }
+        ArgumentNullException.ThrowIfNull(runtime);
+        ArgumentNullException.ThrowIfNull(options);
+
+        _dispatcher = new BoundedCommandDispatcher<TCommand, TResult>(runtime, options);
+        _dispatcher.StartAsync().GetAwaiter().GetResult();
     }
+
+    public int PendingCount => _dispatcher.PendingCount;
 
     public Task<CommandExecutionResult<TResult>> EnqueueAsync(
         TCommand command,
@@ -48,98 +42,14 @@ public sealed class CommandScheduler<TCommand, TResult> : IAsyncDisposable
         CommandExecutionOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var completion = new TaskCompletionSource<CommandExecutionResult<TResult>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-
-        lock (_gate)
-        {
-            ObjectDisposedException.ThrowIf(_disposed, this);
-            var sequence = Interlocked.Increment(ref _sequence);
-            _queue.Enqueue(
-                new ScheduledCommand(command, options, cancellationToken, completion),
-                ((int)priority, sequence));
-        }
-
-        _available.Release();
-        return completion.Task;
+        return _dispatcher.EnqueueAsync(
+            command,
+            new CommandDispatchOptions(
+                Priority: priority,
+                Execution: options,
+                Safety: options?.Safety ?? CommandSafetyMetadata.Legacy),
+            cancellationToken);
     }
 
-    public async ValueTask DisposeAsync()
-    {
-        lock (_gate)
-        {
-            if (_disposed)
-                return;
-            _disposed = true;
-        }
-
-        _shutdown.Cancel();
-        _available.Release();
-
-        try
-        {
-            await _worker.ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        finally
-        {
-            _shutdown.Dispose();
-            _available.Dispose();
-        }
-    }
-
-    private async Task RunAsync()
-    {
-        try
-        {
-            while (!_shutdown.IsCancellationRequested)
-            {
-                await _available.WaitAsync(_shutdown.Token).ConfigureAwait(false);
-
-                ScheduledCommand? work = null;
-                lock (_gate)
-                {
-                    if (_queue.Count > 0)
-                        work = _queue.Dequeue();
-                }
-
-                if (work is null || work.Completion.Task.IsCompleted)
-                    continue;
-
-                using var linked = CancellationTokenSource.CreateLinkedTokenSource(
-                    _shutdown.Token,
-                    work.CancellationToken);
-
-                try
-                {
-                    var result = await _runtime.ExecuteAsync(
-                        work.Command,
-                        work.Options,
-                        linked.Token).ConfigureAwait(false);
-                    work.Completion.TrySetResult(result);
-                }
-                catch (Exception ex)
-                {
-                    work.Completion.TrySetException(ex);
-                }
-            }
-        }
-        catch (OperationCanceledException) when (_shutdown.IsCancellationRequested)
-        {
-        }
-        finally
-        {
-            List<ScheduledCommand> abandoned = [];
-            lock (_gate)
-            {
-                while (_queue.Count > 0)
-                    abandoned.Add(_queue.Dequeue());
-            }
-
-            foreach (var work in abandoned)
-                work.Completion.TrySetException(new ObjectDisposedException(GetType().Name));
-        }
-    }
+    public ValueTask DisposeAsync() => _dispatcher.DisposeAsync();
 }
