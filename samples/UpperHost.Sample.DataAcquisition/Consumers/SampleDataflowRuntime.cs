@@ -59,10 +59,14 @@ public sealed class SampleDataflowRuntime : IAcquisitionSessionComponent
         CancellationToken cancellationToken = default)
     {
         var result = await _router.PublishAsync(frame, cancellationToken).ConfigureAwait(false);
-        if (result.RequiresStop)
+        if (!result.IsSuccess)
         {
-            throw new InvalidOperationException(
-                $"Sample dataflow publish sequence {result.Sequence} failed on a required route.");
+            cancellationToken.ThrowIfCancellationRequested();
+            if (result.RequiresStop)
+            {
+                throw new InvalidOperationException(
+                    $"Sample dataflow publish sequence {result.Sequence} failed on a required route.");
+            }
         }
     }
 
