@@ -7,6 +7,7 @@ using UpperHost.Hosting;
 using UpperHost.Observability;
 using UpperHost.Starters;
 using UpperHost.Transport.Simulator;
+using UpperHost.Workflows;
 
 namespace UpperHost.Tests;
 
@@ -28,6 +29,8 @@ public sealed class AutoConfigurationTests
         Assert.NotNull(app.Services.GetRequiredService<IEventBus>());
         Assert.NotNull(app.Services.GetRequiredService<IAlarmService>());
         Assert.NotNull(app.Services.GetRequiredService<IConnectionManager>());
+        Assert.NotNull(app.Services.GetRequiredService<AutomationExecutionCoordinator>());
+        Assert.NotNull(app.Services.GetRequiredService<IAutomationExecutionJournal>());
     }
 
     [Fact]
