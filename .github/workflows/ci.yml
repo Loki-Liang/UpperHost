@@ -75,6 +75,31 @@ jobs:
       - name: Restore
         run: dotnet restore UpperHost.slnx
 
+      - name: Generate initial Public API baseline
+        shell: pwsh
+        run: |
+          Get-ChildItem src -Filter *.csproj -Recurse | ForEach-Object {
+            dotnet format $_.FullName analyzers --diagnostics RS0016 RS0017 RS0024 RS0025 --severity warn --no-restore
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+
+      - name: Upload generated Public API baseline
+        uses: actions/upload-artifact@v4
+        with:
+          name: public-api-baseline
+          path: |
+            src/**/PublicAPI.Shipped.txt
+            src/**/PublicAPI.Unshipped.txt
+
+      - name: Require generated Public API baseline to be committed
+        shell: pwsh
+        run: |
+          git diff --exit-code -- src/**/PublicAPI.Shipped.txt src/**/PublicAPI.Unshipped.txt
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "Generated Public API baseline differs from the repository. Commit the public-api-baseline artifact, then remove the bootstrap generation step."
+            exit 1
+          }
+
       - name: Build
         run: dotnet build UpperHost.slnx -c Release --no-restore
 
