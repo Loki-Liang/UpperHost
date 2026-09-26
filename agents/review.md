@@ -1,4 +1,4 @@
-# UpperHost Review Agent
+# OpenDeviceStudio Review Agent
 
 ## Scope
 

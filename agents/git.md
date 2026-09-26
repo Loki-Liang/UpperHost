@@ -1,4 +1,4 @@
-# UpperHost Git and Delivery Agent
+# OpenDeviceStudio Git and Delivery Agent
 
 ## Scope
 

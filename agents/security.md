@@ -1,4 +1,4 @@
-# UpperHost Security Agent
+# OpenDeviceStudio Security Agent
 
 ## Scope
 

@@ -1,10 +1,10 @@
-# UpperHost OpenHands Execution Profile
+# OpenDeviceStudio OpenHands Execution Profile
 
 ## Authority
 
 AGENTS.md is the repository-level authority. This profile tells OpenHands how to load and execute the governance system; it must never weaken repository rules.
 
-OpenHands is the default implementation executor for normal UpperHost feature, fix, refactor, test, documentation, and architecture work.
+OpenHands is the default implementation executor for normal OpenDeviceStudio feature, fix, refactor, test, documentation, and architecture work.
 
 ## Rule loading
 
@@ -63,9 +63,9 @@ Skills are OpenHands methods, not repository policy. They explain how to perform
 
 Linux/OpenHands pre-PR commands:
 
-    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+    dotnet restore OpenDeviceStudio.slnx -p:EnableWindowsTargeting=true
+    dotnet build OpenDeviceStudio.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build
 
 The authoritative Windows/WPF integration gate remains GitHub Actions.
 
