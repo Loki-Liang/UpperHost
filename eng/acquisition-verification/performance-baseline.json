@@ -10,5 +10,6 @@
     "minimumMeasuredIterations": 8,
     "requiresExplicitReviewForBaselineChange": true
   },
-  "benchmarks": {}
+  "benchmarks": {},
+  "environmentFingerprintSha256": null
 }

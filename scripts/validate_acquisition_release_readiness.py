@@ -14,7 +14,7 @@ COMPONENT_KEYS = {"status", "issue", "evidence", "note"}
 STATUSES = {"Production", "Blocked", "NotApplicable"}
 BASELINE_KEYS = {
     "schemaVersion", "status", "environmentId", "sourceSha",
-    "updatedAtUtc", "policy", "benchmarks",
+    "updatedAtUtc", "environmentFingerprintSha256", "policy", "benchmarks",
 }
 POLICY_KEYS = {
     "maxMeanRegressionPercent", "maxAllocationRegressionPercent",
@@ -90,8 +90,15 @@ def validate_baseline(value: dict) -> None:
     if not isinstance(value["benchmarks"], dict):
         raise ValidationError("performance baseline benchmarks must be an object")
     if value["status"] == "Active":
-        if not value["sourceSha"] or not value["updatedAtUtc"] or not value["benchmarks"]:
-            raise ValidationError("Active performance baseline requires sourceSha, updatedAtUtc, and measurements")
+        if (
+            not value["sourceSha"]
+            or not value["updatedAtUtc"]
+            or not value["environmentFingerprintSha256"]
+            or not value["benchmarks"]
+        ):
+            raise ValidationError(
+                "Active performance baseline requires sourceSha, updatedAtUtc, environment fingerprint, and measurements"
+            )
 
 
 def release_blockers(coverage: dict, baseline: dict) -> list[str]:

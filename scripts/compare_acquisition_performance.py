@@ -14,6 +14,10 @@ def compare(baseline: dict, current: dict) -> tuple[str, list[str]]:
         return "NotComparable", [
             f"environment mismatch: baseline={baseline.get('environmentId')!r}, current={current.get('environmentId')!r}"
         ]
+    if baseline.get("environmentFingerprintSha256") != current.get("environmentFingerprintSha256"):
+        return "NotComparable", [
+            "environment fingerprint mismatch; CPU/OS/.NET runner state is not comparable to the reviewed baseline"
+        ]
 
     policy = baseline["policy"]
     mean_limit = 1 + policy["maxMeanRegressionPercent"] / 100.0

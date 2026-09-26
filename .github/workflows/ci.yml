@@ -60,6 +60,9 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Validate pinned diagnostic tools
+        run: dotnet tool restore
+
       - name: Restore Linux-safe runtime tests
         run: dotnet restore tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj
 

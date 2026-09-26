@@ -18,6 +18,7 @@ class AcquisitionPerformanceComparisonTests(unittest.TestCase):
         return {
             "status": "Active",
             "environmentId": "stable",
+            "environmentFingerprintSha256": "a" * 64,
             "policy": {
                 "maxMeanRegressionPercent": 10,
                 "maxAllocationRegressionPercent": 10,
@@ -29,6 +30,7 @@ class AcquisitionPerformanceComparisonTests(unittest.TestCase):
     def current(self):
         return {
             "environmentId": "stable",
+            "environmentFingerprintSha256": "a" * 64,
             "benchmarks": {
                 "A": {"meanNs": 105, "allocatedBytesPerOperation": 52, "measuredIterations": 8}
             },
@@ -53,6 +55,12 @@ class AcquisitionPerformanceComparisonTests(unittest.TestCase):
     def test_environment_mismatch_is_not_comparable(self):
         current = self.current()
         current["environmentId"] = "other"
+        status, _ = COMPARE.compare(self.baseline(), current)
+        self.assertEqual("NotComparable", status)
+
+    def test_fingerprint_mismatch_is_not_comparable(self):
+        current = self.current()
+        current["environmentFingerprintSha256"] = "b" * 64
         status, _ = COMPARE.compare(self.baseline(), current)
         self.assertEqual("NotComparable", status)
 

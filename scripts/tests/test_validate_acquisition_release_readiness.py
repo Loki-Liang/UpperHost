@@ -31,6 +31,7 @@ def baseline(status="Active"):
         "environmentId": "stable-v1",
         "sourceSha": "abc" if status == "Active" else None,
         "updatedAtUtc": "2026-09-27T00:00:00Z" if status == "Active" else None,
+        "environmentFingerprintSha256": "f" * 64 if status == "Active" else None,
         "policy": {
             "maxMeanRegressionPercent": 10,
             "maxAllocationRegressionPercent": 10,

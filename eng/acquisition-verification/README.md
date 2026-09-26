@@ -35,3 +35,7 @@ The profile contract separates three source modes:
 Profiles are evidence inputs, not performance claims. Synthetic evidence must never be reported as real-hardware validation. Required Router branches may not select a lossy overflow policy. Optional presentation branches may not use `Wait`, so UI work cannot backpressure the required path.
 
 The validator is `scripts/validate_acquisition_verification.py`. It rejects unknown fields, invalid numeric-type widths, duplicate branches, unsafe QoS combinations, inconsistent expected data rates, missing required profiles, and missing slow-disk / slow-processing / slow-presentation campaign coverage.
+
+## Fault scheduling evidence
+
+Fault schedules are sequence-driven. Required branches observe every accepted Router sequence, so their scheduled sequence is exact. A lossy Optional branch may discard the exact scheduled item before its consumer observes it; in that case the runner triggers on the first delivered item at or after the scheduled sequence and records both `scheduledAtSequence` and `actualAtSequence`. A fault is never reported as applied merely because it was present in the profile.

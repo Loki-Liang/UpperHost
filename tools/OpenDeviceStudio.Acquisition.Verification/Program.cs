@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -98,6 +99,7 @@ internal static class Program
             StringComparer.Ordinal);
         long requiredDelivered = 0;
         long optionalDelivered = 0;
+        var faults = new FaultTracker(profile);
 
         foreach (var branch in profile.RouterBranches)
         {
@@ -117,7 +119,7 @@ internal static class Program
                     branchOptions,
                     async (item, cancellationToken) =>
                     {
-                        await ApplyDelayAsync(profile, "Processing", item.PublishSequence, cancellationToken);
+                        await faults.ApplyDelayAsync("Processing", item.PublishSequence, cancellationToken);
                         Interlocked.Increment(ref requiredDelivered);
                     });
             }
@@ -127,8 +129,8 @@ internal static class Program
                     branchOptions,
                     async (item, cancellationToken) =>
                     {
-                        await ApplyDelayAsync(profile, "Presentation", item.PublishSequence, cancellationToken);
-                        if (ShouldThrow(profile, item.PublishSequence))
+                        await faults.ApplyDelayAsync("Presentation", item.PublishSequence, cancellationToken);
+                        if (faults.ShouldThrow("Presentation", item.PublishSequence))
                             throw new InvalidOperationException(
                                 $"Injected optional presentation fault at publish sequence {item.PublishSequence}.");
                         Interlocked.Increment(ref optionalDelivered);
@@ -255,7 +257,7 @@ internal static class Program
             RequiredDelivered: requiredDelivered,
             OptionalDelivered: optionalDelivered,
             Recovery: recovery,
-            AppliedFaults: DescribeFaultDisposition(profile),
+            AppliedFaults: faults.Snapshot(),
             FirstFailingInvariant: null,
             ErrorType: null,
             Error: null);
@@ -299,44 +301,6 @@ internal static class Program
             configurationHash: configHash,
             payload: payload);
     }
-
-    private static async ValueTask ApplyDelayAsync(
-        VerificationProfile profile,
-        string target,
-        long publishSequence,
-        CancellationToken token)
-    {
-        var fault = profile.FaultSchedule.FirstOrDefault(item =>
-            item.Target == target &&
-            item.Kind == "Delay" &&
-            item.AtSequence == publishSequence &&
-            item.DurationMs is > 0);
-        if (fault?.DurationMs is { } duration)
-            await Task.Delay(duration, token);
-    }
-
-    private static bool ShouldThrow(VerificationProfile profile, long publishSequence) =>
-        profile.FaultSchedule.Any(item =>
-            item.Target is "Presentation" or "RouterOptional" &&
-            item.Kind == "Throw" &&
-            item.AtSequence == publishSequence);
-
-    private static IReadOnlyList<FaultDisposition> DescribeFaultDisposition(VerificationProfile profile) =>
-        profile.FaultSchedule.Select(fault =>
-        {
-            var applied = fault.Target switch
-            {
-                "Processing" when fault.Kind == "Delay" => true,
-                "Presentation" when fault.Kind is "Delay" or "Throw" => true,
-                "RouterOptional" when fault.Kind == "Throw" => true,
-                _ => false,
-            };
-            return new FaultDisposition(
-                fault.Target,
-                fault.Kind,
-                fault.AtSequence,
-                applied ? "AppliedBySoakRunner" : "CoveredByDedicatedFaultTestOrBlockedAdapter");
-        }).ToArray();
 
     private static RawDurabilityLevel ParseDurability(string value) =>
         Enum.Parse<RawDurabilityLevel>(value, ignoreCase: false);
@@ -526,7 +490,88 @@ internal sealed record RawRecorderProfile(int QueueCapacityBlocks, string Durabi
 internal sealed record RouterBranchProfile(string Id, string Delivery, int CapacityBlocks, string Overflow);
 internal sealed record PresentationProfile(int ViewportSamples, int TargetFps);
 internal sealed record FaultProfile(string Target, string Kind, long AtSequence, int? DurationMs);
-internal sealed record FaultDisposition(string Target, string Kind, long AtSequence, string Disposition);
+internal sealed record FaultDisposition(
+    string Target,
+    string Kind,
+    long ScheduledAtSequence,
+    long? ActualAtSequence,
+    string Disposition);
+
+internal sealed class FaultTracker
+{
+    private readonly IReadOnlyList<FaultProfile> _schedule;
+    private readonly ConcurrentDictionary<string, long> _actual = new(StringComparer.Ordinal);
+
+    public FaultTracker(VerificationProfile profile)
+    {
+        _schedule = profile.FaultSchedule;
+    }
+
+    public async ValueTask ApplyDelayAsync(string target, long publishSequence, CancellationToken token)
+    {
+        foreach (var fault in _schedule.Where(item =>
+                     item.Target == target &&
+                     item.Kind == "Delay" &&
+                     publishSequence >= item.AtSequence))
+        {
+            if (!_actual.TryAdd(Key(fault), publishSequence))
+                continue;
+
+            if (fault.DurationMs is > 0)
+                await Task.Delay(fault.DurationMs.Value, token);
+        }
+    }
+
+    public bool ShouldThrow(string target, long publishSequence)
+    {
+        foreach (var fault in _schedule.Where(item =>
+                     MatchesThrowTarget(item.Target, target) &&
+                     item.Kind == "Throw" &&
+                     publishSequence >= item.AtSequence))
+        {
+            if (_actual.TryAdd(Key(fault), publishSequence))
+                return true;
+        }
+
+        return false;
+    }
+
+    public IReadOnlyList<FaultDisposition> Snapshot() =>
+        _schedule.Select(fault =>
+        {
+            if (_actual.TryGetValue(Key(fault), out var actual))
+            {
+                return new FaultDisposition(
+                    fault.Target,
+                    fault.Kind,
+                    fault.AtSequence,
+                    actual,
+                    "AppliedBySoakRunner");
+            }
+
+            var disposition = fault.Target switch
+            {
+                "RawRecorder" => "CoveredByDedicatedRawRecorderFaultTest",
+                "Provider" => "CoveredByTransportFaultProfileTest",
+                "Parser" => "BlockedUntilReferenceByteParserIsProduction",
+                _ => "NotObservedBySoakRunner",
+            };
+            return new FaultDisposition(
+                fault.Target,
+                fault.Kind,
+                fault.AtSequence,
+                null,
+                disposition);
+        }).ToArray();
+
+    private static bool MatchesThrowTarget(string scheduledTarget, string consumerTarget) =>
+        string.Equals(scheduledTarget, consumerTarget, StringComparison.Ordinal) ||
+        (string.Equals(scheduledTarget, "RouterOptional", StringComparison.Ordinal) &&
+         string.Equals(consumerTarget, "Presentation", StringComparison.Ordinal));
+
+    private static string Key(FaultProfile fault) =>
+        $"{fault.Target}|{fault.Kind}|{fault.AtSequence}";
+}
 
 internal sealed record EnvironmentFingerprint(
     string OsDescription,

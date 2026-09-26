@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -10,7 +11,13 @@ def _number(value):
     return value if isinstance(value, (int, float)) and not isinstance(value, bool) else None
 
 
-def normalize_report(root: Path, environment_id: str, source_sha: str) -> dict:
+def fingerprint_sha256(path: Path) -> str:
+    value = json.loads(path.read_text(encoding="utf-8-sig"))
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def normalize_report(root: Path, environment_id: str, source_sha: str, environment_fingerprint: Path) -> dict:
     benchmarks: dict[str, dict] = {}
     files = sorted(root.rglob("*-report-full.json"))
     if not files:
@@ -49,6 +56,7 @@ def normalize_report(root: Path, environment_id: str, source_sha: str) -> dict:
         "schemaVersion": 1,
         "environmentId": environment_id,
         "sourceSha": source_sha,
+        "environmentFingerprintSha256": fingerprint_sha256(environment_fingerprint),
         "benchmarks": benchmarks,
     }
 
@@ -58,10 +66,16 @@ def main() -> int:
     parser.add_argument("--artifacts", required=True)
     parser.add_argument("--environment-id", required=True)
     parser.add_argument("--source-sha", required=True)
+    parser.add_argument("--environment-fingerprint", required=True)
     parser.add_argument("--output", required=True)
     args = parser.parse_args()
 
-    normalized = normalize_report(Path(args.artifacts), args.environment_id, args.source_sha)
+    normalized = normalize_report(
+        Path(args.artifacts),
+        args.environment_id,
+        args.source_sha,
+        Path(args.environment_fingerprint),
+    )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(normalized, indent=2) + "\n", encoding="utf-8")
