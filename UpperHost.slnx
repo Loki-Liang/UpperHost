@@ -7,6 +7,7 @@
   <Project Path="src/UpperHost.Protocols/UpperHost.Protocols.csproj" />
   <Project Path="src/UpperHost.Control/UpperHost.Control.csproj" />
   <Project Path="src/UpperHost.Dataflow/UpperHost.Dataflow.csproj" />
+  <Project Path="src/UpperHost.Acquisition/UpperHost.Acquisition.csproj" />
   <Project Path="src/UpperHost.Workflows/UpperHost.Workflows.csproj" />
   <Project Path="src/UpperHost.StateMachines/UpperHost.StateMachines.csproj" />
   <Project Path="src/UpperHost.Diagnostics/UpperHost.Diagnostics.csproj" />
