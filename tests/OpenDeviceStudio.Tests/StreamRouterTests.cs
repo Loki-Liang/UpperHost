@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
-using UpperHost.Dataflow;
+using OpenDeviceStudio.Dataflow;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class StreamRouterTests
 {

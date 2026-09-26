@@ -1,8 +1,8 @@
 using System.Text;
-using UpperHost.Protocols;
-using UpperHost.Transport.Simulator;
+using OpenDeviceStudio.Protocols;
+using OpenDeviceStudio.Transport.Simulator;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class RequestResponseTests
 {

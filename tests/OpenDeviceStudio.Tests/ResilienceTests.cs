@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Resilience;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Resilience;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ResilienceTests
 {

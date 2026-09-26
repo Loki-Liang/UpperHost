@@ -1,6 +1,6 @@
-using UpperHost.StateMachines;
+using OpenDeviceStudio.StateMachines;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class StateMachineTests
 {

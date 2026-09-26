@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Parameters;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Parameters;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class TypedParameterRuntimeTests
 {
@@ -125,7 +125,7 @@ public sealed class TypedParameterRuntimeTests
         var services = new ServiceCollection();
         var commandTarget = new BlockingCommandTarget();
         services.AddSingleton<ICommandable<TestCommand, string>>(commandTarget);
-        services.AddUpperHostCommandDispatcher<TestCommand, string>(
+        services.AddOpenDeviceStudioCommandDispatcher<TestCommand, string>(
             new BoundedCommandDispatcherOptions(MaxConcurrency: 2));
 
         await using var serviceProvider = services.BuildServiceProvider();
@@ -205,7 +205,7 @@ public sealed class TypedParameterRuntimeTests
     {
         var services = new ServiceCollection();
         services.AddSingleton<ICommandable<NoOpCommand, string>, NoOpTarget>();
-        services.AddUpperHostCommandDispatcher<NoOpCommand, string>();
+        services.AddOpenDeviceStudioCommandDispatcher<NoOpCommand, string>();
         return services;
     }
 

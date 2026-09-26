@@ -1,7 +1,7 @@
 using System.Text;
-using UpperHost.Protocols;
+using OpenDeviceStudio.Protocols;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ProtocolTests
 {

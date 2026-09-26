@@ -1,13 +1,13 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Channels;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Testing;
-using UpperHost.Transport.Serial;
-using UpperHost.Transport.Simulator;
-using UpperHost.Transport.Tcp;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Testing;
+using OpenDeviceStudio.Transport.Serial;
+using OpenDeviceStudio.Transport.Simulator;
+using OpenDeviceStudio.Transport.Tcp;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class ProviderContractTests
 {

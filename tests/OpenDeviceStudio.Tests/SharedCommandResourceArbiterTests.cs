@@ -1,9 +1,9 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Scheduling;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Scheduling;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class SharedCommandResourceArbiterTests
 {
@@ -13,7 +13,7 @@ public sealed class SharedCommandResourceArbiterTests
         var services = new ServiceCollection();
         var target = new CountingTarget();
         services.AddSingleton<ICommandable<TestCommand, string>>(target);
-        services.AddUpperHostCommandDispatcher<TestCommand, string>(
+        services.AddOpenDeviceStudioCommandDispatcher<TestCommand, string>(
             new BoundedCommandDispatcherOptions(
                 Capacity: 8,
                 PerPriorityCapacity: 8,
@@ -58,11 +58,11 @@ public sealed class SharedCommandResourceArbiterTests
     public void Conflicting_shared_reader_limits_fail_fast_at_registration()
     {
         var services = new ServiceCollection();
-        services.AddUpperHostCommandDispatcher<TestCommand, string>(
+        services.AddOpenDeviceStudioCommandDispatcher<TestCommand, string>(
             new BoundedCommandDispatcherOptions(MaxSharedReadersPerResource: 2));
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
-            services.AddUpperHostCommandDispatcher<OtherCommand, string>(
+            services.AddOpenDeviceStudioCommandDispatcher<OtherCommand, string>(
                 new BoundedCommandDispatcherOptions(MaxSharedReadersPerResource: 4)));
 
         Assert.Contains("same MaxSharedReadersPerResource", exception.Message);

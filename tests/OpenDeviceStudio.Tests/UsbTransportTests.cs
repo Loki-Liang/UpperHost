@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Transports;
-using UpperHost.Transport.Usb;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Transport.Usb;
 
-namespace UpperHost.Tests;
+namespace OpenDeviceStudio.Tests;
 
 public sealed class UsbTransportTests
 {
