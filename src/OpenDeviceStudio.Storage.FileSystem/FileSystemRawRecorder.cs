@@ -195,26 +195,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                 _faultReason ?? "Raw recorder faulted.");
         }
 
-        var ownsSlot = true;
-        try
-        {
-            var owned = block.CloneOwned();
-            if (!queue.Writer.TryWrite(owned))
-            {
-                return new RawRecorderAcceptResult(
-                    CurrentRejectStatus(),
-                    _faultReason ?? "Raw recorder ingress is closed.");
-            }
-
-            ownsSlot = false;
-            Accepted(owned);
-            return RawRecorderAcceptResult.Success;
-        }
-        finally
-        {
-            if (ownsSlot)
-                slots.Release();
-        }
+        return EnqueueAcceptedBlock(block, queue, slots);
     }
 
     public RawRecorderAcceptResult TryAccept(CanonicalRawBlock block)
@@ -241,26 +222,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                 overload.Message);
         }
 
-        var ownsSlot = true;
-        try
-        {
-            var owned = block.CloneOwned();
-            if (!queue.Writer.TryWrite(owned))
-            {
-                return new RawRecorderAcceptResult(
-                    CurrentRejectStatus(),
-                    _faultReason ?? "Raw recorder ingress is closed.");
-            }
-
-            ownsSlot = false;
-            Accepted(owned);
-            return RawRecorderAcceptResult.Success;
-        }
-        finally
-        {
-            if (ownsSlot)
-                slots.Release();
-        }
+        return EnqueueAcceptedBlock(block, queue, slots);
     }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
@@ -453,6 +415,48 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
 
         return null;
+    }
+
+    private RawRecorderAcceptResult EnqueueAcceptedBlock(
+        CanonicalRawBlock block,
+        Channel<CanonicalRawBlock> queue,
+        SemaphoreSlim slots)
+    {
+        var ownsSlot = true;
+        var reservedBytes = false;
+
+        try
+        {
+            var recheck = ValidateAccept(block);
+            if (recheck is not null)
+                return recheck;
+
+            if (!TryReserveSessionBytes(block.Payload.Length, out var quotaFailure))
+                return quotaFailure;
+
+            reservedBytes = true;
+            var owned = block.CloneOwned();
+
+            if (!queue.Writer.TryWrite(owned))
+            {
+                return new RawRecorderAcceptResult(
+                    CurrentRejectStatus(),
+                    _faultReason ?? "Raw recorder ingress is closed.");
+            }
+
+            ownsSlot = false;
+            reservedBytes = false;
+            TrackSequenceContinuity(owned);
+            Accepted(owned);
+            return RawRecorderAcceptResult.Success;
+        }
+        finally
+        {
+            if (reservedBytes)
+                ReleaseSessionBytes(block.Payload.Length);
+            if (ownsSlot)
+                slots.Release();
+        }
     }
 
     private bool TryReserveSessionBytes(int payloadBytes, out RawRecorderAcceptResult failure)
