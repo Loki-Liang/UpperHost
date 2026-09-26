@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using UpperHost.Dataflow;
 
 namespace UpperHost.Tests;
@@ -5,195 +6,441 @@ namespace UpperHost.Tests;
 public sealed class StreamRouterTests
 {
     [Fact]
-    public async Task RequiredBranchRejectsLossyOverflowPolicy()
+    public async Task InvalidRequiredLossyAndOptionalWaitConfigurationsFailFast()
     {
         await using var router = new StreamRouter<int>();
 
-        Assert.Throws<ArgumentException>(() => router.RegisterBranch(new StreamBranchOptions(
-            "raw",
-            Capacity: 8,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.DropOldest,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate)));
+        Assert.Throws<ArgumentException>(() => router.RegisterBranch(
+            new StreamBranchOptions(
+                "raw",
+                "Raw",
+                Capacity: 8,
+                Delivery: StreamBranchDelivery.Required,
+                Overflow: StreamOverflowPolicy.DropOldest,
+                FailurePolicy: StreamBranchFailurePolicy.Propagate),
+            static (_, _) => ValueTask.CompletedTask));
+
+        Assert.Throws<ArgumentException>(() => router.RegisterBranch(
+            new StreamBranchOptions(
+                "ui",
+                "UI",
+                Capacity: 8,
+                Delivery: StreamBranchDelivery.Optional,
+                Overflow: StreamOverflowPolicy.Wait,
+                FailurePolicy: StreamBranchFailurePolicy.Isolate),
+            static (_, _) => ValueTask.CompletedTask));
     }
 
     [Fact]
-    public async Task BranchesUseIndependentBoundedOverflowPolicies()
+    public async Task StartSealsRequiredTopologyButAllowsOptionalAttachDetach()
     {
-        await using var router = new StreamRouter<int>();
-        await using var required = router.RegisterBranch(new StreamBranchOptions(
-            "required-processing",
-            Capacity: 2,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.Wait,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate));
-        await using var presentation = router.RegisterBranch(new StreamBranchOptions(
-            "presentation",
-            Capacity: 2,
-            Delivery: StreamBranchDelivery.Optional,
-            Overflow: StreamOverflowPolicy.DropOldest,
-            FailurePolicy: StreamBranchFailurePolicy.Isolate));
+        var requiredSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var optionalSeen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        router.SealRequiredTopology();
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("processing", capacity: 4),
+            (item, _) =>
+            {
+                if (item.Value == 7)
+                    requiredSeen.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+        router.Start();
+
+        Assert.Throws<InvalidOperationException>(() => router.RegisterBranch(
+            RequiredOptions("late-required", capacity: 4),
+            static (_, _) => ValueTask.CompletedTask));
+
+        var optional = router.RegisterBranch(
+            OptionalOptions("presentation", capacity: 1, StreamOverflowPolicy.Latest),
+            (item, _) =>
+            {
+                if (item.Value == 7)
+                    optionalSeen.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+        var result = await router.PublishAsync(7);
+
+        await requiredSeen.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await optionalSeen.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(StreamRouterState.Running, result.RouterState);
+        Assert.All(result.Branches, static branch => Assert.Equal(StreamBranchPublishStatus.Accepted, branch.Status));
+
+        await optional.DetachAsync(StreamCompletionMode.Drain);
+
+        var snapshot = router.GetSnapshot();
+        Assert.Equal(1, snapshot.BranchCount);
+        Assert.Equal(1, snapshot.RequiredBranchCount);
+        Assert.Equal(0, snapshot.OptionalBranchCount);
+
+        var completed = await router.CompleteAsync();
+        Assert.Equal(StreamRouterState.Completed, completed.State);
+    }
+
+    [Fact]
+    public async Task SlowOptionalBranchDropsOldestWithoutBlockingRequiredBranch()
+    {
+        var requiredValues = new ConcurrentQueue<int>();
+        var optionalValues = new ConcurrentQueue<int>();
+        var requiredDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var optionalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var optionalRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var optionalDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("required", capacity: 4),
+            (item, _) =>
+            {
+                requiredValues.Enqueue(item.Value);
+                if (requiredValues.Count == 3)
+                    requiredDone.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+        var optional = router.RegisterBranch(
+            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropOldest),
+            async (item, cancellationToken) =>
+            {
+                optionalValues.Enqueue(item.Value);
+                if (item.Value == 1)
+                {
+                    optionalEntered.TrySetResult();
+                    await optionalRelease.Task.WaitAsync(cancellationToken);
+                }
+
+                if (item.Value == 3)
+                    optionalDone.TrySetResult();
+            });
+
+        router.Start();
 
         await router.PublishAsync(1);
+        await optionalEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
         await router.PublishAsync(2);
-        Assert.Equal(1, await required.ReadAsync());
-        await router.PublishAsync(3);
+        var third = await router.PublishAsync(3);
 
-        Assert.Equal(2, await required.ReadAsync());
-        Assert.Equal(3, await required.ReadAsync());
+        var uiResult = Assert.Single(third.Branches.Where(static branch => branch.BranchId == "ui"));
+        Assert.Equal(StreamBranchPublishStatus.Accepted, uiResult.Status);
+        Assert.Equal(1, uiResult.DroppedCount);
 
-        Assert.Equal(2, await presentation.ReadAsync());
-        Assert.Equal(3, await presentation.ReadAsync());
+        optionalRelease.TrySetResult();
 
-        var snapshots = router.GetSnapshots();
-        var requiredSnapshot = Assert.Single(snapshots, static snapshot => snapshot.Name == "required-processing");
-        var presentationSnapshot = Assert.Single(snapshots, static snapshot => snapshot.Name == "presentation");
+        await requiredDone.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await optionalDone.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
-        Assert.Equal(0, requiredSnapshot.Dropped);
-        Assert.Equal(1, presentationSnapshot.Dropped);
-        Assert.InRange(requiredSnapshot.HighWatermark, 1, requiredSnapshot.Capacity);
-        Assert.InRange(presentationSnapshot.HighWatermark, 1, presentationSnapshot.Capacity);
+        Assert.Equal(new[] { 1, 2, 3 }, requiredValues.ToArray());
+        Assert.Equal(new[] { 1, 3 }, optionalValues.ToArray());
+        Assert.Equal(1, optional.GetSnapshot().Dropped);
+        Assert.InRange(optional.GetSnapshot().HighWatermark, 0, 1);
+
+        await router.CompleteAsync();
     }
 
     [Fact]
-    public async Task RequiredRejectOverflowFailsInsteadOfGrowingUnbounded()
+    public async Task RequiredRejectProducesExplicitPartialPublishAndFaultsRouter()
+    {
+        var aValues = new ConcurrentQueue<int>();
+        var bEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var bRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("a", capacity: 8),
+            (item, _) =>
+            {
+                aValues.Enqueue(item.Value);
+                return ValueTask.CompletedTask;
+            });
+
+        var b = router.RegisterBranch(
+            RequiredOptions("b", capacity: 1, StreamOverflowPolicy.Reject),
+            async (item, cancellationToken) =>
+            {
+                if (item.Value == 1)
+                {
+                    bEntered.TrySetResult();
+                    await bRelease.Task.WaitAsync(cancellationToken);
+                }
+            });
+
+        router.Start();
+
+        await router.PublishAsync(1);
+        await bEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await router.PublishAsync(2);
+        var result = await router.PublishAsync(3);
+
+        Assert.True(result.HasRequiredFailure);
+        Assert.True(result.IsPartialRequiredDelivery);
+        Assert.Equal(StreamRouterState.Faulted, result.RouterState);
+
+        var aResult = Assert.Single(result.Branches.Where(static branch => branch.BranchId == "a"));
+        var bResult = Assert.Single(result.Branches.Where(static branch => branch.BranchId == "b"));
+        Assert.Equal(StreamBranchPublishStatus.Accepted, aResult.Status);
+        Assert.Equal(StreamBranchPublishStatus.Rejected, bResult.Status);
+        Assert.Equal(1, b.GetSnapshot().Rejected);
+
+        bRelease.TrySetResult();
+        var completed = await router.CompleteAsync(StreamCompletionMode.Drain);
+        Assert.Equal(StreamRouterState.Faulted, completed.State);
+        Assert.Contains(3, aValues);
+    }
+
+    [Fact]
+    public async Task RequiredConsumerFaultIsObservedAndFaultsRouter()
     {
         await using var router = new StreamRouter<int>();
-        await using var branch = router.RegisterBranch(new StreamBranchOptions(
-            "required",
-            Capacity: 1,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.Reject,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate));
+        var required = router.RegisterBranch(
+            RequiredOptions("algorithm", capacity: 4),
+            static (_, _) => throw new InvalidOperationException("algorithm failed"));
 
-        router.SealRequiredTopology();
+        router.Start();
+
+        var publish = await router.PublishAsync(1);
+        Assert.Equal(StreamBranchPublishStatus.Accepted, Assert.Single(publish.Branches).Status);
+
+        await required.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(StreamRouterState.Faulted, router.State);
+        Assert.True(required.GetSnapshot().IsFaulted);
+        Assert.Contains("algorithm failed", required.GetSnapshot().FaultMessage);
+
+        var terminal = await router.CompleteAsync(StreamCompletionMode.Drain);
+        Assert.Equal(StreamRouterState.Faulted, terminal.State);
+    }
+
+    [Fact]
+    public async Task OptionalConsumerFaultIsIsolatedAndRequiredBranchContinues()
+    {
+        var requiredValues = new ConcurrentQueue<int>();
+        var requiredDone = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("required", capacity: 4),
+            (item, _) =>
+            {
+                requiredValues.Enqueue(item.Value);
+                if (requiredValues.Count == 2)
+                    requiredDone.TrySetResult();
+                return ValueTask.CompletedTask;
+            });
+
+        var optional = router.RegisterBranch(
+            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropNewest),
+            static (_, _) => throw new InvalidOperationException("render failed"));
+
+        router.Start();
+
         await router.PublishAsync(1);
+        await optional.Completion.WaitAsync(TimeSpan.FromSeconds(2));
 
-        await Assert.ThrowsAsync<StreamBranchOverflowException>(
-            async () => await router.PublishAsync(2).AsTask());
+        Assert.Equal(StreamRouterState.Running, router.State);
+        Assert.Equal(1, router.GetSnapshot().BranchCount);
+        Assert.Equal(0, router.GetSnapshot().OptionalBranchCount);
 
+        var second = await router.PublishAsync(2);
+        Assert.Single(second.Branches);
+        Assert.Equal("required", second.Branches[0].BranchId);
+
+        await requiredDone.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(new[] { 1, 2 }, requiredValues.ToArray());
+
+        var terminal = await router.CompleteAsync();
+        Assert.Equal(StreamRouterState.Completed, terminal.State);
+    }
+
+    [Fact]
+    public async Task WaitCancellationDoesNotWriteItemLater()
+    {
+        var values = new ConcurrentQueue<int>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("required", capacity: 1, StreamOverflowPolicy.Wait),
+            async (item, cancellationToken) =>
+            {
+                values.Enqueue(item.Value);
+                if (item.Value == 1)
+                {
+                    entered.TrySetResult();
+                    await release.Task.WaitAsync(cancellationToken);
+                }
+            });
+
+        router.Start();
+
+        await router.PublishAsync(1);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await router.PublishAsync(2);
+
+        using var cancellation = new CancellationTokenSource();
+        var pending = router.PublishAsync(3, cancellation.Token).AsTask();
+        cancellation.Cancel();
+
+        var cancelled = await pending.WaitAsync(TimeSpan.FromSeconds(2));
+        var branch = Assert.Single(cancelled.Branches);
+        Assert.Equal(StreamBranchPublishStatus.Cancelled, branch.Status);
+        Assert.True(cancelled.HasRequiredFailure);
+
+        release.TrySetResult();
+        await router.CompleteAsync(StreamCompletionMode.Drain);
+
+        Assert.Equal(new[] { 1, 2 }, values.ToArray());
+    }
+
+    [Fact]
+    public async Task OwnershipIsReleasedForDeliveredDroppedAndCancelledItems()
+    {
+        var retained = 0;
+        var released = 0;
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var neverRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var ownership = new RetainReleaseStreamOwnershipAdapter<TrackedItem>(
+            item =>
+            {
+                Interlocked.Increment(ref retained);
+                return item;
+            },
+            _ => Interlocked.Increment(ref released));
+
+        await using var router = new StreamRouter<TrackedItem>();
+        var optional = router.RegisterBranch(
+            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropOldest),
+            async (item, cancellationToken) =>
+            {
+                if (item.Value.Id == 1)
+                {
+                    entered.TrySetResult();
+                    await neverRelease.Task.WaitAsync(cancellationToken);
+                }
+            },
+            ownership);
+
+        router.Start();
+
+        await router.PublishAsync(new TrackedItem(1));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await router.PublishAsync(new TrackedItem(2));
+        var third = await router.PublishAsync(new TrackedItem(3));
+
+        Assert.Equal(1, Assert.Single(third.Branches).DroppedCount);
+
+        await optional.DetachAsync(StreamCompletionMode.Cancel);
+
+        Assert.Equal(3, Volatile.Read(ref retained));
+        Assert.Equal(3, Volatile.Read(ref released));
+
+        await router.CompleteAsync();
+    }
+
+    [Fact]
+    public async Task SerializedMultiPublisherPreservesSameSequenceOnRequiredBranches()
+    {
+        var first = new ConcurrentQueue<long>();
+        var second = new ConcurrentQueue<long>();
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("a", capacity: 64),
+            (item, _) =>
+            {
+                first.Enqueue(item.PublishSequence);
+                return ValueTask.CompletedTask;
+            });
+        router.RegisterBranch(
+            RequiredOptions("b", capacity: 64),
+            (item, _) =>
+            {
+                second.Enqueue(item.PublishSequence);
+                return ValueTask.CompletedTask;
+            });
+
+        router.Start();
+
+        var publishes = Enumerable.Range(0, 32)
+            .Select(value => router.PublishAsync(value).AsTask())
+            .ToArray();
+
+        await Task.WhenAll(publishes);
+        await router.CompleteAsync(StreamCompletionMode.Drain);
+
+        var firstSequence = first.ToArray();
+        var secondSequence = second.ToArray();
+
+        Assert.Equal(32, firstSequence.Length);
+        Assert.Equal(firstSequence, secondSequence);
+        Assert.Equal(Enumerable.Range(1, 32).Select(static value => (long)value), firstSequence);
+    }
+
+    [Fact]
+    public async Task DrainCompletesAllAcceptedItemsAndLeavesBoundedDiagnostics()
+    {
+        var delivered = 0;
+
+        await using var router = new StreamRouter<int>();
+        var branch = router.RegisterBranch(
+            RequiredOptions("required", capacity: 8),
+            (_, _) =>
+            {
+                Interlocked.Increment(ref delivered);
+                return ValueTask.CompletedTask;
+            });
+
+        router.Start();
+
+        for (var index = 0; index < 50; index++)
+            await router.PublishAsync(index);
+
+        var terminal = await router.CompleteAsync(StreamCompletionMode.Drain);
         var snapshot = branch.GetSnapshot();
-        Assert.Equal(1, snapshot.QueueDepth);
-        Assert.Equal(1, snapshot.HighWatermark);
-        Assert.Equal(1, snapshot.Rejected);
+
+        Assert.Equal(StreamRouterState.Completed, terminal.State);
+        Assert.Equal(StreamBranchState.Completed, snapshot.State);
+        Assert.Equal(50, Volatile.Read(ref delivered));
+        Assert.Equal(50, snapshot.Accepted);
+        Assert.Equal(50, snapshot.Delivered);
+        Assert.Equal(0, snapshot.Dropped);
+        Assert.Equal(0, snapshot.Rejected);
+        Assert.Equal(0, snapshot.QueueDepth);
+        Assert.InRange(snapshot.HighWatermark, 0, snapshot.Capacity);
+        Assert.True(snapshot.LastQueueLatency >= TimeSpan.Zero);
+        Assert.True(snapshot.MaxQueueLatency >= snapshot.LastQueueLatency || snapshot.MaxQueueLatency >= TimeSpan.Zero);
     }
 
-    [Fact]
-    public async Task OptionalBranchFailureIsIsolatedButRequiredFailurePropagates()
-    {
-        await using var router = new StreamRouter<int>();
-        await using var required = router.RegisterBranch(new StreamBranchOptions(
-            "raw-recorder",
-            Capacity: 4,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.Wait,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate));
-        await using var optional = router.RegisterBranch(new StreamBranchOptions(
-            "ui",
-            Capacity: 1,
-            Delivery: StreamBranchDelivery.Optional,
-            Overflow: StreamOverflowPolicy.Latest,
-            FailurePolicy: StreamBranchFailurePolicy.Isolate));
+    private static StreamBranchOptions RequiredOptions(
+        string id,
+        int capacity,
+        StreamOverflowPolicy overflow = StreamOverflowPolicy.Wait) =>
+        new(
+            id,
+            id,
+            capacity,
+            StreamBranchDelivery.Required,
+            overflow,
+            StreamBranchFailurePolicy.Propagate,
+            StreamOrderingPolicy.SerializedPublisherFifo);
 
-        router.SealRequiredTopology();
+    private static StreamBranchOptions OptionalOptions(
+        string id,
+        int capacity,
+        StreamOverflowPolicy overflow) =>
+        new(
+            id,
+            id,
+            capacity,
+            StreamBranchDelivery.Optional,
+            overflow,
+            StreamBranchFailurePolicy.Isolate,
+            StreamOrderingPolicy.SerializedPublisherFifo);
 
-        optional.ReportFailure(new InvalidOperationException("render failed"));
-        await router.PublishAsync(7);
-
-        Assert.Equal(7, await required.ReadAsync());
-        Assert.True(optional.GetSnapshot().IsFaulted);
-
-        required.ReportFailure(new IOException("disk failed"));
-
-        var exception = await Assert.ThrowsAsync<StreamBranchFaultException>(
-            async () => await router.PublishAsync(8).AsTask());
-
-        Assert.Equal("disk failed", exception.InnerException?.Message);
-    }
-
-    [Fact]
-    public async Task SealedRequiredTopologyStillAllowsOptionalAttachDetach()
-    {
-        await using var router = new StreamRouter<int>();
-        await using var required = router.RegisterBranch(new StreamBranchOptions(
-            "processing",
-            Capacity: 2,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.Wait,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate));
-
-        router.SealRequiredTopology();
-
-        Assert.Throws<InvalidOperationException>(() => router.RegisterBranch(new StreamBranchOptions(
-            "late-required",
-            Capacity: 2,
-            Delivery: StreamBranchDelivery.Required,
-            Overflow: StreamOverflowPolicy.Wait,
-            FailurePolicy: StreamBranchFailurePolicy.Propagate)));
-
-        await using (var optional = router.RegisterBranch(new StreamBranchOptions(
-                         "late-ui",
-                         Capacity: 1,
-                         Delivery: StreamBranchDelivery.Optional,
-                         Overflow: StreamOverflowPolicy.Latest,
-                         FailurePolicy: StreamBranchFailurePolicy.Isolate)))
-        {
-            Assert.Equal(2, router.BranchCount);
-        }
-
-        Assert.Equal(1, router.BranchCount);
-    }
-
-    [Fact]
-    public async Task LatestPolicyCoalescesBacklogToNewestItem()
-    {
-        await using var router = new StreamRouter<int>();
-        await using var branch = router.RegisterBranch(new StreamBranchOptions(
-            "trend",
-            Capacity: 8,
-            Delivery: StreamBranchDelivery.Optional,
-            Overflow: StreamOverflowPolicy.Latest,
-            FailurePolicy: StreamBranchFailurePolicy.Isolate));
-
-        await router.PublishAsync(1);
-        await router.PublishAsync(2);
-        await router.PublishAsync(3);
-
-        Assert.Equal(1, branch.GetSnapshot().QueueDepth);
-        Assert.Equal(3, await branch.ReadAsync());
-        Assert.Equal(2, branch.GetSnapshot().Dropped);
-    }
-
-    [Fact]
-    public async Task CopyPerBranchRequiresClonerAndReleasesDroppedCopies()
-    {
-        await using var invalidRouter = new StreamRouter<OwnedValue>();
-
-        Assert.Throws<ArgumentException>(() => invalidRouter.RegisterBranch(new StreamBranchOptions(
-            "copy",
-            Capacity: 1,
-            Ownership: StreamOwnershipPolicy.CopyPerBranch)));
-
-        var released = new List<int>();
-        await using var router = new StreamRouter<OwnedValue>(
-            static value => new OwnedValue(value.Value),
-            value => released.Add(value.Value));
-        await using var branch = router.RegisterBranch(new StreamBranchOptions(
-            "copy",
-            Capacity: 1,
-            Delivery: StreamBranchDelivery.Optional,
-            Overflow: StreamOverflowPolicy.DropNewest,
-            FailurePolicy: StreamBranchFailurePolicy.Isolate,
-            Ownership: StreamOwnershipPolicy.CopyPerBranch));
-
-        await router.PublishAsync(new OwnedValue(1));
-        await router.PublishAsync(new OwnedValue(2));
-
-        Assert.Equal([2], released);
-        Assert.Equal(1, (await branch.ReadAsync()).Value);
-    }
-
-    private sealed record OwnedValue(int Value);
+    private sealed record TrackedItem(int Id);
 }
