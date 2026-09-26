@@ -80,6 +80,10 @@ jobs:
         env:
           EnableUpperHostPublicApiAnalysis: true
         run: |
+          Write-Host "Restore projects with PublicApiAnalyzers enabled"
+          dotnet restore UpperHost.slnx
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
           Get-ChildItem src -Filter *.csproj -Recurse | ForEach-Object {
             dotnet format $_.FullName analyzers --diagnostics RS0016 RS0017 RS0024 RS0025 --severity warn --no-restore
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
