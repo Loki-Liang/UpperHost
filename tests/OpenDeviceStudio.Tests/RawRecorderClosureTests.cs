@@ -387,15 +387,23 @@ public sealed class RawRecorderTestsClosure
         }
     }
 
-    private sealed class SequenceStorageSpaceProbe(params long[] values) : IRawStorageSpaceProbe
+    private sealed class SequenceStorageSpaceProbe : IRawStorageSpaceProbe
     {
+        private readonly long[] _values;
         private int _index = -1;
+
+        public SequenceStorageSpaceProbe(params long[] values)
+        {
+            if (values.Length == 0)
+                throw new ArgumentException("At least one storage-space value is required.", nameof(values));
+            _values = values;
+        }
 
         public long? GetAvailableFreeBytes(string path)
         {
             _ = path;
             var index = Interlocked.Increment(ref _index);
-            return values[Math.Min(index, values.Length - 1)];
+            return _values[Math.Min(index, _values.Length - 1)];
         }
     }
 
