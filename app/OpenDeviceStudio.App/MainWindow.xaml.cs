@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace UpperHost.App;
+namespace OpenDeviceStudio.App;
 
 public partial class MainWindow : Window
 {

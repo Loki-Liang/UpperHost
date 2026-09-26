@@ -1,10 +1,10 @@
-using UpperHost.Abstractions.Workflows;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Interlocks;
-using UpperHost.StateMachines;
-using UpperHost.Workflows;
+using OpenDeviceStudio.Abstractions.Workflows;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Interlocks;
+using OpenDeviceStudio.StateMachines;
+using OpenDeviceStudio.Workflows;
 
-namespace UpperHost.Sample.AutomationStation;
+namespace OpenDeviceStudio.Sample.AutomationStation;
 
 public sealed class DoorClosedInterlock(SafetyDoorDevice door) : IInterlock<AxisCommand>
 {

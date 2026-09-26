@@ -1,8 +1,8 @@
-# UpperHost 自动化工站示例
+# OpenDeviceStudio 自动化工站示例
 
 [English](README.md) | 简体中文
 
-这个 Console 示例专门验证 UpperHost 的 **Automation 自动化路线**。Protocol/Transport 字节通信已经由 Device Control Sample 展示，本例聚焦多设备编排。
+这个 Console 示例专门验证 OpenDeviceStudio 的 **Automation 自动化路线**。Protocol/Transport 字节通信已经由 Device Control Sample 展示，本例聚焦多设备编排。
 
 ## 展示能力
 
@@ -29,7 +29,7 @@
 .NET 10 下可直接运行：
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.AutomationStation/OpenDeviceStudio.Sample.AutomationStation.csproj
 ```
 
 第一次安全门关闭，流程成功；随后程序 Reset、打开安全门再次运行，第一条轴命令会在到达 Axis Device 之前被 Interlock 拒绝，工站进入 `Faulted`。

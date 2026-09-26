@@ -1,18 +1,18 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Interlocks;
-using UpperHost.Hosting;
-using UpperHost.Starters;
-using UpperHost.Workflows;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Interlocks;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Starters;
+using OpenDeviceStudio.Workflows;
 
-namespace UpperHost.Sample.AutomationStation;
+namespace OpenDeviceStudio.Sample.AutomationStation;
 
 internal static class Program
 {
     public static async Task Main(string[] args)
     {
-        var builder = UpperHostApplication.CreateBuilder(args).AddUpperHostDefaults();
+        var builder = OpenDeviceStudioApplication.CreateBuilder(args).AddOpenDeviceStudioDefaults();
 
         builder.Services.AddSingleton<SafetyDoorDevice>();
         builder.Services.AddSingleton<AxisDevice>();

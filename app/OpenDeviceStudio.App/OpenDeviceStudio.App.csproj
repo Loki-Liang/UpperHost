@@ -4,12 +4,12 @@
     <TargetFramework>net10.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <IsPackable>false</IsPackable>
-    <AssemblyName>UpperHost.App</AssemblyName>
-    <RootNamespace>UpperHost.App</RootNamespace>
+    <AssemblyName>OpenDeviceStudio.App</AssemblyName>
+    <RootNamespace>OpenDeviceStudio.App</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../../src/UpperHost.Starters/UpperHost.Starters.csproj" />
-    <ProjectReference Include="../../src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Starters/OpenDeviceStudio.Starters.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Presentation.Wpf/OpenDeviceStudio.Presentation.Wpf.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Update="appsettings.json">

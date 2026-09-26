@@ -1,7 +1,7 @@
-<Window x:Class="UpperHost.App.MainWindow"
+<Window x:Class="OpenDeviceStudio.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="UpperHost"
+        Title="OpenDeviceStudio"
         Width="860"
         Height="520"
         MinWidth="720"
@@ -14,7 +14,7 @@
         </Grid.RowDefinitions>
 
         <StackPanel>
-            <TextBlock FontSize="30" FontWeight="SemiBold" Text="UpperHost" />
+            <TextBlock FontSize="30" FontWeight="SemiBold" Text="OpenDeviceStudio" />
             <TextBlock Margin="0,8,0,0"
                        FontSize="16"
                        Text="Industrial upper-computer development scaffold" />
@@ -47,7 +47,7 @@
                 <TextBlock Margin="0,6,0,0" Text="• Product-specific WPF presentation" />
                 <TextBlock Margin="0,14,0,0"
                            TextWrapping="Wrap"
-                           Text="Reusable UpperHost runtime modules stay under src/. Product-specific code starts from app/UpperHost.App." />
+                           Text="Reusable OpenDeviceStudio runtime modules stay under src/. Product-specific code starts from app/OpenDeviceStudio.App." />
             </StackPanel>
         </Border>
     </Grid>

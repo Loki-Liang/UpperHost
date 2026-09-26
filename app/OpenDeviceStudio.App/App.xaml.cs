@@ -1,19 +1,19 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Hosting;
-using UpperHost.Starters;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Starters;
 
-namespace UpperHost.App;
+namespace OpenDeviceStudio.App;
 
 public partial class App : Application
 {
-    private UpperHostApplication? _host;
+    private OpenDeviceStudioApplication? _host;
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
-        var builder = UpperHostApplication.CreateBuilder(e.Args).AddUpperHostApplication();
+        var builder = OpenDeviceStudioApplication.CreateBuilder(e.Args).AddOpenDeviceStudioApplication();
         builder.Services.AddSingleton<MainWindow>();
 
         _host = builder.Build();

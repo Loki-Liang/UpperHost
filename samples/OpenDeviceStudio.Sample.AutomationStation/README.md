@@ -1,4 +1,4 @@
-# UpperHost Automation Station Sample
+# OpenDeviceStudio Automation Station Sample
 
 English | [简体中文](README.zh-CN.md)
 
@@ -29,7 +29,7 @@ Station state machine
 Run on any platform with .NET 10:
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.AutomationStation/UpperHost.Sample.AutomationStation.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.AutomationStation/OpenDeviceStudio.Sample.AutomationStation.csproj
 ```
 
 The first cycle succeeds with the door closed. The sample then resets, opens the door and runs again; the first axis command is rejected before it reaches the axis device and the station ends in `Faulted`.

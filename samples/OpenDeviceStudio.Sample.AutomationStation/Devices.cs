@@ -1,10 +1,10 @@
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Sample.AutomationStation;
+namespace OpenDeviceStudio.Sample.AutomationStation;
 
 public sealed class SafetyDoorDevice : IDevice
 {
-    public DeviceDescriptor Descriptor { get; } = new("door-1", "Safety Door", "UpperHost", "SIM-DOOR");
+    public DeviceDescriptor Descriptor { get; } = new("door-1", "Safety Door", "OpenDeviceStudio", "SIM-DOOR");
     public DeviceState State => DeviceState.Online;
     public IReadOnlyCollection<string> Capabilities { get; } = ["safety-input"];
     public bool IsClosed { get; private set; } = true;
@@ -19,7 +19,7 @@ public sealed record AxisResult(double Position, string Message);
 
 public sealed class AxisDevice : IDevice, ICommandable<AxisCommand, AxisResult>
 {
-    public DeviceDescriptor Descriptor { get; } = new("axis-x", "X Axis", "UpperHost", "SIM-AXIS");
+    public DeviceDescriptor Descriptor { get; } = new("axis-x", "X Axis", "OpenDeviceStudio", "SIM-AXIS");
     public DeviceState State { get; private set; } = DeviceState.Online;
     public IReadOnlyCollection<string> Capabilities { get; } = ["command", "motion"];
     public double Position { get; private set; }
@@ -59,7 +59,7 @@ public sealed record CaptureResult(string ImageId, double Quality);
 public sealed class CameraDevice : IDevice, ICommandable<CaptureCommand, CaptureResult>
 {
     private int _sequence;
-    public DeviceDescriptor Descriptor { get; } = new("camera-1", "Inspection Camera", "UpperHost", "SIM-CAMERA");
+    public DeviceDescriptor Descriptor { get; } = new("camera-1", "Inspection Camera", "OpenDeviceStudio", "SIM-CAMERA");
     public DeviceState State => DeviceState.Online;
     public IReadOnlyCollection<string> Capabilities { get; } = ["command", "capture"];
 
