@@ -87,6 +87,51 @@ public static class FileSystemRawArtifactReader
         return blocks;
     }
 
+    internal static async Task<RawSegmentRecoveryRead> ReadRecoverableSegmentAsync(
+        string path,
+        CancellationToken cancellationToken)
+    {
+        var blocks = new List<CanonicalRawBlock>();
+        Exception? error = null;
+
+        try
+        {
+            await using var stream = new FileStream(
+                path,
+                new FileStreamOptions
+                {
+                    Mode = FileMode.Open,
+                    Access = FileAccess.Read,
+                    Share = FileShare.ReadWrite,
+                    Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+                });
+            using var reader = new ArrowStreamReader(stream, leaveOpen: true);
+
+            while (true)
+            {
+                var batch = await reader.ReadNextRecordBatchAsync(cancellationToken).ConfigureAwait(false);
+                if (batch is null)
+                    break;
+
+                using (batch)
+                {
+                    for (var row = 0; row < batch.Length; row++)
+                        blocks.Add(ReadBlock(batch, row, path));
+                }
+            }
+        }
+        catch (Exception ex) when (
+            ex is InvalidDataException
+                or EndOfStreamException
+                or IOException
+                or ArgumentOutOfRangeException)
+        {
+            error = ex;
+        }
+
+        return new RawSegmentRecoveryRead(blocks, error);
+    }
+
     internal static CanonicalRawBlock ReadBlock(RecordBatch batch, int row, string path)
     {
         var source = ((StringArray)batch.Column(0)).GetString(row)
@@ -144,6 +189,10 @@ public static class FileSystemRawArtifactReader
         where T : struct =>
         value ?? throw new InvalidDataException($"Null {name} in {path}.");
 }
+
+internal sealed record RawSegmentRecoveryRead(
+    IReadOnlyList<CanonicalRawBlock> Blocks,
+    Exception? Error);
 
 public static class FileSystemRawRecoveryScanner
 {
@@ -227,53 +276,49 @@ public static class FileSystemRawRecoveryScanner
 
         foreach (var path in segmentPaths)
         {
-            try
+            var recovered = await FileSystemRawArtifactReader
+                .ReadRecoverableSegmentAsync(path, cancellationToken)
+                .ConfigureAwait(false);
+            var blocks = recovered.Blocks;
+
+            verifiedBlocks += blocks.Count;
+            verifiedBytes += blocks.Sum(static block => (long)block.Payload.Length);
+
+            foreach (var block in blocks)
             {
-                var blocks = await FileSystemRawArtifactReader
-                    .ReadSegmentAsync(path, cancellationToken)
-                    .ConfigureAwait(false);
-                verifiedBlocks += blocks.Count;
-                verifiedBytes += blocks.Sum(static block => (long)block.Payload.Length);
+                var key = (block.SourceId, block.ConnectionEpoch);
+                var endExclusive = block.SequenceEndExclusive;
 
-                foreach (var block in blocks)
+                if (nextSequenceBySource.TryGetValue(key, out var expected))
                 {
-                    var key = (block.SourceId, block.ConnectionEpoch);
-                    var endExclusive = block.SequenceEndExclusive;
-
-                    if (nextSequenceBySource.TryGetValue(key, out var expected))
+                    if (block.SequenceStart > expected)
                     {
-                        if (block.SequenceStart > expected)
-                        {
-                            sequenceGapCount += block.SequenceStart - expected;
-                        }
-                        else if (block.SequenceStart < expected)
-                        {
-                            if (endExclusive <= expected)
-                                duplicateBlockCount++;
-                            else
-                                outOfOrderBlockCount++;
-                        }
-
-                        nextSequenceBySource[key] = Math.Max(expected, endExclusive);
+                        sequenceGapCount += block.SequenceStart - expected;
                     }
-                    else
+                    else if (block.SequenceStart < expected)
                     {
-                        nextSequenceBySource[key] = endExclusive;
+                        if (endExclusive <= expected)
+                            duplicateBlockCount++;
+                        else
+                            outOfOrderBlockCount++;
                     }
+
+                    nextSequenceBySource[key] = Math.Max(expected, endExclusive);
+                }
+                else
+                {
+                    nextSequenceBySource[key] = endExclusive;
                 }
             }
-            catch (Exception ex) when (
-                ex is InvalidDataException
-                    or EndOfStreamException
-                    or IOException
-                    or ArgumentOutOfRangeException)
+
+            if (recovered.Error is { } error)
             {
                 issues.Add(new RawRecoveryIssue(
                     path.EndsWith(".partial", StringComparison.OrdinalIgnoreCase)
                         ? RawRecoveryIssueKind.TruncatedTail
                         : RawRecoveryIssueKind.CorruptSegment,
                     path,
-                    $"Stopped at last complete Arrow batch: {ex.GetType().Name}: {ex.Message}"));
+                    $"Stopped at last complete Arrow batch: {error.GetType().Name}: {error.Message}"));
             }
         }
 
