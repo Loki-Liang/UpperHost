@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "small-reference-v1",
+  "evidenceKind": "Synthetic",
+  "mode": "VirtualTimeDeterministic",
+  "sourceCount": 1,
+  "channelsPerSource": 2,
+  "numericType": "float32",
+  "bytesPerSample": 4,
+  "sampleRateHz": 1000,
+  "blockSizeSamples": 100,
+  "durationSeconds": 30,
+  "expectedRawBytesPerSecond": 8000,
+  "routerBranches": [
+    { "id": "raw", "delivery": "Required", "capacityBlocks": 32, "overflow": "Wait" },
+    { "id": "processing", "delivery": "Required", "capacityBlocks": 32, "overflow": "Wait" },
+    { "id": "presentation", "delivery": "Optional", "capacityBlocks": 4, "overflow": "DropOldest" }
+  ],
+  "pipelineStages": ["identity"],
+  "presentation": { "viewportSamples": 2000, "targetFps": 30 },
+  "faultSchedule": []
+}

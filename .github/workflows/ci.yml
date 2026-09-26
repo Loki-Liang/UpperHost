@@ -34,7 +34,10 @@ jobs:
       - name: Validate main branch governance contract
         run: python scripts/validate_main_governance.py
 
-      - name: Test governance validators
+      - name: Validate acquisition verification profiles
+        run: python scripts/validate_acquisition_verification.py
+
+      - name: Test governance and verification validators
         run: python -m unittest discover -s scripts/tests -p "test_*.py"
 
   architecture-governance:
@@ -60,11 +63,17 @@ jobs:
       - name: Restore Linux-safe runtime tests
         run: dotnet restore tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj
 
+      - name: Raw format decision spike
+        run: dotnet run --project benchmarks/OpenDeviceStudio.RawFormatSpike/OpenDeviceStudio.RawFormatSpike.csproj -c Release
+
       - name: Test ConnectionManager Linux contract
         run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.ConnectionManagerTests"
 
       - name: Test AcquisitionSession Linux contract
         run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.AcquisitionSessionTests" --blame-hang-timeout 30s --blame-hang-dump-type mini
+
+      - name: Test Raw Recorder Linux contract
+        run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.RawRecorderTests" --blame-hang-timeout 30s --blame-hang-dump-type mini
 
   build-test-scaffold:
     runs-on: windows-latest
