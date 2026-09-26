@@ -16,7 +16,7 @@ public sealed class CommandResourceArbitrationTests
             new BoundedCommandDispatcherOptions(
                 Capacity: 8,
                 PerPriorityCapacity: 8,
-                MaxConcurrency: 1,
+                MaxConcurrency: 2,
                 PerResourcePendingCapacity: 1,
                 MaxSharedReadersPerResource: 4));
 
@@ -31,7 +31,7 @@ public sealed class CommandResourceArbitrationTests
         var second = dispatcher.EnqueueAsync(
             new TestCommand("second"),
             new CommandDispatchOptions(Resources: [resource]));
-        await WaitUntilAsync(() => dispatcher.PendingCount == 1);
+        await WaitUntilAsync(() => dispatcher.PendingCount == 0);
 
         var rejected = await dispatcher.EnqueueAsync(
             new TestCommand("third"),
@@ -107,7 +107,7 @@ public sealed class CommandResourceArbitrationTests
             new CommandDispatchOptions(
                 ResourceClaims: [new(resource, CommandResourceAccess.Exclusive)]));
 
-        await Task.Delay(25);
+        await WaitUntilAsync(() => dispatcher.PendingCount == 0);
         Assert.DoesNotContain("write", target.ExecutionOrder);
 
         target.ReleaseFirst.TrySetResult();

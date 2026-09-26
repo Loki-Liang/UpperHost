@@ -245,6 +245,9 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             }
 
             resourcePendingReservation = null;
+            admissionTimer?.Dispose();
+            admissionCts.Dispose();
+
             var pending = Interlocked.Increment(ref _pending);
             UpdatePendingHighWater(pending);
             CommandDispatcherTelemetry.PendingCommands.Add(
@@ -396,7 +399,6 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             if (!_lanes[priority].Reader.TryRead(out envelope!))
                 continue;
 
-            envelope.ResourcePendingReservation.Dispose();
             Interlocked.Decrement(ref _pending);
             _pendingSlots.Release();
             CommandDispatcherTelemetry.PendingCommands.Add(
@@ -418,6 +420,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             dispatcherToken,
             envelope.CancellationToken);
         using var queueTimer = CreateRemainingQueueTimer(envelope, dispatchCts);
+        var resourcePendingReservation = envelope.ResourcePendingReservation;
 
         try
         {
@@ -431,6 +434,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             await using var lease = await _resources
                 .AcquireAsync(envelope.ResourceClaims, dispatchCts.Token)
                 .ConfigureAwait(false);
+            resourcePendingReservation.Dispose();
             CommandDispatcherTelemetry.ResourceWaitSeconds.Record(
                 _timeProvider.GetElapsedTime(resourceWaitStarted).TotalSeconds,
                 CommandDispatcherTelemetry.PriorityTags(envelope.Options.Priority));
@@ -510,6 +514,10 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 ex.Message,
                 ex,
                 TimeSpan.Zero));
+        }
+        finally
+        {
+            resourcePendingReservation.Dispose();
         }
     }
 
