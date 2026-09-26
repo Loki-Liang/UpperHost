@@ -8,6 +8,7 @@ This runnable WPF sample demonstrates the **control** path of UpperHost with a s
 
 ```text
 WPF adapter
+  -> BoundedCommandDispatcher
   -> TemperatureControllerDevice
   -> typed TemperatureControllerCommand
   -> TemperatureControllerProtocol
@@ -23,7 +24,8 @@ The simulator represents hardware, not the device domain object. Replacing it wi
 
 - DI-provided `IDevice` is registered in `IDeviceRegistry` by the UpperHost host lifecycle.
 - Connect / disconnect state.
-- Typed read/start/stop commands.
+- Typed read/start/stop commands through the host-owned bounded dispatcher.
+- Device resource arbitration and explicit read-vs-mutation safety metadata.
 - Editable target-temperature parameter.
 - Write followed by explicit readback verification.
 - Device-rejected values and command failures surface as application errors.
@@ -47,6 +49,7 @@ Then:
 
 ## Architecture lesson
 
+- `BoundedCommandDispatcher` owns bounded admission, resource arbitration and command lifecycle before Device execution.
 - `Device` owns device semantics and state.
 - `Protocol` owns command encoding and response framing/decoding.
 - `Transport` owns byte movement only.

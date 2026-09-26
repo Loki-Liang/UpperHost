@@ -8,6 +8,7 @@
 
 ```text
 WPF 适配层
+  -> BoundedCommandDispatcher
   -> TemperatureControllerDevice
   -> 强类型 TemperatureControllerCommand
   -> TemperatureControllerProtocol
@@ -23,7 +24,8 @@ Simulator 表示模拟硬件，而不是 Device 领域对象。未来把 Simulat
 
 - DI 注册的 `IDevice` 随 UpperHost Host 生命周期自动进入 `IDeviceRegistry`。
 - Connect / Disconnect 状态。
-- 强类型 Read / Start / Stop 命令。
+- Read / Start / Stop 强类型命令统一经过 Host-owned bounded dispatcher。
+- 设备 Resource 仲裁和显式 Read/Mutation Safety Metadata。
 - 可写目标温度参数。
 - Write 后执行独立 Readback 验证。
 - 非法参数和设备拒绝命令以应用错误暴露。
@@ -47,6 +49,7 @@ dotnet run --project samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.Dev
 
 ## 应该学到什么
 
+- `BoundedCommandDispatcher` 在 Device 执行前负责有界 Admission、资源仲裁和命令生命周期。
 - `Device` 负责设备语义和设备状态。
 - `Protocol` 负责命令编码、分帧和响应解码。
 - `Transport` 只负责字节传输。

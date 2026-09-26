@@ -6,7 +6,7 @@ English | [简体中文](control-runtime.zh-CN.md)
 
 ## Command runtime
 
-`CommandRuntime<TCommand,TResult>` wraps an existing `ICommandable<TCommand,TResult>` and applies command guards before execution. It returns one explicit status: `Succeeded`, `Rejected`, `TimedOut`, `Cancelled` or `Faulted`.
+`CommandRuntime<TCommand,TResult>` wraps an existing command target and applies command guards before execution. Results distinguish `Succeeded`, `Rejected`, `TimedOut`, `Cancelled`, `Faulted` and `UnknownOutcome`. `UnknownOutcome` means the command crossed the side-effect boundary but the final physical device state is unknown; callers must reconcile/read back before retrying.
 
 ```csharp
 var runtime = new CommandRuntime<MoveCommand, MoveResult>(axis, guards);
@@ -17,7 +17,19 @@ var result = await runtime.ExecuteAsync(
 
 The runtime does **not** decide whether a device ACK means physical completion. The product/device capability owns completion semantics and readback rules.
 
-The runtime also does not serialize or prioritize pending commands. Queueing and scheduling are a separate P2 concern.
+Production queueing and arbitration are owned by `BoundedCommandDispatcher<TCommand,TResult>`. It provides bounded admission, weighted priority fairness, per-resource pending limits, deadlock-safe resource sets, queue deadlines, connection-epoch rejection and host-owned lifecycle.
+
+```csharp
+builder.AddCommandDispatcher<MoveCommand, MoveResult>(
+    new BoundedCommandDispatcherOptions(
+        Capacity: 256,
+        PerResourcePendingCapacity: 64,
+        MaxConcurrency: 4));
+```
+
+Use `CommandResourceAccess.SharedRead` only when the Provider/Protocol explicitly supports concurrent reads. Mutating/motion commands use `Exclusive`. `QueueTimeout` covers admission and resource wait before device dispatch; execution timeout remains a separate `CommandExecutionOptions.Timeout`.
+
+The legacy `CommandScheduler<TCommand,TResult>` remains as a compatibility facade and delegates to the bounded dispatcher. New code should not create a second scheduler path.
 
 ## Command guards
 
