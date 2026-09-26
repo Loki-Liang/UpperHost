@@ -26,6 +26,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
         public string? Error { get; set; }
     }
 
+    private sealed record StartupCleanupHandle(
+        IAcquisitionSessionComponent Component,
+        string ComponentId,
+        string? SourceId,
+        AcquisitionComponentKind Kind);
+
     private enum ConvergenceReason
     {
         Stop,
@@ -48,6 +54,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         });
     private readonly CancellationTokenSource _sessionStop = new();
     private readonly CancellationTokenSource _abort = new();
+    private readonly AcquisitionIngressGate _ingressGate;
     private readonly TaskCompletionSource<AcquisitionSessionResult> _completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly ConcurrentQueue<AcquisitionFault> _secondaryFaults = new();
@@ -81,6 +88,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         _definition = definition ?? throw new ArgumentNullException(nameof(definition));
         _timeProvider = timeProvider ?? throw new ArgumentNullException(nameof(timeProvider));
         _onTerminal = onTerminal;
+        _ingressGate = new AcquisitionIngressGate(definition.Mode);
 
         _required = definition.RequiredComponents.ToDictionary(
             static item => item.Component.ComponentId,
@@ -125,6 +133,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 ready,
                 _required.Count + _sources.Count,
                 _rootFault,
+                _ingressGate.IsAccepting,
+                _ingressGate.RejectedAfterClose,
                 _startedAt,
                 _endedAt);
         }
@@ -137,6 +147,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
         string currentComponentId = "session";
         string? currentSourceId = null;
+        var startupCleanup = new Stack<StartupCleanupHandle>();
 
         Transition(AcquisitionSessionState.Preparing, AcquisitionStartupPhase.Validating);
 
@@ -153,6 +164,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 currentComponentId = handle.Registration.Component.ComponentId;
                 currentSourceId = null;
                 SetRequiredState(handle, AcquisitionComponentRuntimeState.Preparing);
+                startupCleanup.Push(new StartupCleanupHandle(
+                    handle.Registration.Component,
+                    currentComponentId,
+                    null,
+                    handle.Registration.Component.Kind));
 
                 var context = CreateContext(currentComponentId, null);
                 await handle.Registration.Component
@@ -168,6 +184,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 currentComponentId = handle.Source.ComponentId;
                 currentSourceId = handle.Source.SourceId;
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Preparing);
+                startupCleanup.Push(new StartupCleanupHandle(
+                    handle.Source,
+                    currentComponentId,
+                    currentSourceId,
+                    AcquisitionComponentKind.Source));
 
                 var context = CreateContext(currentComponentId, currentSourceId);
                 await handle.Source
@@ -180,6 +201,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             SetPhase(AcquisitionStartupPhase.RequiredReady);
             EnsureRequiredReady();
             Transition(AcquisitionSessionState.Ready, AcquisitionStartupPhase.RequiredReady);
+            _ingressGate.Open();
 
             SetPhase(AcquisitionStartupPhase.StartingSources);
             foreach (var handle in _sources.Values)
@@ -210,7 +232,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                         AcquisitionSessionState.Faulted,
                         ex,
                         currentComponentId,
-                        currentSourceId)
+                        currentSourceId,
+                        startupCleanup)
                     .ConfigureAwait(false);
                 return;
             }
@@ -232,7 +255,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     AcquisitionSessionState.Aborted,
                     ex,
                     currentComponentId,
-                    currentSourceId)
+                    currentSourceId,
+                    startupCleanup)
                 .ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -252,7 +276,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     AcquisitionSessionState.Faulted,
                     ex,
                     currentComponentId,
-                    currentSourceId)
+                    currentSourceId,
+                    startupCleanup)
                 .ConfigureAwait(false);
         }
     }
@@ -1045,6 +1070,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             _sessionStop.Token,
             _abort.Token,
             _timeProvider,
+            _ingressGate,
             (category, exception, message) =>
                 ReportFault(componentId, sourceId, category, exception, message));
 
@@ -1163,6 +1189,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         if (Interlocked.Exchange(ref _terminalOnce, 1) != 0)
             return;
 
+        _ingressGate.Close();
         Transition(terminalState, AcquisitionStartupPhase.Completed);
 
         if (Interlocked.Exchange(ref _activeMetric, 0) == 1)
@@ -1183,6 +1210,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 _endedAt.Value,
                 ProcessingEpoch,
                 _definition.ReplaySourceArtifactId,
+                _ingressGate.RejectedAfterClose,
                 _required.Values
                     .Select(static item => new AcquisitionComponentResult(
                         item.Registration.Component.ComponentId,
