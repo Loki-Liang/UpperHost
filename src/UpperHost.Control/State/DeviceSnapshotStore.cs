@@ -68,12 +68,22 @@ public sealed record DeviceObservationApplyResult<TState>(
     public bool Applied => Status == DeviceObservationApplyStatus.Applied;
 }
 
+public interface IDeviceEpochInvalidationSink
+{
+    IReadOnlyList<object> AdvanceConnectionEpoch(
+        string deviceId,
+        long connectionEpoch,
+        string qualityReason);
+}
+
 /// <summary>
 /// Per-state-type authoritative reducer for immutable device state fragments.
 /// All producers (poll, push, readback, command completion and rehydrate)
 /// publish observations through this store instead of mutating UI/device caches.
 /// </summary>
-public sealed class DeviceSnapshotStore<TState> : IAsyncDisposable
+public sealed class DeviceSnapshotStore<TState> :
+    IDeviceEpochInvalidationSink,
+    IAsyncDisposable
 {
     private readonly ConcurrentDictionary<EntryKey, Entry> _entries = new();
     private readonly TimeProvider _timeProvider;
@@ -186,6 +196,14 @@ public sealed class DeviceSnapshotStore<TState> : IAsyncDisposable
 
         return changed;
     }
+
+    IReadOnlyList<object> IDeviceEpochInvalidationSink.AdvanceConnectionEpoch(
+        string deviceId,
+        long connectionEpoch,
+        string qualityReason) =>
+        AdvanceConnectionEpoch(deviceId, connectionEpoch, qualityReason)
+            .Cast<object>()
+            .ToArray();
 
     public DeviceSnapshot<TState>? Get(
         string deviceId,
