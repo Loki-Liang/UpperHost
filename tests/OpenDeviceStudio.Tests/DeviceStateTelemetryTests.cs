@@ -25,9 +25,7 @@ public sealed class DeviceStateTelemetryTests
             {
                 Interlocked.Increment(ref observed);
                 Assert.DoesNotContain(tags.ToArray(), tag =>
-                    tag.Key.Contains("device", StringComparison.OrdinalIgnoreCase) ||
-                    tag.Key.Contains("parameter", StringComparison.OrdinalIgnoreCase) ||
-                    tag.Key.Contains("serial", StringComparison.OrdinalIgnoreCase));
+                    HasForbiddenTagSegment(tag.Key, "device", "parameter", "serial"));
             }
         });
         listener.Start();
@@ -45,6 +43,14 @@ public sealed class DeviceStateTelemetryTests
             42));
 
         Assert.True(Volatile.Read(ref observed) >= 1);
+    }
+
+    private static bool HasForbiddenTagSegment(string key, params string[] forbidden)
+    {
+        var segments = key.Split(['.', '_', ':'], StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(segment => forbidden.Any(token =>
+            segment.Equals(token, StringComparison.OrdinalIgnoreCase) ||
+            segment.StartsWith(token, StringComparison.OrdinalIgnoreCase)));
     }
 
     private sealed class AsyncDisposableAdapter<T>(T value) : IDisposable

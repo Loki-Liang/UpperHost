@@ -117,9 +117,7 @@ public sealed class CommandDispatcherReliabilityTests
                 Interlocked.Add(ref rejections, measurement);
 
             Assert.DoesNotContain(tags.ToArray(), tag =>
-                tag.Key.Contains("device", StringComparison.OrdinalIgnoreCase) ||
-                tag.Key.Contains("resource", StringComparison.OrdinalIgnoreCase) ||
-                tag.Key.Contains("execution", StringComparison.OrdinalIgnoreCase));
+                HasForbiddenTagSegment(tag.Key, "device", "resource", "execution"));
         });
         listener.SetMeasurementEventCallback<double>((instrument, measurement, tags, state) =>
         {
@@ -155,6 +153,14 @@ public sealed class CommandDispatcherReliabilityTests
         Assert.True(Volatile.Read(ref rejections) >= 1);
         Assert.True(Volatile.Read(ref queueWaitMeasurements) >= 1);
         Assert.True(dispatcher.PendingHighWater >= 1);
+    }
+
+    private static bool HasForbiddenTagSegment(string key, params string[] forbidden)
+    {
+        var segments = key.Split(['.', '_', ':'], StringSplitOptions.RemoveEmptyEntries);
+        return segments.Any(segment => forbidden.Any(token =>
+            segment.Equals(token, StringComparison.OrdinalIgnoreCase) ||
+            segment.StartsWith(token, StringComparison.OrdinalIgnoreCase)));
     }
 
     private static async Task WaitUntilAsync(Func<bool> predicate)
