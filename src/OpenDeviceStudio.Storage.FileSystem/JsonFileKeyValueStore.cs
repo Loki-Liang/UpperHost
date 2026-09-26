@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using UpperHost.Abstractions.Storage;
+using OpenDeviceStudio.Abstractions.Storage;
 
-namespace UpperHost.Storage.FileSystem;
+namespace OpenDeviceStudio.Storage.FileSystem;
 
 public sealed class JsonFileKeyValueStore : IKeyValueStore
 {

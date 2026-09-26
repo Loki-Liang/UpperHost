@@ -1,4 +1,4 @@
-namespace UpperHost.StateMachines;
+namespace OpenDeviceStudio.StateMachines;
 
 public sealed record StateTransition<TState, TTrigger>(
     TState From,

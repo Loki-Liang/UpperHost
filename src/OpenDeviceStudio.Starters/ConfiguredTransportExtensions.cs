@@ -2,17 +2,17 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Hosting;
-using UpperHost.Resilience;
-using UpperHost.Transport.Serial;
-using UpperHost.Transport.Tcp;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Resilience;
+using OpenDeviceStudio.Transport.Serial;
+using OpenDeviceStudio.Transport.Tcp;
 
-namespace UpperHost.Starters;
+namespace OpenDeviceStudio.Starters;
 
 public static class ConfiguredTransportExtensions
 {
-    public static UpperHostApplicationBuilder AddConfiguredTransport(this UpperHostApplicationBuilder builder)
+    public static OpenDeviceStudioApplicationBuilder AddConfiguredTransport(this OpenDeviceStudioApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
 
@@ -25,34 +25,34 @@ public static class ConfiguredTransportExtensions
             "serial" => AddConfiguredSerial(builder, options),
             "tcp" => AddConfiguredTcp(builder, options),
             _ => throw new InvalidOperationException(
-                "UpperHost:Transport:Type must be one of Simulator, Serial or Tcp.")
+                "OpenDeviceStudio:Transport:Type must be one of Simulator, Serial or Tcp.")
         };
     }
 
-    public static UpperHostApplicationBuilder AddUpperHostApplication(this UpperHostApplicationBuilder builder) =>
-        builder.AddUpperHostDefaults().AddConfiguredTransport();
+    public static OpenDeviceStudioApplicationBuilder AddOpenDeviceStudioApplication(this OpenDeviceStudioApplicationBuilder builder) =>
+        builder.AddOpenDeviceStudioDefaults().AddConfiguredTransport();
 
-    private static UpperHostTransportOptions BindConfiguredTransportOptions(
-        UpperHostApplicationBuilder builder)
+    private static OpenDeviceStudioTransportOptions BindConfiguredTransportOptions(
+        OpenDeviceStudioApplicationBuilder builder)
     {
-        var section = builder.Configuration.GetSection(UpperHostTransportOptions.SectionName);
+        var section = builder.Configuration.GetSection(OpenDeviceStudioTransportOptions.SectionName);
 
         builder.Services
-            .AddOptions<UpperHostTransportOptions>()
+            .AddOptions<OpenDeviceStudioTransportOptions>()
             .Bind(section)
             .ValidateOnStart();
         builder.Services.TryAddEnumerable(
-            ServiceDescriptor.Singleton<IValidateOptions<UpperHostTransportOptions>,
-                UpperHostTransportOptionsValidator>());
+            ServiceDescriptor.Singleton<IValidateOptions<OpenDeviceStudioTransportOptions>,
+                OpenDeviceStudioTransportOptionsValidator>());
 
-        var options = section.Get<UpperHostTransportOptions>() ?? new UpperHostTransportOptions();
-        UpperHostTransportOptionsValidator.ValidateAndThrow(options);
+        var options = section.Get<OpenDeviceStudioTransportOptions>() ?? new OpenDeviceStudioTransportOptions();
+        OpenDeviceStudioTransportOptionsValidator.ValidateAndThrow(options);
         return options;
     }
 
-    private static UpperHostApplicationBuilder AddConfiguredSerial(
-        UpperHostApplicationBuilder builder,
-        UpperHostTransportOptions configuration)
+    private static OpenDeviceStudioApplicationBuilder AddConfiguredSerial(
+        OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioTransportOptions configuration)
     {
         var configured = configuration.Serial;
         var options = new SerialTransportOptions(
@@ -65,14 +65,14 @@ public static class ConfiguredTransportExtensions
         var resilience = CreateReconnectConfiguration(configuration.Resilience);
 
         builder.Services.AddSingleton(options);
-        return builder.AddUpperHostTransport(
+        return builder.AddOpenDeviceStudioTransport(
             _ => new SerialTransport(options),
             transport => WrapIfEnabled(transport, resilience));
     }
 
-    private static UpperHostApplicationBuilder AddConfiguredTcp(
-        UpperHostApplicationBuilder builder,
-        UpperHostTransportOptions configuration)
+    private static OpenDeviceStudioApplicationBuilder AddConfiguredTcp(
+        OpenDeviceStudioApplicationBuilder builder,
+        OpenDeviceStudioTransportOptions configuration)
     {
         var configured = configuration.Tcp;
         var options = new TcpTransportOptions(
@@ -82,7 +82,7 @@ public static class ConfiguredTransportExtensions
         var resilience = CreateReconnectConfiguration(configuration.Resilience);
 
         builder.Services.AddSingleton(options);
-        return builder.AddUpperHostTransport(
+        return builder.AddOpenDeviceStudioTransport(
             _ => new TcpTransport(options),
             transport => WrapIfEnabled(transport, resilience));
     }
@@ -97,7 +97,7 @@ public static class ConfiguredTransportExtensions
     }
 
     private static ReconnectConfiguration CreateReconnectConfiguration(
-        UpperHostTransportResilienceOptions options)
+        OpenDeviceStudioTransportResilienceOptions options)
     {
         var policy = new ReconnectPolicy(
             options.MaxAttempts,

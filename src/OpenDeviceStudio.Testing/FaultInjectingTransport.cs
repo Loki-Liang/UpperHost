@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Testing;
+namespace OpenDeviceStudio.Testing;
 
 public enum FaultKind
 {

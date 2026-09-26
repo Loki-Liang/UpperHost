@@ -1,16 +1,16 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Connections;
-using UpperHost.Hosting;
-using UpperHost.Observability;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Connections;
+using OpenDeviceStudio.Hosting;
+using OpenDeviceStudio.Observability;
 
-namespace UpperHost.Starters;
+namespace OpenDeviceStudio.Starters;
 
 public static class TransportRegistrationExtensions
 {
-    public static UpperHostApplicationBuilder AddUpperHostTransport<TTransport>(
-        this UpperHostApplicationBuilder builder,
+    public static OpenDeviceStudioApplicationBuilder AddOpenDeviceStudioTransport<TTransport>(
+        this OpenDeviceStudioApplicationBuilder builder,
         Func<IServiceProvider, TTransport> factory,
         Func<ITransport, ITransport>? decorate = null,
         ConnectionSharingMode sharingMode = ConnectionSharingMode.Shared)
@@ -19,7 +19,7 @@ public static class TransportRegistrationExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(factory);
 
-        builder.Services.AddUpperHostConnections();
+        builder.Services.AddOpenDeviceStudioConnections();
         builder.Services.AddSingleton(factory);
         builder.Services.AddSingleton<ITransport>(services =>
         {
