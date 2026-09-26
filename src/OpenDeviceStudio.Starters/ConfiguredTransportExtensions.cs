@@ -30,7 +30,10 @@ public static class ConfiguredTransportExtensions
     }
 
     public static OpenDeviceStudioApplicationBuilder AddOpenDeviceStudioApplication(this OpenDeviceStudioApplicationBuilder builder) =>
-        builder.AddOpenDeviceStudioDefaults().AddConfiguredTransport();
+        builder
+            .AddOpenDeviceStudioDefaults()
+            .AddConfiguredRawRecording()
+            .AddConfiguredTransport();
 
     private static OpenDeviceStudioTransportOptions BindConfiguredTransportOptions(
         OpenDeviceStudioApplicationBuilder builder)

@@ -27,6 +27,8 @@ public static class OpenDeviceStudioStarterExtensions
         builder.AddOpenDeviceStudio();
         builder.Services.AddOpenDeviceStudioConnections();
         builder.Services.AddOpenDeviceStudioAcquisition();
+        builder.AddFileSystemRawRecording(
+            new FileSystemRawRecorderOptions(Path.Combine("data", "raw")));
         builder.Services.TryAddSingleton<WorkflowRunner>();
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
@@ -99,5 +101,42 @@ public static class OpenDeviceStudioStarterExtensions
     {
         builder.Services.AddSingleton<IKeyValueStore>(_ => new JsonFileKeyValueStore(directory));
         return builder;
+    }
+
+    public static OpenDeviceStudioApplicationBuilder AddFileSystemRawRecording(
+        this OpenDeviceStudioApplicationBuilder builder,
+        FileSystemRawRecorderOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(options);
+        options.Validate();
+
+        builder.Services.RemoveAll<IRawRecorderFactory>();
+        builder.Services.AddSingleton<IRawRecorderFactory>(sp =>
+            new FileSystemRawRecorderFactory(
+                options,
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+        return builder;
+    }
+
+    public static OpenDeviceStudioApplicationBuilder DisableRawRecording(
+        this OpenDeviceStudioApplicationBuilder builder,
+        string reason)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        builder.Services.RemoveAll<IRawRecorderFactory>();
+        builder.Services.AddSingleton<IRawRecorderFactory>(
+            new DisabledRawRecorderFactory(reason));
+        return builder;
+    }
+
+    private sealed class DisabledRawRecorderFactory(string reason) : IRawRecorderFactory
+    {
+        public bool IsEnabled => false;
+        public string DisabledReason { get; } = reason;
+        public IRawRecorder Create() =>
+            throw new InvalidOperationException("Raw recording is disabled.");
     }
 }

@@ -28,6 +28,10 @@
     "OpenDeviceStudio:Transport:Resilience:Enabled",
     "OpenDeviceStudio:Observability:ServiceName",
     "OpenDeviceStudio:Observability:Logging:File:Enabled",
-    "OpenDeviceStudio:Observability:Otlp:Enabled"
+    "OpenDeviceStudio:Observability:Otlp:Enabled",
+    "OpenDeviceStudio:Acquisition:RawRecording:Enabled",
+    "OpenDeviceStudio:Acquisition:RawRecording:RootDirectory",
+    "OpenDeviceStudio:Acquisition:RawRecording:QueueCapacity",
+    "OpenDeviceStudio:Acquisition:RawRecording:Durability"
   ]
 }
