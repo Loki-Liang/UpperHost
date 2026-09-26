@@ -257,8 +257,21 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         }
 
         _queue!.Writer.TryComplete();
-        await _writerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-        await FinalizeActiveSegmentsAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await _writerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await FinalizeActiveSegmentsAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            Fail(new RawRecorderFault(
+                "raw.finalize.failure",
+                "Raw recorder drain/segment finalization failed.",
+                ex,
+                _timeProvider.GetUtcNow()));
+            await _faultManifestTask.ConfigureAwait(false);
+            throw;
+        }
     }
 
     public async ValueTask FinalizeAsync(CancellationToken cancellationToken = default)
@@ -276,7 +289,21 @@ public sealed class FileSystemRawRecorder : IRawRecorder
                 throw new InvalidOperationException($"Raw recorder cannot finalize from state {_state}.");
         }
 
-        await WriteManifestAsync("Completed", null, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await WriteManifestAsync("Completed", null, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            Fail(new RawRecorderFault(
+                "raw.manifest.finalize_failure",
+                "Raw recorder final manifest commit failed.",
+                ex,
+                _timeProvider.GetUtcNow()));
+            await _faultManifestTask.ConfigureAwait(false);
+            throw;
+        }
+
         lock (_gate)
             _state = RawRecorderState.Completed;
         RawRecorderTelemetry.SessionsCompleted.Add(1);
