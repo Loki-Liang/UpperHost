@@ -30,7 +30,7 @@ OpenDeviceStudio is a source-first enterprise .NET upper-computer development sc
 | State machine | Generic `StateMachine<TState,TTrigger>` | Define product states and triggers |
 | Events | Typed `IEventBus` | Publish/subscribe product events instead of static globals |
 | Alarms | `IAlarmService` raise/acknowledge/clear lifecycle | Define product alarm rules |
-| Storage | `IKeyValueStore` + JSON file-system provider | `AddFileSystemStorage()` or implement another provider |
+| Storage | `IKeyValueStore` + JSON provider; default Canonical RawData `IRawRecorder` + FileSystem Arrow adapter | `AddFileSystemStorage()`; configure/replace `IRawRecorderFactory` for acquisition Raw artifacts |
 | Modules / plugins | `IOpenDeviceStudioModule` and trusted in-process loading | Register services in module `ConfigureServices` |
 | Presentation | WPF adapter and reusable device/parameter/command/alarm controls | Keep product UI in `app/OpenDeviceStudio.App` |
 | Testing | Simulator and fault-injection infrastructure | Cover simulator and fault paths before hardware-only validation |
@@ -281,6 +281,10 @@ Hardware
 Required readiness is complete before Source start. Required faults terminate/converge through the Session; Optional presentation/algorithm faults are isolated unless the frozen definition explicitly escalates them. Replay sources are read-only by default and reuse processing implementations under a new ProcessingEpoch.
 
 Define capacity, backpressure, loss policy and UI downsampling explicitly. Do not use a WPF UI timer as the acquisition clock.
+
+Raw recording is default-on when the product uses `AddOpenDeviceStudioApplication()`. Configuration lives under `OpenDeviceStudio:Acquisition:RawRecording`; invalid capacity, quota, segment or durability settings fail during startup. To replace the default adapter, register one `IRawRecorderFactory`. To disable recording, call `DisableRawRecording(reason)` or set `Enabled=false` with a non-empty `DisabledReason`; silent absence of a recorder is not an opt-out.
+
+A Source declares `RawFlowControl`. Use `SupportsBackpressure` only when the provider can safely await bounded capacity. SDK/callback sources that cannot block declare `CannotBackpressure`; Raw ingress then uses `TryAccept` and faults the Session on overload.
 
 ## 12. Storage
 

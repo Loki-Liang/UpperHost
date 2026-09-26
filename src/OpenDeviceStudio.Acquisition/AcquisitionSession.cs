@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Threading.Channels;
+using OpenDeviceStudio.Abstractions.Storage;
 
 namespace OpenDeviceStudio.Acquisition;
 
@@ -55,6 +56,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private readonly CancellationTokenSource _sessionStop = new();
     private readonly CancellationTokenSource _abort = new();
     private readonly IReadOnlyDictionary<string, AcquisitionIngressGate> _ingressBySource;
+    private readonly IAcquisitionRawSink<CanonicalRawBlock>? _defaultCanonicalRawSink;
     private readonly TaskCompletionSource<AcquisitionSessionResult> _completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly ConcurrentQueue<AcquisitionFault> _secondaryFaults = new();
@@ -108,6 +110,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
             static item => item.Component.ComponentId,
             static item => new OptionalHandle(item),
             StringComparer.Ordinal);
+
+        _defaultCanonicalRawSink = definition.RequiredComponents
+            .Where(static item => item.Component.Kind == AcquisitionComponentKind.RawRecorder)
+            .Select(static item => item.Component)
+            .OfType<IAcquisitionRawSink<CanonicalRawBlock>>()
+            .SingleOrDefault();
     }
 
     public string SessionId => _definition.SessionId;
@@ -1182,6 +1190,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
             _abort.Token,
             _timeProvider,
             sourceId is null ? null : _ingressBySource[sourceId],
+            sourceId is null ? null : _sources[sourceId].Source.RawFlowControl,
+            sourceId is null ? null : _defaultCanonicalRawSink,
             (category, exception, message) =>
                 ReportFault(componentId, sourceId, category, exception, message));
 

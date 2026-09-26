@@ -140,6 +140,14 @@ Source callback / reader
 
 RawFirstAcquisitionIngress 只负责 Raw Accepted -> Processing 的顺序不变量，不把 DSP、WPF 或具体存储实现塞进 Session Coordinator。Replay 是读取只读 Raw artifact 的新 Processing Session，并生成新的 ProcessingEpoch。多 Source 选择 isolate 策略时，必须通过 isolation observer 把失败 SourceId / connection epoch 传播到依赖的 quality/processing state，禁止无痕继续。
 
+### Canonical RawData 默认持久化
+
+Live Acquisition 默认启用 Required Canonical Raw Recorder。`CanonicalRawBlock` 在 framing/最小解码之后、校准/滤波/算法/UI 降采样之前取得设备原始 numeric/byte representation 的 immutable owned copy。`RawRecorderAcceptResult.Accepted` 只表示数据已进入有界 Recorder 责任域并取得独立所有权，不代表已经物理 Flush/Durable。
+
+默认 `OpenDeviceStudio.Storage.FileSystem` Adapter 使用 bounded no-drop Channel、dedicated writer、按 Source/ConnectionEpoch 分段的 Apache Arrow IPC、SHA-256 完整性证据、临时文件替换 Manifest 与 report-only Recovery Scanner。活动 Segment 使用 `.partial`，Finalize 后才重命名为 `.arrow`；是否完整由 Manifest state/generation、Segment inventory、Sequence diagnostics 与 Durability policy 共同判定。
+
+`SupportsBackpressure` Source 可等待有界 Recorder 容量；`CannotBackpressure` Source 强制走非阻塞 `TryAccept`，队列饱和时 Fault Required Raw path，禁止静默 Drop。FileSystem/Arrow 只存在于 Adapter 层，产品可替换为 EDF/EDF+、Parquet、HDF5、Vendor Native 或 Database Adapter，而不改变 Acquisition Session 生命周期权威。
+
 ## Streaming
 
 连续数据设备走 Streaming：

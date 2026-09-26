@@ -144,6 +144,14 @@ Source callback / reader
 
 RawFirstAcquisitionIngress enforces the Raw-accepted-before-processing invariant without moving DSP, WPF or storage implementation into the Session coordinator. Replay is a new processing session over a read-only Raw source artifact and gets a new ProcessingEpoch. Multi-source isolation is allowed only when an isolation observer propagates the failed SourceId/connection epoch into dependent quality/processing state.
 
+### Canonical RawData recording
+
+Live acquisition defaults to a Required Canonical Raw recorder. `CanonicalRawBlock` owns an immutable copy of the device's original numeric/byte representation after framing/minimal decode and before calibration, filtering, algorithms or display downsampling. `RawRecorderAcceptResult.Accepted` means the bounded recorder responsibility domain owns the block; it does not mean the bytes have already been flushed to disk.
+
+The default `OpenDeviceStudio.Storage.FileSystem` adapter uses a bounded no-drop channel, a dedicated writer, per-source/connection-epoch Apache Arrow IPC segments, SHA-256 integrity evidence, crash-safe manifest replacement and report-only recovery scanning. Active segments use `.partial`; only finalized segments are renamed to `.arrow`. The manifest state, generation, segment inventory, sequence diagnostics and durability policy determine whether an artifact is complete.
+
+`SupportsBackpressure` sources may await bounded recorder capacity. `CannotBackpressure` sources are forced through the non-blocking `TryAccept` path; saturation faults the Required Raw path rather than silently dropping data. File-system details remain behind `IRawRecorder`, so products can replace the default adapter with EDF/EDF+, Parquet, HDF5, vendor-native or database storage without changing the Acquisition Session authority.
+
 ## Streaming runtime
 
 Streaming workloads follow a separate first-class path:

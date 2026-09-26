@@ -9,10 +9,21 @@ public sealed class AcquisitionSessionManager : IAsyncDisposable
 {
     private readonly ConcurrentDictionary<string, AcquisitionSession> _sessions = new(StringComparer.Ordinal);
     private readonly TimeProvider _timeProvider;
+    private readonly IReadOnlyList<IAcquisitionSessionDefinitionEnricher> _enrichers;
     private int _disposed;
 
-    public AcquisitionSessionManager(TimeProvider? timeProvider = null) =>
+    public AcquisitionSessionManager(TimeProvider? timeProvider = null)
+        : this(timeProvider, null)
+    {
+    }
+
+    internal AcquisitionSessionManager(
+        TimeProvider? timeProvider,
+        IEnumerable<IAcquisitionSessionDefinitionEnricher>? enrichers)
+    {
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _enrichers = (enrichers ?? []).ToArray();
+    }
 
     public int ActiveSessionCount => _sessions.Count;
 
@@ -20,6 +31,9 @@ public sealed class AcquisitionSessionManager : IAsyncDisposable
     {
         ObjectDisposedException.ThrowIf(Volatile.Read(ref _disposed) != 0, this);
         ArgumentNullException.ThrowIfNull(definition);
+
+        foreach (var enricher in _enrichers)
+            definition = enricher.Enrich(definition);
 
         var session = new AcquisitionSession(definition, _timeProvider, OnSessionTerminal);
         if (!_sessions.TryAdd(session.SessionId, session))
@@ -103,8 +117,13 @@ public static class AcquisitionServiceCollectionExtensions
             return services;
 
         services.AddSingleton<AcquisitionRegistrationMarker>();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IAcquisitionSessionDefinitionEnricher,
+                RawRecordingSessionDefinitionEnricher>());
         services.TryAddSingleton(sp =>
-            new AcquisitionSessionManager(sp.GetService<TimeProvider>() ?? TimeProvider.System));
+            new AcquisitionSessionManager(
+                sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                sp.GetServices<IAcquisitionSessionDefinitionEnricher>()));
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, AcquisitionSessionManagerHostedService>());
         return services;
