@@ -296,18 +296,32 @@ public sealed class DevicePollRuntime<TState> : IAsyncDisposable
                 sample.ObservedAtUtc ?? _timeProvider.GetUtcNow(),
                 sample.QualityReason,
                 group.Definition.StaleAfter));
+            outcome = applied.Status == DeviceObservationApplyStatus.Applied
+                ? "success"
+                : applied.Status.ToString();
         }
         catch (OperationCanceledException) when (
             runtimeToken.IsCancellationRequested ||
             timeoutCts.IsCancellationRequested)
         {
+            outcome = runtimeToken.IsCancellationRequested ? "cancelled" : "timeout";
             // Keep the last successful snapshot authoritative. Freshness will
             // naturally transition it to Stale without inventing a new value.
         }
         catch
         {
+            outcome = "fault";
             // Provider faults are isolated to this poll invocation. The last
             // successful snapshot remains authoritative and becomes stale by age.
+        }
+        finally
+        {
+            DeviceControlTelemetry.PollExecutions.Add(
+                1,
+                DeviceControlTelemetry.Tags("poll.execute", outcome));
+            DeviceControlTelemetry.PollDurationSeconds.Record(
+                _timeProvider.GetElapsedTime(started).TotalSeconds,
+                DeviceControlTelemetry.Tags("poll.execute", outcome));
         }
     }
 
