@@ -379,7 +379,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         try
         {
             if (!_completion.Task.IsCompleted)
-                await StopAsync().ConfigureAwait(false);
+                await AbortAsync().ConfigureAwait(false);
 
             if (_supervisor is not null)
                 await _supervisor.ConfigureAwait(false);
@@ -543,6 +543,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
         var inFlight = new List<Task>();
         using var budget = CreateBudget(_definition.Options.EffectiveStopTimeout);
+        using var convergenceCts = CancellationTokenSource.CreateLinkedTokenSource(
+            budget.Token,
+            _abort.Token);
+        var convergenceToken = convergenceCts.Token;
 
         try
         {
@@ -555,8 +559,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
-                    () => handle.Source.StopAsync(budget.Token),
-                    budget.Token,
+                    () => handle.Source.StopAsync(convergenceToken),
+                    convergenceToken,
                     inFlight,
                     AcquisitionFaultCategory.Source,
                     handle.Source.ComponentId,
@@ -567,7 +571,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     SetSourceState(handle, AcquisitionComponentRuntimeState.Faulted);
             }
 
-            await DetachAllOptionalAsync(budget.Token).ConfigureAwait(false);
+            await DetachAllOptionalAsync(convergenceToken).ConfigureAwait(false);
 
             foreach (var handle in _required.Values.OrderBy(EffectiveStopOrder))
             {
@@ -578,8 +582,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 SetRequiredState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
-                    () => handle.Registration.Component.StopAsync(budget.Token),
-                    budget.Token,
+                    () => handle.Registration.Component.StopAsync(convergenceToken),
+                    convergenceToken,
                     inFlight,
                     FaultCategoryFor(handle.Registration.Component.Kind),
                     handle.Registration.Component.ComponentId,
@@ -598,8 +602,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     continue;
 
                 var ok = await RunRequiredOperationAsync(
-                    () => handle.Registration.Component.FinalizeAsync(budget.Token),
-                    budget.Token,
+                    () => handle.Registration.Component.FinalizeAsync(convergenceToken),
+                    convergenceToken,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Registration.Component.ComponentId,
@@ -618,8 +622,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     continue;
 
                 var ok = await RunRequiredOperationAsync(
-                    () => handle.Source.FinalizeAsync(budget.Token),
-                    budget.Token,
+                    () => handle.Source.FinalizeAsync(convergenceToken),
+                    convergenceToken,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Source.ComponentId,
@@ -631,7 +635,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     ok ? AcquisitionComponentRuntimeState.Completed : AcquisitionComponentRuntimeState.Faulted);
             }
 
-            await DisposeAllAsync(budget.Token, inFlight).ConfigureAwait(false);
+            await DisposeAllAsync(convergenceToken, inFlight).ConfigureAwait(false);
 
             if (_rootFault is null)
                 CompleteTerminal(AcquisitionSessionState.Completed);
@@ -641,6 +645,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     Transition(AcquisitionSessionState.Faulting, AcquisitionStartupPhase.Finalizing);
                 CompleteTerminal(AcquisitionSessionState.Faulted);
             }
+        }
+        catch (OperationCanceledException) when (_abort.IsCancellationRequested)
+        {
+            await AbortAndCompleteAsync(inFlight).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (budget.IsCancellationRequested)
         {
