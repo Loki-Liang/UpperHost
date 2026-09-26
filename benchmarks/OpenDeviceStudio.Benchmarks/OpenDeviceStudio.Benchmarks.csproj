@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>OpenDeviceStudio.Benchmarks</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
+  </ItemGroup>
+</Project>
