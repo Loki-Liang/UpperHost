@@ -14,6 +14,16 @@ public enum StreamRouterState
     Disposed
 }
 
+public enum StreamBranchState
+{
+    Configuring,
+    Running,
+    Completing,
+    Completed,
+    Faulted,
+    Disposed
+}
+
 public enum StreamBranchDelivery
 {
     Required,
@@ -99,6 +109,7 @@ public sealed record StreamPublishResult(
 public sealed record StreamBranchSnapshot(
     string BranchId,
     string Name,
+    StreamBranchState State,
     StreamBranchDelivery Delivery,
     StreamOverflowPolicy Overflow,
     StreamBranchFailurePolicy FailurePolicy,
@@ -232,13 +243,13 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 _timeProvider,
                 OnBranchFault);
 
+            if (state == StreamRouterState.Running)
+                branch.Start();
+
             _branches.Add(options.BranchId, branch);
             RebuildTopologyLocked();
             Interlocked.Increment(ref _topologyGeneration);
             StreamRouterTelemetry.ActiveBranches.Add(1, StreamRouterTelemetry.BranchTags(options));
-
-            if (state == StreamRouterState.Running)
-                branch.Start();
 
             return new StreamBranchSubscription(this, branch);
         }
@@ -256,11 +267,11 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 throw new InvalidOperationException($"StreamRouter can only start from Configuring; current state is {State}.");
 
             branches = _branches.Values.ToArray();
+            foreach (var branch in branches)
+                branch.Start();
+
             Volatile.Write(ref _state, (int)StreamRouterState.Running);
         }
-
-        foreach (var branch in branches)
-            branch.Start();
     }
 
     public async ValueTask<StreamPublishResult> PublishAsync(
@@ -319,8 +330,9 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     Volatile.Read(ref _fault)?.Message);
             }
 
-            foreach (var branch in optional)
+            for (var index = 0; index < optional.Length; index++)
             {
+                var branch = optional[index];
                 var result = await branch.PublishAsync(sequence, item, cancellationToken).ConfigureAwait(false);
                 results[resultIndex++] = result;
 
@@ -329,6 +341,14 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 {
                     FaultRouter(new InvalidOperationException(
                         $"Optional branch '{branch.Options.BranchId}' escalated a publish failure: {result.Reason}"));
+
+                    for (var remaining = index + 1; remaining < optional.Length; remaining++)
+                    {
+                        var skipped = optional[remaining];
+                        results[resultIndex++] = skipped.CreateSkippedResult(
+                            "Optional delivery skipped after an escalated branch failure.");
+                    }
+
                     break;
                 }
             }
@@ -442,7 +462,6 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             StreamRouterTelemetry.ActiveBranches.Add(-1, StreamRouterTelemetry.BranchTags(branch.Options));
         }
 
-        _publishGate.Dispose();
     }
 
     private async ValueTask DetachBranchAsync(
@@ -652,6 +671,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         private long _lastLatencyTicks;
         private long _maxLatencyTicks;
         private int _highWatermark;
+        private int _state = (int)StreamBranchState.Configuring;
         private int _started;
         private int _stopRequested;
         private int _disposed;
@@ -671,7 +691,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             _channel = Channel.CreateBounded<Envelope>(new BoundedChannelOptions(options.Capacity)
             {
                 FullMode = BoundedChannelFullMode.Wait,
-                SingleReader = true,
+                SingleReader = false,
                 SingleWriter = true,
                 AllowSynchronousContinuations = false
             });
@@ -681,11 +701,14 @@ public sealed class StreamRouter<T> : IAsyncDisposable
 
         public Task Completion => _completion.Task;
 
+        public StreamBranchState State => (StreamBranchState)Volatile.Read(ref _state);
+
         public void Start()
         {
             if (Interlocked.CompareExchange(ref _started, 1, 0) != 0)
                 return;
 
+            Volatile.Write(ref _state, (int)StreamBranchState.Running);
             _consumerTask = ConsumeLoopAsync();
         }
 
@@ -853,6 +876,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             return new StreamBranchSnapshot(
                 Options.BranchId,
                 Options.Name,
+                State,
                 Options.Delivery,
                 Options.Overflow,
                 Options.FailurePolicy,
@@ -891,6 +915,9 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             if (Interlocked.Exchange(ref _stopRequested, 1) != 0)
                 return;
 
+            if (State != StreamBranchState.Faulted)
+                Volatile.Write(ref _state, (int)StreamBranchState.Completing);
+
             _channel.Writer.TryComplete();
 
             if (mode == StreamCompletionMode.Cancel)
@@ -916,6 +943,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             if (Interlocked.Exchange(ref _disposed, 1) != 0)
                 return;
 
+            Volatile.Write(ref _state, (int)StreamBranchState.Disposed);
             _stopSource.Dispose();
         }
 
@@ -969,6 +997,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             finally
             {
                 ReleaseBufferedItems();
+                if (State != StreamBranchState.Faulted)
+                    Volatile.Write(ref _state, (int)StreamBranchState.Completed);
                 _completion.TrySetResult();
             }
         }
@@ -979,6 +1009,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 return;
 
             Interlocked.Increment(ref _faultCount);
+            Volatile.Write(ref _state, (int)StreamBranchState.Faulted);
             _channel.Writer.TryComplete(error);
             _onFault(this, error);
         }
