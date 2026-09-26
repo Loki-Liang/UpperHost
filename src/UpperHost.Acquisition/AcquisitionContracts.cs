@@ -218,6 +218,8 @@ public sealed record AcquisitionSessionSnapshot(
     int RequiredReady,
     int RequiredTotal,
     AcquisitionFault? RootFault,
+    bool IngressAccepting,
+    long RejectedLateIngress,
     DateTimeOffset? StartedAt,
     DateTimeOffset? EndedAt);
 
@@ -232,12 +234,14 @@ public sealed record AcquisitionSessionResult(
     DateTimeOffset EndedAt,
     string ProcessingEpoch,
     string? ReplaySourceArtifactId,
+    long RejectedLateIngress,
     IReadOnlyList<AcquisitionComponentResult> Components,
     IReadOnlyList<AcquisitionSourceResult> Sources);
 
 public sealed class AcquisitionComponentContext
 {
     private readonly Func<AcquisitionFaultCategory, Exception?, string?, bool> _faultReporter;
+    private readonly AcquisitionIngressGate _ingressGate;
 
     internal AcquisitionComponentContext(
         string sessionId,
@@ -249,6 +253,7 @@ public sealed class AcquisitionComponentContext
         CancellationToken sessionStopToken,
         CancellationToken abortToken,
         TimeProvider timeProvider,
+        AcquisitionIngressGate ingressGate,
         Func<AcquisitionFaultCategory, Exception?, string?, bool> faultReporter)
     {
         SessionId = sessionId;
@@ -260,6 +265,7 @@ public sealed class AcquisitionComponentContext
         SessionStopToken = sessionStopToken;
         AbortToken = abortToken;
         TimeProvider = timeProvider;
+        _ingressGate = ingressGate;
         _faultReporter = faultReporter;
     }
 
@@ -272,6 +278,11 @@ public sealed class AcquisitionComponentContext
     public CancellationToken SessionStopToken { get; }
     public CancellationToken AbortToken { get; }
     public TimeProvider TimeProvider { get; }
+
+    public RawFirstAcquisitionIngress<TBlock> CreateRawFirstIngress<TBlock>(
+        IAcquisitionRawSink<TBlock> raw,
+        IAcquisitionProcessingSink<TBlock> processing) =>
+        new(_ingressGate, raw, processing);
 
     public bool TryReportFault(
         AcquisitionFaultCategory category,
