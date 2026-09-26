@@ -7,6 +7,7 @@ using UpperHost.Abstractions.Transports;
 using UpperHost.Acquisition;
 using UpperHost.Connections;
 using UpperHost.Control.Scheduling;
+using UpperHost.Control.State;
 using UpperHost.Diagnostics;
 using UpperHost.Events;
 using UpperHost.Hosting;
@@ -47,6 +48,33 @@ public static class UpperHostStarterExtensions
     {
         ArgumentNullException.ThrowIfNull(builder);
         builder.Services.AddUpperHostCommandDispatcher<TCommand, TResult>(options);
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddControlResourceArbitration(
+        this UpperHostApplicationBuilder builder,
+        int maxSharedReadersPerResource = 4)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddUpperHostControlResourceArbiter(maxSharedReadersPerResource);
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddDeviceState<TState>(
+        this UpperHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddUpperHostDeviceState<TState>();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddDevicePolling<TState>(
+        this UpperHostApplicationBuilder builder,
+        Func<IServiceProvider, IEnumerable<DevicePollGroup<TState>>> groupFactory,
+        DevicePollRuntimeOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddUpperHostDevicePolling(groupFactory, options);
         return builder;
     }
 

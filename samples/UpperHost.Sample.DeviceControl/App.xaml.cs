@@ -3,7 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 using UpperHost.Abstractions.Devices;
 using UpperHost.Abstractions.Protocols;
 using UpperHost.Abstractions.Transports;
+using UpperHost.Control.Parameters;
 using UpperHost.Control.Scheduling;
+using UpperHost.Control.State;
 using UpperHost.Hosting;
 using UpperHost.Protocols;
 using UpperHost.Starters;
@@ -43,7 +45,56 @@ public partial class App : Application
         builder.Services.AddSingleton<ICommandable<TemperatureControllerCommand, TemperatureControllerResponse>>(
             sp => sp.GetRequiredService<TemperatureControllerDevice>());
         builder.AddCommandDispatcher<TemperatureControllerCommand, TemperatureControllerResponse>(
-            new BoundedCommandDispatcherOptions(Capacity: 64, PerPriorityCapacity: 32, MaxConcurrency: 4));
+            new BoundedCommandDispatcherOptions(
+                Capacity: 64,
+                PerPriorityCapacity: 32,
+                MaxConcurrency: 4,
+                MaxSharedReadersPerResource: 4));
+
+        builder.AddDeviceState<TemperatureControllerResponse>();
+        builder.AddDeviceState<double>();
+        builder.AddDevicePolling<TemperatureControllerResponse>(
+            sp =>
+            {
+                var dispatcher = sp.GetRequiredService<
+                    BoundedCommandDispatcher<TemperatureControllerCommand, TemperatureControllerResponse>>();
+                var operation = DevicePollOperations.FromCommandDispatcher<
+                    TemperatureControllerCommand,
+                    TemperatureControllerResponse,
+                    TemperatureControllerResponse>(
+                    dispatcher,
+                    _ => new ReadStatusCommand(),
+                    result => new DevicePollSample<TemperatureControllerResponse>(result.Value!),
+                    [
+                        new CommandResourceClaim(
+                            new CommandResourceKey("device", TemperatureControllerDevice.DeviceId),
+                            CommandResourceAccess.Exclusive)
+                    ],
+                    queueTimeout: TimeSpan.FromSeconds(1));
+
+                return
+                [
+                    new DevicePollGroup<TemperatureControllerResponse>(
+                        "temperature-status",
+                        TemperatureControllerDevice.DeviceId,
+                        new DeviceStatePartitionKey("status"),
+                        Interval: TimeSpan.FromSeconds(1),
+                        Timeout: TimeSpan.FromSeconds(2),
+                        StaleAfter: TimeSpan.FromSeconds(3),
+                        Operation: operation)
+                ];
+            },
+            new DevicePollRuntimeOptions(WorkCapacity: 8, MaxConcurrency: 1));
+
+        builder.Services.AddSingleton(sp =>
+            new TypedParameterRuntime<double>(
+                TemperatureControllerDevice.DeviceId,
+                sp.GetRequiredService<TemperatureControllerDevice>(),
+                sp.GetRequiredService<ICommandResourceArbiter>(),
+                sp.GetRequiredService<DeviceSnapshotStore<double>>(),
+                sp.GetRequiredService<IDeviceConnectionEpochSource>(),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System));
+
         builder.Services.AddSingleton<TemperatureControllerSimulator>();
         builder.Services.AddSingleton<MainWindow>();
 

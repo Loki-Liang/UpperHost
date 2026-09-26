@@ -61,3 +61,16 @@ dotnet run --project samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.Dev
 ## Device Package Catalog
 
 本示例同时为 Simulator 温控器发布 `DevicePackageDescriptor`。启动阶段会在 Device 构建前验证 `TemperatureControllerPackageOptions`，随后由 Host 生命周期把 Descriptor 注册进 Catalog；窗口通过 `IDevicePackageCatalog` 显示当前 active package/version。这是 Issue #22 的 Reference Sample 消费路径，用于展示应用如何组合可复用的 Catalog 基础设施。
+
+
+## 权威 Control State
+
+Reference 路径已经统一为：
+
+```text
+Polling / Command / Parameter Readback
+        -> DeviceSnapshotStore
+        -> WPF Read Model
+```
+
+目标参数写入使用 `TypedParameterRuntime<double>`，与 Command/Polling 复用同一个 Resource Arbiter。Reconnect 会创建新的 ConnectionEpoch 并进入 Required Rehydrate Barrier。本示例的 Provider 没有声明并发读能力，因此 Polling 默认使用 Exclusive；只有 Provider 明确证明安全时才允许 opt-in `SharedRead`。
