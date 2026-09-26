@@ -124,7 +124,8 @@ public static class FileSystemRawArtifactReader
             ex is InvalidDataException
                 or EndOfStreamException
                 or IOException
-                or ArgumentOutOfRangeException)
+                or ArgumentOutOfRangeException
+                or InvalidOperationException)
         {
             error = ex;
         }
