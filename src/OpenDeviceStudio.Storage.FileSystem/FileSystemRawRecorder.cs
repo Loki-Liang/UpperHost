@@ -874,9 +874,15 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         if (Interlocked.Exchange(ref _faultOnce, 1) != 0)
             return;
 
+        var diagnosticReason =
+            fault.Exception is null ||
+            fault.Message.Contains(fault.Exception.Message, StringComparison.Ordinal)
+                ? fault.Message
+                : $"{fault.Message} {fault.Exception.Message}";
+
         lock (_gate)
         {
-            _faultReason = fault.Message;
+            _faultReason = diagnosticReason;
             _state = RawRecorderState.Faulted;
         }
 
@@ -891,7 +897,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         {
             RawRecorderTelemetry.FaultObserverErrors.Add(1);
         }
-        _faultManifestTask = BestEffortManifestAsync("Faulted", fault.Message);
+        _faultManifestTask = BestEffortManifestAsync("Faulted", diagnosticReason);
     }
 
     private RawRecorderAcceptStatus CurrentRejectStatus() =>
