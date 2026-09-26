@@ -61,7 +61,7 @@ static Schema CreateSchema() =>
             new Field("sequence", Int64Type.Default, nullable: false),
             new Field("payload", BinaryType.Default, nullable: false)
         ],
-        Array.Empty<KeyValuePair<string, string>>());
+        System.Array.Empty<KeyValuePair<string, string>>());
 
 static async Task<byte[]> WriteArrowAsync(IReadOnlyList<RawBlock> blocks, int batchSize)
 {
