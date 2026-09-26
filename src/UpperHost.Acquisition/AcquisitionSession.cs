@@ -623,7 +623,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Source.StopAsync(convergenceToken),
-                    convergenceToken,
+                    budget.Token,
                     inFlight,
                     AcquisitionFaultCategory.Source,
                     handle.Source.ComponentId,
@@ -647,7 +647,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 SetRequiredState(handle, AcquisitionComponentRuntimeState.Stopping);
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Registration.Component.StopAsync(convergenceToken),
-                    convergenceToken,
+                    budget.Token,
                     inFlight,
                     FaultCategoryFor(handle.Registration.Component.Kind),
                     handle.Registration.Component.ComponentId,
@@ -667,7 +667,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Registration.Component.FinalizeAsync(convergenceToken),
-                    convergenceToken,
+                    budget.Token,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Registration.Component.ComponentId,
@@ -689,7 +689,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 var ok = await RunRequiredOperationAsync(
                     () => handle.Source.FinalizeAsync(convergenceToken),
-                    convergenceToken,
+                    budget.Token,
                     inFlight,
                     AcquisitionFaultCategory.Finalization,
                     handle.Source.ComponentId,
@@ -964,6 +964,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
             inFlight.Add(task);
             await task.WaitAsync(budgetToken).ConfigureAwait(false);
             return true;
+        }
+        catch (OperationCanceledException) when (_abort.IsCancellationRequested)
+        {
+            throw;
         }
         catch (OperationCanceledException) when (budgetToken.IsCancellationRequested)
         {
