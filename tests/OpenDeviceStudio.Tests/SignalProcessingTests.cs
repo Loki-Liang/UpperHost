@@ -491,7 +491,7 @@ public sealed class SignalProcessingTests
         }
 
         private string GainConfigurationHash { get; }
-        public override string ConfigurationHash => GainConfigurationHash
+        public override string ConfigurationHash => GainConfigurationHash;
 
         public override ISignalStage<float> Create(SignalStageInstanceContext context) =>
             new DelegateStage(input =>
