@@ -185,12 +185,14 @@ public sealed class AutomationExecutionPlan
         string workflowId,
         string workflowVersion,
         CompiledAutomationNode root,
-        IReadOnlyList<string> nodeIds)
+        IReadOnlyList<string> nodeIds,
+        IReadOnlyList<string> requiredDeviceIds)
     {
         WorkflowId = workflowId;
         WorkflowVersion = workflowVersion;
         Root = root;
         NodeIds = nodeIds;
+        RequiredDeviceIds = requiredDeviceIds;
     }
 
     public string WorkflowId { get; }
@@ -198,6 +200,7 @@ public sealed class AutomationExecutionPlan
     public IReadOnlyList<string> NodeIds { get; }
 
     internal CompiledAutomationNode Root { get; }
+    internal IReadOnlyList<string> RequiredDeviceIds { get; }
 
     public static AutomationExecutionPlan Compile(
         AutomationWorkflowDefinition definition,
@@ -213,12 +216,15 @@ public sealed class AutomationExecutionPlan
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var orderedIds = new List<string>();
         var compiled = CompileNode(definition.Root, ids, orderedIds, capabilityResolver);
+        var requiredDeviceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        CollectRequiredDeviceIds(compiled, requiredDeviceIds);
 
         return new AutomationExecutionPlan(
             definition.WorkflowId,
             definition.Version,
             compiled,
-            Array.AsReadOnly(orderedIds.ToArray()));
+            Array.AsReadOnly(orderedIds.ToArray()),
+            Array.AsReadOnly(requiredDeviceIds.Order(StringComparer.OrdinalIgnoreCase).ToArray()));
     }
 
     private static CompiledAutomationNode CompileNode(
@@ -242,6 +248,32 @@ public sealed class AutomationExecutionPlan
             AutomationCheckpointNode checkpoint => new CompiledCheckpointNode(checkpoint.Id, checkpoint.Kind),
             _ => throw new InvalidOperationException($"Unsupported automation node type '{node.GetType().FullName}'.")
         };
+    }
+
+    private static void CollectRequiredDeviceIds(
+        CompiledAutomationNode node,
+        HashSet<string> deviceIds)
+    {
+        switch (node)
+        {
+            case CompiledActionNode action:
+                foreach (var claim in action.Step.Policy.NormalizeResources())
+                {
+                    if (claim.Resource.Category.Equals("device", StringComparison.OrdinalIgnoreCase))
+                        deviceIds.Add(claim.Resource.Value);
+                }
+                break;
+
+            case CompiledSequenceNode sequence:
+                foreach (var child in sequence.Children)
+                    CollectRequiredDeviceIds(child, deviceIds);
+                break;
+
+            case CompiledParallelNode parallel:
+                foreach (var child in parallel.Children)
+                    CollectRequiredDeviceIds(child, deviceIds);
+                break;
+        }
     }
 
     private static CompiledActionNode CompileAction(
