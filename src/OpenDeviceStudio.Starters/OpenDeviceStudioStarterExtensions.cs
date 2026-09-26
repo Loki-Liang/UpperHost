@@ -62,6 +62,24 @@ public static class OpenDeviceStudioStarterExtensions
         return builder;
     }
 
+    public static OpenDeviceStudioApplicationBuilder AddWorkflowExecutionRuntime(
+        this OpenDeviceStudioApplicationBuilder builder,
+        int maxSharedReadersPerResource = 4,
+        WorkflowJournalFailurePolicy journalFailurePolicy = WorkflowJournalFailurePolicy.FailExecution)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddOpenDeviceStudioControlResourceArbiter(
+            maxSharedReadersPerResource);
+        builder.Services.TryAddSingleton<WorkflowExecutionCoordinator>(sp =>
+            new WorkflowExecutionCoordinator(
+                sp.GetRequiredService<ICommandResourceArbiter>(),
+                sp.GetService<TimeProvider>() ?? TimeProvider.System,
+                sp.GetService<IWorkflowExecutionJournal>(),
+                journalFailurePolicy));
+        return builder;
+    }
+
     public static OpenDeviceStudioApplicationBuilder AddDeviceState<TState>(
         this OpenDeviceStudioApplicationBuilder builder)
     {
