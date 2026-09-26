@@ -11,12 +11,30 @@
   "blockSizeSamples": 100,
   "durationSeconds": 30,
   "expectedRawBytesPerSecond": 8000,
+  "rawRecorder": {
+    "queueCapacityBlocks": 32,
+    "durability": "FlushOnFinalize"
+  },
   "routerBranches": [
-    { "id": "raw", "delivery": "Required", "capacityBlocks": 32, "overflow": "Wait" },
-    { "id": "processing", "delivery": "Required", "capacityBlocks": 32, "overflow": "Wait" },
-    { "id": "presentation", "delivery": "Optional", "capacityBlocks": 4, "overflow": "DropOldest" }
+    {
+      "id": "processing",
+      "delivery": "Required",
+      "capacityBlocks": 32,
+      "overflow": "Wait"
+    },
+    {
+      "id": "presentation",
+      "delivery": "Optional",
+      "capacityBlocks": 4,
+      "overflow": "DropOldest"
+    }
   ],
-  "pipelineStages": ["identity"],
-  "presentation": { "viewportSamples": 2000, "targetFps": 30 },
+  "pipelineStages": [
+    "identity"
+  ],
+  "presentation": {
+    "viewportSamples": 2000,
+    "targetFps": 30
+  },
   "faultSchedule": []
 }

@@ -11,14 +11,39 @@
   "blockSizeSamples": 100,
   "durationSeconds": 60,
   "expectedRawBytesPerSecond": 128000,
+  "rawRecorder": {
+    "queueCapacityBlocks": 64,
+    "durability": "FlushOnFinalize"
+  },
   "routerBranches": [
-    { "id": "raw", "delivery": "Required", "capacityBlocks": 64, "overflow": "Wait" },
-    { "id": "processing", "delivery": "Required", "capacityBlocks": 64, "overflow": "Wait" },
-    { "id": "presentation", "delivery": "Optional", "capacityBlocks": 8, "overflow": "DropOldest" }
+    {
+      "id": "processing",
+      "delivery": "Required",
+      "capacityBlocks": 64,
+      "overflow": "Wait"
+    },
+    {
+      "id": "presentation",
+      "delivery": "Optional",
+      "capacityBlocks": 8,
+      "overflow": "DropOldest"
+    }
   ],
-  "pipelineStages": ["dc-removal", "bandpass", "rms"],
-  "presentation": { "viewportSamples": 10000, "targetFps": 60 },
+  "pipelineStages": [
+    "dc-removal",
+    "bandpass",
+    "rms"
+  ],
+  "presentation": {
+    "viewportSamples": 10000,
+    "targetFps": 60
+  },
   "faultSchedule": [
-    { "target": "Presentation", "kind": "Delay", "atSequence": 100, "durationMs": 250 }
+    {
+      "target": "Presentation",
+      "kind": "Delay",
+      "atSequence": 100,
+      "durationMs": 250
+    }
   ]
 }

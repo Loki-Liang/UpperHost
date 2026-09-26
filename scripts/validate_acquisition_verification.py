@@ -8,23 +8,21 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PROFILE_ROOT = ROOT / "eng" / "acquisition-verification" / "profiles"
 
-REQUIRED_PROFILES = {
-    "small-reference.json",
-    "typical-multichannel.json",
-    "stress.json",
-}
+REQUIRED_PROFILES = {"small-reference.json", "typical-multichannel.json", "stress.json"}
 TOP_LEVEL = {
     "schemaVersion", "id", "evidenceKind", "mode", "sourceCount",
     "channelsPerSource", "numericType", "bytesPerSample", "sampleRateHz",
     "blockSizeSamples", "durationSeconds", "expectedRawBytesPerSecond",
-    "routerBranches", "pipelineStages", "presentation", "faultSchedule",
+    "rawRecorder", "routerBranches", "pipelineStages", "presentation", "faultSchedule",
 }
+RAW_KEYS = {"queueCapacityBlocks", "durability"}
 BRANCH_KEYS = {"id", "delivery", "capacityBlocks", "overflow"}
 PRESENTATION_KEYS = {"viewportSamples", "targetFps"}
 FAULT_KEYS = {"target", "kind", "atSequence", "durationMs"}
 MODES = {"VirtualTimeDeterministic", "WallClockPaced", "MaxThroughput"}
 EVIDENCE_KINDS = {"Synthetic", "Loopback", "Hardware"}
 NUMERIC_WIDTHS = {"int16": 2, "int32": 4, "float32": 4, "float64": 8}
+DURABILITY = {"Buffered", "FlushOnFinalize", "FlushToDiskOnFinalize"}
 DELIVERIES = {"Required", "Optional"}
 OVERFLOW = {"Wait", "Reject", "DropOldest", "DropNewest", "Latest"}
 LOSSY = {"DropOldest", "DropNewest", "Latest"}
@@ -89,9 +87,16 @@ def validate_profile(profile: dict, filename: str) -> None:
     expected_rate = source_count * channels * width * sample_rate
     if profile["expectedRawBytesPerSecond"] != expected_rate:
         raise ValidationError(
-            f"{filename}: expectedRawBytesPerSecond={profile['expectedRawBytesPerSecond']!r}; "
-            f"calculated={expected_rate}"
+            f"{filename}: expectedRawBytesPerSecond={profile['expectedRawBytesPerSecond']!r}; calculated={expected_rate}"
         )
+
+    raw = profile["rawRecorder"]
+    if not isinstance(raw, dict):
+        raise ValidationError(f"{filename}: rawRecorder must be an object")
+    _exact_keys(raw, RAW_KEYS, f"{filename}.rawRecorder")
+    _positive_int(raw["queueCapacityBlocks"], f"{filename}.rawRecorder.queueCapacityBlocks")
+    if raw["durability"] not in DURABILITY:
+        raise ValidationError(f"{filename}: invalid rawRecorder durability {raw['durability']!r}")
 
     branches = profile["routerBranches"]
     if not isinstance(branches, list) or not branches:
@@ -107,6 +112,8 @@ def validate_profile(profile: dict, filename: str) -> None:
         branch_id = branch["id"]
         if not isinstance(branch_id, str) or not branch_id.strip() or branch_id in branch_ids:
             raise ValidationError(f"{context}: branch id must be non-empty and unique")
+        if branch_id.lower() in {"raw", "raw-recorder", "rawrecorder"}:
+            raise ValidationError(f"{context}: Raw Recorder is independent and must not be modeled as a Router branch")
         branch_ids.add(branch_id)
         delivery = branch["delivery"]
         overflow = branch["overflow"]
@@ -124,7 +131,7 @@ def validate_profile(profile: dict, filename: str) -> None:
             if overflow == "Wait":
                 raise ValidationError(f"{context}: Optional branch cannot use Wait and backpressure Required work")
     if not required_seen or not optional_seen:
-        raise ValidationError(f"{filename}: profiles must exercise both Required and Optional branches")
+        raise ValidationError(f"{filename}: profiles must exercise both Required and Optional Router branches")
 
     stages = profile["pipelineStages"]
     if not isinstance(stages, list) or not stages or any(not isinstance(x, str) or not x.strip() for x in stages):
@@ -176,8 +183,7 @@ def validate_repository(profile_root: Path = PROFILE_ROOT) -> None:
         seen_ids.add(profile["id"])
         fault_targets.update(f["target"] for f in profile["faultSchedule"])
 
-    required_fault_targets = {"RawRecorder", "Processing", "Presentation"}
-    missing_fault_targets = required_fault_targets - fault_targets
+    missing_fault_targets = {"RawRecorder", "Processing", "Presentation"} - fault_targets
     if missing_fault_targets:
         raise ValidationError(
             "fault campaign must include independent slow/fault coverage for "
