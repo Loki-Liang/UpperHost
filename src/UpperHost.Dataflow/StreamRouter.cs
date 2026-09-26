@@ -288,7 +288,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     0,
                     state,
                     Array.Empty<StreamBranchPublishResult>(),
-                    Volatile.Read(ref _fault)?.Message);
+                    DescribeFault(Volatile.Read(ref _fault)));
             }
 
             var sequence = Interlocked.Increment(ref _publishSequence);
@@ -327,7 +327,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                     sequence,
                     State,
                     results,
-                    Volatile.Read(ref _fault)?.Message);
+                    DescribeFault(Volatile.Read(ref _fault)));
             }
 
             for (var index = 0; index < optional.Length; index++)
@@ -357,7 +357,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 sequence,
                 State,
                 results,
-                Volatile.Read(ref _fault)?.Message);
+                DescribeFault(Volatile.Read(ref _fault)));
         }
         finally
         {
@@ -377,7 +377,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             required.Length,
             optional.Length,
             Interlocked.Read(ref _publishCount),
-            Volatile.Read(ref _fault)?.Message);
+            DescribeFault(Volatile.Read(ref _fault)));
     }
 
     public IReadOnlyList<StreamBranchSnapshot> GetBranchSnapshots()
@@ -627,6 +627,17 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 "Optional branches cannot use Wait because they must not backpressure the main publisher.",
                 nameof(options));
         }
+    }
+
+    private static string? DescribeFault(Exception? error)
+    {
+        if (error is null)
+            return null;
+
+        var root = error.GetBaseException();
+        return ReferenceEquals(root, error)
+            ? error.Message
+            : $"{error.Message} Root: {root.Message}";
     }
 
     private void ThrowIfDisposed()
@@ -911,7 +922,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 TimeSpan.FromTicks(Interlocked.Read(ref _lastLatencyTicks)),
                 TimeSpan.FromTicks(Interlocked.Read(ref _maxLatencyTicks)),
                 fault is not null,
-                fault?.Message);
+                DescribeFault(fault));
         }
 
         public StreamBranchPublishResult CreateSkippedResult(string reason) =>
