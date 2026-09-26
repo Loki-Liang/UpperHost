@@ -606,9 +606,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
         var inFlight = new List<Task>();
         using var budget = CreateBudget(_definition.Options.EffectiveStopTimeout);
-        using var convergenceCts = CancellationTokenSource.CreateLinkedTokenSource(
-            budget.Token,
-            _abort.Token);
+        // Component operations receive Abort cancellation directly. The stop deadline is
+        // kept separate and only bounds our wait; if it expires the supervisor cancels
+        // the operation token after the deadline wait has unwound. This avoids
+        // cancellation-callback re-entry under FakeTimeProvider and real timers alike.
+        using var convergenceCts = CancellationTokenSource.CreateLinkedTokenSource(_abort.Token);
         var convergenceToken = convergenceCts.Token;
 
         try
@@ -727,6 +729,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 null,
                 "Acquisition stop/finalize exceeded the configured global shutdown budget.");
             RecordRootOrSecondary(timeout, "session");
+
+            // The deadline token only released the supervisor wait. Cancel component
+            // work now, outside the deadline callback, then enter bounded abort cleanup.
+            TryCancel(convergenceCts);
             await AbortAndCompleteAsync(inFlight).ConfigureAwait(false);
         }
 
