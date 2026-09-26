@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Ble;
+namespace OpenDeviceStudio.Transport.Ble;
 
 public enum BleMessageType
 {

@@ -1,8 +1,8 @@
-# UpperHost.Transport.Ble
+# OpenDeviceStudio.Transport.Ble
 
 [简体中文](README.zh-CN.md) | English
 
-`UpperHost.Transport.Ble` models BLE as GATT messages, not as a fake serial byte stream.
+`OpenDeviceStudio.Transport.Ble` models BLE as GATT messages, not as a fake serial byte stream.
 
 A `BleMessage` preserves service UUID, characteristic UUID, value and direction/type. `BleTransport` sends `Write` messages and receives `Notification` messages through `IMessageTransport<BleMessage>`.
 

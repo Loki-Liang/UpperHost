@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Can;
+namespace OpenDeviceStudio.Transport.Can;
 
 public sealed class CanFrame
 {

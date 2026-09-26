@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <Description>Fault injection and deterministic test helpers for UpperHost.</Description>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
-  </ItemGroup>
-</Project>

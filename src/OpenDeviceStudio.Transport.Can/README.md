@@ -1,8 +1,8 @@
-# UpperHost.Transport.Can
+# OpenDeviceStudio.Transport.Can
 
 [简体中文](README.zh-CN.md) | English
 
-`UpperHost.Transport.Can` preserves CAN/CAN FD frame boundaries through `IMessageTransport<CanFrame>`.
+`OpenDeviceStudio.Transport.Can` preserves CAN/CAN FD frame boundaries through `IMessageTransport<CanFrame>`.
 
 `CanFrame` carries arbitration ID, standard/extended ID mode, CAN FD flag, bit-rate switch, payload and optional timestamp. It validates identifier and payload limits before a frame reaches the driver backend.
 

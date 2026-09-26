@@ -1,8 +1,8 @@
-# UpperHost.Transport.Can
+# OpenDeviceStudio.Transport.Can
 
 简体中文 | [English](README.md)
 
-`UpperHost.Transport.Can` 通过 `IMessageTransport<CanFrame>` 保留 CAN / CAN FD 原生 Frame 边界。
+`OpenDeviceStudio.Transport.Can` 通过 `IMessageTransport<CanFrame>` 保留 CAN / CAN FD 原生 Frame 边界。
 
 `CanFrame` 保留 Arbitration ID、Standard/Extended ID、CAN FD、BRS、Payload 与可选时间戳，并在进入 Driver Backend 前校验 ID 和 Payload 长度。
 

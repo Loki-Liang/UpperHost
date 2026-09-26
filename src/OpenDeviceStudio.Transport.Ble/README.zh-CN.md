@@ -1,8 +1,8 @@
-# UpperHost.Transport.Ble
+# OpenDeviceStudio.Transport.Ble
 
 简体中文 | [English](README.md)
 
-`UpperHost.Transport.Ble` 把 BLE 按 **GATT Message** 建模，而不是伪装成串口 byte stream。
+`OpenDeviceStudio.Transport.Ble` 把 BLE 按 **GATT Message** 建模，而不是伪装成串口 byte stream。
 
 `BleMessage` 保留 Service UUID、Characteristic UUID、Value 和消息类型。`BleTransport` 通过 `IMessageTransport<BleMessage>` 发送 `Write`，接收 `Notification`。
 

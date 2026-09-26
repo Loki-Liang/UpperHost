@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Simulator;
+namespace OpenDeviceStudio.Transport.Simulator;
 
 public sealed class SimulatorTransport : ITransport
 {

@@ -1,8 +1,8 @@
 using System.IO.Ports;
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Serial;
+namespace OpenDeviceStudio.Transport.Serial;
 
 public sealed record SerialTransportOptions(
     string PortName,
