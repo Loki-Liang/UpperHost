@@ -113,10 +113,13 @@ public sealed class AcquisitionSessionConfiguration
 
     public AcquisitionSessionConfiguration(IReadOnlyDictionary<string, string>? values = null)
     {
-        _values = new ReadOnlyDictionary<string, string>(
-            new Dictionary<string, string>(
-                values ?? new Dictionary<string, string>(),
-                StringComparer.Ordinal));
+        var copy = values is null
+            ? new Dictionary<string, string>(StringComparer.Ordinal)
+            : values.ToDictionary(
+                static pair => pair.Key,
+                static pair => pair.Value,
+                StringComparer.Ordinal);
+        _values = new ReadOnlyDictionary<string, string>(copy);
     }
 
     public IReadOnlyDictionary<string, string> Values => _values;
