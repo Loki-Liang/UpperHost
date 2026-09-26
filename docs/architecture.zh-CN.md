@@ -1,8 +1,8 @@
-# UpperHost 架构
+# OpenDeviceStudio 架构
 
 简体中文 | [English](architecture.md)
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和可直接二开的源码产品工程，用于快速构建具体的工业上位机产品；具体产品语义和 UI 保留在消费 UpperHost 的应用工程中。
+OpenDeviceStudio 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。它提供可复用 Runtime、工程约定、Provider、测试接缝和可直接二开的源码产品工程，用于快速构建具体的工业上位机产品；具体产品语义和 UI 保留在消费 OpenDeviceStudio 的应用工程中。
 
 ## 稳定平台边界
 
@@ -29,7 +29,7 @@ Hardware
 
 ## 架构风格：模块化单体
 
-UpperHost 默认采用模块化单体。各模块应能独立理解、独立测试，但默认组合进同一个应用/进程；除非经过单独批准，否则不引入分布式边界。
+OpenDeviceStudio 默认采用模块化单体。各模块应能独立理解、独立测试，但默认组合进同一个应用/进程；除非经过单独批准，否则不引入分布式边界。
 
 依赖方向总体向内：
 
@@ -51,10 +51,10 @@ Product App / Samples / Presentation
 
 硬规则：
 
-- `UpperHost.Abstractions` 是稳定依赖根，不引用仓库内其他 Project。
+- `OpenDeviceStudio.Abstractions` 是稳定依赖根，不引用仓库内其他 Project。
 - 可复用生产模块禁止引用产品 App、Samples、Tests。
-- 非 Presentation 生产模块禁止引用 `UpperHost.Presentation.*`。
-- 生产模块禁止反向依赖 `UpperHost.Starters`；Starters 负责组合模块。
+- 非 Presentation 生产模块禁止引用 `OpenDeviceStudio.Presentation.*`。
+- 生产模块禁止反向依赖 `OpenDeviceStudio.Starters`；Starters 负责组合模块。
 - 禁止 ProjectReference 环依赖。
 - 跨模块行为通过公开 Contract/Capability/Event 完成，禁止共享可变全局状态或直接访问其他模块内部实现。
 - Provider/Adapter 自己持有 Vendor 依赖和基础设施细节。
@@ -126,7 +126,7 @@ Command Guard / Interlock 属于软件控制约束。它们不能代替硬件急
 
 ## Acquisition Session 生命周期权威
 
-UpperHost.Acquisition 提供采集路线唯一生命周期权威。AcquisitionSessionManager 由 Host 持有；每个运行中的 AcquisitionSession 只拥有一个有界 lifecycle supervisor。Session 在启动前冻结拓扑/配置，先 Prepare Required component，再 Prepare Source；所有 Required Ready 后才允许调用 Source.StartAsync。运行期 first/root Required fault 统一收敛，Optional fault 默认隔离，并最终只生成一个 terminal result。
+OpenDeviceStudio.Acquisition 提供采集路线唯一生命周期权威。AcquisitionSessionManager 由 Host 持有；每个运行中的 AcquisitionSession 只拥有一个有界 lifecycle supervisor。Session 在启动前冻结拓扑/配置，先 Prepare Required component，再 Prepare Source；所有 Required Ready 后才允许调用 Source.StartAsync。运行期 first/root Required fault 统一收敛，Optional fault 默认隔离，并最终只生成一个 terminal result。
 
 Lifecycle supervisor 只走控制信号，不承载 Raw block。高频热路径保持直接、有界：
 
@@ -185,13 +185,13 @@ Typed `IEventBus` 用于模块解耦，避免静态全局事件。`IAlarmService
 
 ## Provider / Plugin
 
-USB、CAN、BLE、数据库、厂商 SDK、行业协议等通过独立 Provider/Starter/Module 接入，禁止把厂商依赖塞进 `UpperHost.Abstractions`。
+USB、CAN、BLE、数据库、厂商 SDK、行业协议等通过独立 Provider/Starter/Module 接入，禁止把厂商依赖塞进 `OpenDeviceStudio.Abstractions`。
 
 Plugin 是受信任的进程内扩展，不是安全沙箱。
 
 ## Presentation
 
-Core 不依赖 WPF。`UpperHost.Presentation.Wpf` 是适配器。未来 WinUI、Avalonia、CLI、Service 可以复用同一套 Device、Protocol、Workflow 和 Diagnostics。
+Core 不依赖 WPF。`OpenDeviceStudio.Presentation.Wpf` 是适配器。未来 WinUI、Avalonia、CLI、Service 可以复用同一套 Device、Protocol、Workflow 和 Diagnostics。
 
 ## Testing
 
@@ -199,7 +199,7 @@ Simulator 是正式开发接缝，不是演示玩具。Fault injection 应支持
 
 ## Device Package 扩展边界
 
-`DevicePackageDescriptor` 是可复用设备集成的稳定发现表面。契约位于 `UpperHost.Abstractions`，`UpperHost.Hosting` 负责进程内 `IDevicePackageCatalog` 实现和启动注册生命周期。这样既保持模块化单体的依赖方向，也允许 产品 App、Samples 和具体产品 Tooling 在不访问 Provider 内部实现的前提下发现已安装能力。
+`DevicePackageDescriptor` 是可复用设备集成的稳定发现表面。契约位于 `OpenDeviceStudio.Abstractions`，`OpenDeviceStudio.Hosting` 负责进程内 `IDevicePackageCatalog` 实现和启动注册生命周期。这样既保持模块化单体的依赖方向，也允许 产品 App、Samples 和具体产品 Tooling 在不访问 Provider 内部实现的前提下发现已安装能力。
 
 Package 强类型配置使用 `DeviceConfigurationSchema<TConfiguration>` 表达。Schema metadata 可被 Tooling 检查，验证逻辑保持强类型，并支持必填、范围、允许值以及显式跨字段规则。涉及 Secret 的字段只允许保存引用元数据。
 

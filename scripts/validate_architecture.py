@@ -76,9 +76,9 @@ for project in projects:
 
 # Rule 2: Abstractions is the dependency root and references no repository project.
 for project in projects:
-    if name(project) == "UpperHost.Abstractions" and graph[project]:
+    if name(project) == "OpenDeviceStudio.Abstractions" and graph[project]:
         errors.append(
-            "UpperHost.Abstractions must not reference repository projects: "
+            "OpenDeviceStudio.Abstractions must not reference repository projects: "
             + ", ".join(name(p) for p in graph[project])
         )
 
@@ -96,28 +96,28 @@ for project in projects:
 
 # Rule 4: Starters is a composition module; production modules must not depend back on it.
 for project in projects:
-    if not rel(project).startswith("src/") or name(project) == "UpperHost.Starters":
+    if not rel(project).startswith("src/") or name(project) == "OpenDeviceStudio.Starters":
         continue
     for target in graph[project]:
-        if name(target) == "UpperHost.Starters":
-            errors.append(f"{rel(project)} must not depend on UpperHost.Starters")
+        if name(target) == "OpenDeviceStudio.Starters":
+            errors.append(f"{rel(project)} must not depend on OpenDeviceStudio.Starters")
 
 
 # Rule 5: Presentation is an outer adapter. No non-presentation production module may depend on it.
 for project in projects:
     project_name = name(project)
-    if not rel(project).startswith("src/") or project_name.startswith("UpperHost.Presentation."):
+    if not rel(project).startswith("src/") or project_name.startswith("OpenDeviceStudio.Presentation."):
         continue
     for target in graph[project]:
-        if name(target).startswith("UpperHost.Presentation."):
+        if name(target).startswith("OpenDeviceStudio.Presentation."):
             errors.append(f"{rel(project)} must not depend on presentation project {rel(target)}")
 
 
 # Rule 6: Presentation adapters may depend only on stable contracts/hosting.
 for project in projects:
-    if not name(project).startswith("UpperHost.Presentation."):
+    if not name(project).startswith("OpenDeviceStudio.Presentation."):
         continue
-    allowed = {"UpperHost.Abstractions", "UpperHost.Hosting"}
+    allowed = {"OpenDeviceStudio.Abstractions", "OpenDeviceStudio.Hosting"}
     for target in graph[project]:
         if name(target) not in allowed:
             errors.append(
