@@ -360,7 +360,7 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
             reconciliation.Detail);
     }
 
-    internal void SignalHostStopping()
+    public void SignalHostStopping()
     {
         ActiveExecution? active;
         TaskCompletionSource<bool>? resume = null;
@@ -385,7 +385,7 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
         resume?.TrySetResult(true);
     }
 
-    internal async Task WaitForHostStopAsync(CancellationToken cancellationToken)
+    public async Task WaitForHostStopAsync(CancellationToken cancellationToken = default)
     {
         SignalHostStopping();
 
