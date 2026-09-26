@@ -386,8 +386,9 @@ public sealed class SignalStageOutput<T>
             new SignalInputRange(
                 input.SequenceStart,
                 input.SequenceEndExclusive,
-                input.Lineage.OriginRange.TimeStart,
-                input.Lineage.OriginRange.TimeEnd),
+                input.EffectiveTimestamp,
+                input.EffectiveTimestamp +
+                    TimeSpan.FromSeconds(input.SampleCount / input.Descriptor.SampleRateHz)),
             samples);
 }
 
