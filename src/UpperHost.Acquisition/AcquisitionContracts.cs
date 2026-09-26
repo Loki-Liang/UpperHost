@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using UpperHost.Abstractions.Storage;
 
 namespace UpperHost.Acquisition;
 
@@ -242,6 +243,7 @@ public sealed class AcquisitionComponentContext
 {
     private readonly Func<AcquisitionFaultCategory, Exception?, string?, bool> _faultReporter;
     private readonly AcquisitionIngressGate? _ingressGate;
+    private readonly IAcquisitionRawSink<CanonicalRawBlock>? _defaultCanonicalRawSink;
 
     internal AcquisitionComponentContext(
         string sessionId,
@@ -254,6 +256,7 @@ public sealed class AcquisitionComponentContext
         CancellationToken abortToken,
         TimeProvider timeProvider,
         AcquisitionIngressGate? ingressGate,
+        IAcquisitionRawSink<CanonicalRawBlock>? defaultCanonicalRawSink,
         Func<AcquisitionFaultCategory, Exception?, string?, bool> faultReporter)
     {
         SessionId = sessionId;
@@ -266,6 +269,7 @@ public sealed class AcquisitionComponentContext
         AbortToken = abortToken;
         TimeProvider = timeProvider;
         _ingressGate = ingressGate;
+        _defaultCanonicalRawSink = defaultCanonicalRawSink;
         _faultReporter = faultReporter;
     }
 
@@ -290,6 +294,16 @@ public sealed class AcquisitionComponentContext
         return new RawFirstAcquisitionIngress<TBlock>(_ingressGate, raw, processing);
     }
 
+    public RawFirstAcquisitionIngress<CanonicalRawBlock> CreateRawFirstIngress(
+        IAcquisitionProcessingSink<CanonicalRawBlock> processing)
+    {
+        if (_defaultCanonicalRawSink is null)
+            throw new InvalidOperationException(
+                "No Required Canonical Raw recorder is registered for this acquisition session.");
+
+        return CreateRawFirstIngress(_defaultCanonicalRawSink, processing);
+    }
+
     public bool TryReportFault(
         AcquisitionFaultCategory category,
         Exception? exception = null,
@@ -309,6 +323,24 @@ public sealed class AcquisitionSessionDefinition
         AcquisitionSessionOptions? options = null,
         string? sessionId = null,
         string? replaySourceArtifactId = null)
+        : this(
+            mode, sources, requiredComponents, optionalComponents,
+            sourceIsolationObservers, configuration, options, sessionId,
+            replaySourceArtifactId, processingEpoch: null)
+    {
+    }
+
+    private AcquisitionSessionDefinition(
+        AcquisitionSessionMode mode,
+        IReadOnlyList<IAcquisitionSource> sources,
+        IReadOnlyList<AcquisitionRequiredComponentRegistration>? requiredComponents,
+        IReadOnlyList<AcquisitionOptionalComponentRegistration>? optionalComponents,
+        IReadOnlyList<IAcquisitionSourceIsolationObserver>? sourceIsolationObservers,
+        AcquisitionSessionConfiguration? configuration,
+        AcquisitionSessionOptions? options,
+        string? sessionId,
+        string? replaySourceArtifactId,
+        string? processingEpoch)
     {
         Mode = mode;
         Sources = (sources ?? throw new ArgumentNullException(nameof(sources))).ToArray();
@@ -321,7 +353,9 @@ public sealed class AcquisitionSessionDefinition
             ? Guid.NewGuid().ToString("N")
             : sessionId;
         ReplaySourceArtifactId = replaySourceArtifactId;
-        ProcessingEpoch = Guid.NewGuid().ToString("N");
+        ProcessingEpoch = string.IsNullOrWhiteSpace(processingEpoch)
+            ? Guid.NewGuid().ToString("N")
+            : processingEpoch;
 
         Validate();
     }
@@ -336,6 +370,43 @@ public sealed class AcquisitionSessionDefinition
     public AcquisitionSessionConfiguration Configuration { get; }
     public AcquisitionSessionOptions Options { get; }
     public string? ReplaySourceArtifactId { get; }
+
+    internal AcquisitionSessionDefinition WithRequiredComponent(
+        AcquisitionRequiredComponentRegistration registration,
+        AcquisitionSessionConfiguration? configuration = null)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+
+        return new AcquisitionSessionDefinition(
+            Mode,
+            Sources,
+            RequiredComponents.Concat([registration]).ToArray(),
+            OptionalComponents,
+            SourceIsolationObservers,
+            configuration ?? Configuration,
+            Options,
+            SessionId,
+            ReplaySourceArtifactId,
+            ProcessingEpoch);
+    }
+
+    internal AcquisitionSessionDefinition WithConfiguration(
+        AcquisitionSessionConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+
+        return new AcquisitionSessionDefinition(
+            Mode,
+            Sources,
+            RequiredComponents,
+            OptionalComponents,
+            SourceIsolationObservers,
+            configuration,
+            Options,
+            SessionId,
+            ReplaySourceArtifactId,
+            ProcessingEpoch);
+    }
 
     private void Validate()
     {
@@ -378,6 +449,14 @@ public sealed class AcquisitionSessionDefinition
             throw new ArgumentException(
                 "Multi-source isolation requires at least one isolation observer so quality/dependency state cannot be silently lost.",
                 nameof(SourceIsolationObservers));
+        }
+
+        if (RequiredComponents.Count(static item =>
+                item.Component.Kind == AcquisitionComponentKind.RawRecorder) > 1)
+        {
+            throw new ArgumentException(
+                "An acquisition session can contain at most one Required RawRecorder.",
+                nameof(RequiredComponents));
         }
 
         var ids = new HashSet<string>(StringComparer.Ordinal);

@@ -12,6 +12,11 @@ public interface IAcquisitionRawSink<in TBlock>
         CancellationToken cancellationToken = default);
 }
 
+public interface IAcquisitionTryRawSink<in TBlock>
+{
+    AcquisitionRawAcceptance TryAccept(TBlock block);
+}
+
 public interface IAcquisitionProcessingSink<in TBlock>
 {
     ValueTask HandoffAsync(
