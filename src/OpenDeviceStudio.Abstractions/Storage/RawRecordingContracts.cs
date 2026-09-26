@@ -60,6 +60,9 @@ public sealed record RawRecoveryReport(
 {
     public bool IsComplete =>
         string.Equals(ManifestState, "Completed", StringComparison.Ordinal) &&
+        SequenceGapCount == 0 &&
+        DuplicateBlockCount == 0 &&
+        OutOfOrderBlockCount == 0 &&
         Issues.Count == 0;
 }
 
