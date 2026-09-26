@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using UpperHost.Abstractions.Devices;
+using UpperHost.Control.Commands;
 using UpperHost.Control.Interlocks;
 using UpperHost.Hosting;
 using UpperHost.Starters;
