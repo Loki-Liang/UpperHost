@@ -58,6 +58,13 @@ class AcquisitionVerificationValidatorTests(unittest.TestCase):
         with self.assertRaises(MODULE.ValidationError):
             MODULE.validate_profile(profile, "test.json")
 
+    def test_duplicate_fault_schedule_is_rejected(self):
+        profile = valid_profile()
+        fault = {"target": "Processing", "kind": "Delay", "atSequence": 10, "durationMs": 1}
+        profile["faultSchedule"] = [fault, dict(fault)]
+        with self.assertRaises(MODULE.ValidationError):
+            MODULE.validate_profile(profile, "test.json")
+
     def test_repository_requires_three_capacity_profiles_and_fault_classes(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

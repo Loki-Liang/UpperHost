@@ -147,6 +147,7 @@ def validate_profile(profile: dict, filename: str) -> None:
     faults = profile["faultSchedule"]
     if not isinstance(faults, list):
         raise ValidationError(f"{filename}: faultSchedule must be an array")
+    fault_keys: set[tuple[str, str, int]] = set()
     for index, fault in enumerate(faults):
         context = f"{filename}.faultSchedule[{index}]"
         if not isinstance(fault, dict):
@@ -158,6 +159,10 @@ def validate_profile(profile: dict, filename: str) -> None:
         if fault["kind"] not in FAULT_KINDS:
             raise ValidationError(f"{context}: invalid kind {fault['kind']!r}")
         _positive_int(fault["atSequence"], f"{context}.atSequence")
+        fault_key = (fault["target"], fault["kind"], fault["atSequence"])
+        if fault_key in fault_keys:
+            raise ValidationError(f"{context}: duplicate sequence-driven fault {fault_key}")
+        fault_keys.add(fault_key)
         if "durationMs" in fault:
             duration = fault["durationMs"]
             if not isinstance(duration, int) or isinstance(duration, bool) or duration < 0:

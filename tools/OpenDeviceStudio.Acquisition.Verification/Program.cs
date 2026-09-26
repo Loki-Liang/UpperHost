@@ -19,6 +19,8 @@ internal static class Program
         Directory.CreateDirectory(options.ArtifactDirectory);
         var summaryPath = Path.Combine(options.ArtifactDirectory, "summary.json");
         VerificationSummary? summary = null;
+        VerificationProfile? loadedProfile = null;
+        string? loadedProfileHash = null;
         var stopwatch = Stopwatch.StartNew();
 
         try
@@ -31,6 +33,8 @@ internal static class Program
 
             ValidateProfile(profile);
             var profileHash = Convert.ToHexString(SHA256.HashData(profileBytes)).ToLowerInvariant();
+            loadedProfile = profile;
+            loadedProfileHash = profileHash;
             summary = await RunAsync(profile, profileHash, options, stopwatch);
             await WriteSummaryAsync(summaryPath, summary);
             Console.WriteLine($"PASS {profile.Id}; summary={summaryPath}");
@@ -41,6 +45,10 @@ internal static class Program
             summary ??= VerificationSummary.Failed(
                 exactSha: ResolveExactSha(),
                 profilePath: options.ProfilePath,
+                profileId: loadedProfile?.Id,
+                profileSha256: loadedProfileHash,
+                evidenceKind: loadedProfile?.EvidenceKind,
+                sourceMode: loadedProfile?.Mode,
                 seed: options.Seed,
                 elapsed: stopwatch.Elapsed,
                 error: ex);
@@ -324,6 +332,9 @@ internal static class Program
     {
         Require(profile.SchemaVersion == 1, "Profile schemaVersion must be 1.");
         Require(profile.EvidenceKind is "Synthetic" or "Loopback" or "Hardware", "Invalid evidenceKind.");
+        Require(
+            profile.EvidenceKind == "Synthetic",
+            "This verification runner implements Synthetic evidence only; Loopback/Hardware require dedicated adapters and must not be relabeled.");
         Require(profile.Mode is "VirtualTimeDeterministic" or "WallClockPaced" or "MaxThroughput", "Invalid source mode.");
         Require(profile.SourceCount > 0, "sourceCount must be positive.");
         Require(profile.ChannelsPerSource > 0, "channelsPerSource must be positive.");
@@ -622,17 +633,21 @@ internal sealed record VerificationSummary(
     public static VerificationSummary Failed(
         string exactSha,
         string profilePath,
+        string? profileId,
+        string? profileSha256,
+        string? evidenceKind,
+        string? sourceMode,
         int seed,
         TimeSpan elapsed,
         Exception error) =>
         new(
             "Failed",
             exactSha,
-            Path.GetFileNameWithoutExtension(profilePath),
+            profileId ?? Path.GetFileNameWithoutExtension(profilePath),
             profilePath,
-            null,
-            null,
-            null,
+            profileSha256,
+            evidenceKind,
+            sourceMode,
             seed,
             DateTimeOffset.UtcNow - elapsed,
             elapsed.TotalMilliseconds,

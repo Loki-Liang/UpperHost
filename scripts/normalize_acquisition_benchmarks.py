@@ -26,7 +26,7 @@ def normalize_report(root: Path, environment_id: str, source_sha: str, environme
     for path in files:
         report = json.loads(path.read_text(encoding="utf-8-sig"))
         for item in report.get("Benchmarks", []):
-            name = item.get("FullName") or item.get("DisplayInfo") or item.get("Method")
+            name = item.get("DisplayInfo") or item.get("FullName") or item.get("Method")
             if not isinstance(name, str) or not name:
                 raise ValueError(f"{path}: benchmark name missing")
             statistics = item.get("Statistics") or {}

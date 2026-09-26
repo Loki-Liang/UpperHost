@@ -33,7 +33,7 @@ def _load(path: Path) -> dict:
     return value
 
 
-def validate_coverage(value: dict) -> None:
+def validate_coverage(value: dict, evidence_root: Path | None = None) -> None:
     if set(value) != {"schemaVersion", "components", "requiredForIssueClosure"}:
         raise ValidationError("coverage.json has unknown or missing top-level fields")
     if value["schemaVersion"] != 1:
@@ -60,6 +60,15 @@ def validate_coverage(value: dict) -> None:
             raise ValidationError(f"component {component_id}: evidence must be a string array")
         if component["status"] == "Production" and not component["evidence"]:
             raise ValidationError(f"component {component_id}: Production requires evidence")
+        if component["status"] == "Production" and evidence_root is not None:
+            missing_evidence = [
+                item for item in component["evidence"]
+                if not (evidence_root / item).is_file()
+            ]
+            if missing_evidence:
+                raise ValidationError(
+                    f"component {component_id}: Production evidence path(s) missing: {missing_evidence}"
+                )
         if not isinstance(component["note"], str) or not component["note"]:
             raise ValidationError(f"component {component_id}: note is required")
 
@@ -89,6 +98,14 @@ def validate_baseline(value: dict) -> None:
         raise ValidationError("baseline changes must require explicit review")
     if not isinstance(value["benchmarks"], dict):
         raise ValidationError("performance baseline benchmarks must be an object")
+    fingerprint = value["environmentFingerprintSha256"]
+    if fingerprint is not None and (
+        not isinstance(fingerprint, str)
+        or len(fingerprint) != 64
+        or any(ch not in "0123456789abcdefABCDEF" for ch in fingerprint)
+    ):
+        raise ValidationError("environmentFingerprintSha256 must be a 64-character hex SHA-256")
+
     if value["status"] == "Active":
         if (
             not value["sourceSha"]
@@ -129,7 +146,7 @@ def main() -> int:
     try:
         coverage = _load(COVERAGE_PATH)
         baseline = _load(BASELINE_PATH)
-        validate_coverage(coverage)
+        validate_coverage(coverage, ROOT)
         validate_baseline(baseline)
         blockers = release_blockers(coverage, baseline)
     except (OSError, json.JSONDecodeError, ValidationError) as exc:
