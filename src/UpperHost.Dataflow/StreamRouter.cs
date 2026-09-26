@@ -157,6 +157,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
     public async ValueTask CompleteAsync(CancellationToken cancellationToken = default)
     {
         ThrowIfDisposed();
+        var awaitCompletion = false;
+
         await _publishGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -167,14 +169,21 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 var state = State;
                 if (state == StreamRouterState.Completed)
                     return;
-                if (state == StreamRouterState.Faulted)
-                    return;
-                if (state != StreamRouterState.Running)
+                if (state is StreamRouterState.Completing or StreamRouterState.Faulted)
+                {
+                    awaitCompletion = true;
+                }
+                else if (state == StreamRouterState.Running)
+                {
+                    Volatile.Write(ref _state, (int)StreamRouterState.Completing);
+                    foreach (var branch in _branches)
+                        branch.RequestCompletion();
+                    awaitCompletion = true;
+                }
+                else
+                {
                     throw new InvalidOperationException($"Cannot complete stream router from state {state}.");
-
-                Volatile.Write(ref _state, (int)StreamRouterState.Completing);
-                foreach (var branch in _branches)
-                    branch.RequestCompletion();
+                }
             }
         }
         finally
@@ -182,7 +191,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             _publishGate.Release();
         }
 
-        await _completion.WaitAsync(cancellationToken).ConfigureAwait(false);
+        if (awaitCompletion)
+            await _completion.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
     public StreamRouterSnapshot GetSnapshot()
