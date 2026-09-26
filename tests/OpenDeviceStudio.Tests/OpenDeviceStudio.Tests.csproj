@@ -33,6 +33,7 @@
     <ProjectReference Include="../../src/OpenDeviceStudio.StateMachines/OpenDeviceStudio.StateMachines.csproj" />
     <ProjectReference Include="../../src/OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
     <ProjectReference Include="../../src/OpenDeviceStudio.Acquisition/OpenDeviceStudio.Acquisition.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Storage.FileSystem/OpenDeviceStudio.Storage.FileSystem.csproj" />
     <ProjectReference Include="../../src/OpenDeviceStudio.Testing/OpenDeviceStudio.Testing.csproj" />
   </ItemGroup>
 </Project>
