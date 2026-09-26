@@ -33,6 +33,50 @@ public sealed class AutoConfigurationTests
         Assert.NotNull(app.Services.GetRequiredService<IAutomationExecutionJournal>());
     }
 
+
+    [Fact]
+    public async Task Host_stop_converges_active_automation_before_journal_shutdown()
+    {
+        var builder = UpperHostApplication.CreateBuilder();
+        builder.Configuration["UpperHost:Transport:Type"] = "Simulator";
+        builder.AddUpperHostApplication();
+
+        await using var app = builder.Build();
+        await app.StartAsync();
+
+        var entered = new TaskCompletionSource<bool>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var plan = AutomationExecutionPlan.Compile(
+            new AutomationWorkflowDefinition(
+                "shutdown-smoke",
+                "1",
+                new AutomationActionNode(
+                    "wait",
+                    new AutomationStepDescriptor(
+                        async (_, cancellationToken) =>
+                        {
+                            entered.TrySetResult(true);
+                            await Task.Delay(
+                                Timeout.InfiniteTimeSpan,
+                                cancellationToken);
+                            return AutomationStepResult.Success();
+                        }))));
+
+        var coordinator = app.Services.GetRequiredService<AutomationExecutionCoordinator>();
+        var start = coordinator.TryStart(
+            plan,
+            AutomationRecipeSnapshot.Create("shutdown", "1", new { Value = 1 }));
+
+        Assert.True(start.Accepted);
+        await entered.Task;
+
+        await app.StopAsync();
+        var result = await start.Execution!.Completion;
+
+        Assert.Equal(AutomationExecutionState.Aborted, result.State);
+        Assert.Equal(AutomationStationState.Faulted, result.StationState);
+    }
+
     [Fact]
     public void Invalid_tcp_port_fails_fast_during_configuration()
     {
