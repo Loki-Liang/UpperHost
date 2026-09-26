@@ -66,6 +66,12 @@ jobs:
       - name: Restore acquisition verification runner
         run: dotnet restore tools/OpenDeviceStudio.Acquisition.Verification/OpenDeviceStudio.Acquisition.Verification.csproj
 
+      - name: Restore acquisition benchmark harness
+        run: dotnet restore benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj
+
+      - name: Build acquisition benchmark harness
+        run: dotnet build benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj -c Release --no-restore
+
       - name: Raw format decision spike
         run: dotnet run --project benchmarks/OpenDeviceStudio.RawFormatSpike/OpenDeviceStudio.RawFormatSpike.csproj -c Release
 

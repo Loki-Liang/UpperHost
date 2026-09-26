@@ -45,9 +45,12 @@ jobs:
 
       - name: Verify exact candidate SHA
         shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
         run: |
+          if ($env:EXPECTED_SHA -notmatch '^[0-9a-fA-F]{40}$') { throw "expected_sha must be a 40-character commit SHA" }
           $actual = (git rev-parse HEAD).Trim()
-          if ($actual -ne "${{ inputs.expected_sha }}") { throw "Expected SHA ${{ inputs.expected_sha }}, got $actual" }
+          if ($actual -ne $env:EXPECTED_SHA) { throw "Exact candidate SHA mismatch" }
 
       - name: Require production coverage and active stable baseline
         run: python scripts/validate_acquisition_release_readiness.py --require-release-ready
@@ -69,20 +72,28 @@ jobs:
 
       - name: Capture release-soak environment
         shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          PROFILE_NAME: ${{ inputs.profile }}
+          SOAK_SEED: ${{ inputs.seed }}
         run: |
           New-Item -ItemType Directory -Force artifacts/acquisition-release-soak | Out-Null
-          @{ exactSha = "${{ inputs.expected_sha }}"; profile = "${{ inputs.profile }}"; seed = "${{ inputs.seed }}"; runnerName = $env:RUNNER_NAME; os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); cpu = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); memoryBytes = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory } | ConvertTo-Json -Depth 5 | Set-Content artifacts/acquisition-release-soak/environment.json
+          @{ exactSha = $env:EXPECTED_SHA; profile = $env:PROFILE_NAME; seed = $env:SOAK_SEED; runnerName = $env:RUNNER_NAME; os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); cpu = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); memoryBytes = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory } | ConvertTo-Json -Depth 5 | Set-Content artifacts/acquisition-release-soak/environment.json
           dotnet --info | Set-Content artifacts/acquisition-release-soak/dotnet-info.txt
           dotnet-counters --version | Set-Content artifacts/acquisition-release-soak/dotnet-counters-version.txt
 
       - name: Run exact-candidate soak under pinned runtime counters
         shell: pwsh
+        env:
+          PROFILE_NAME: ${{ inputs.profile }}
+          SOAK_SEED: ${{ inputs.seed }}
+          MAX_BLOCKS_PER_SOURCE: ${{ inputs.max_blocks_per_source }}
         run: |
-          $profile = "eng/acquisition-verification/profiles/${{ inputs.profile }}.json"
+          $profile = "eng/acquisition-verification/profiles/$env:PROFILE_NAME.json"
           $artifact = "artifacts/acquisition-release-soak/run"
           $dll = "tools/OpenDeviceStudio.Acquisition.Verification/bin/Release/net10.0/OpenDeviceStudio.Acquisition.Verification.dll"
-          $runnerArgs = @("exec", $dll, "--profile", $profile, "--artifact-dir", $artifact, "--seed", "${{ inputs.seed }}", "--timeout-seconds", "9000")
-          if ("${{ inputs.max_blocks_per_source }}" -ne "0") { $runnerArgs += @("--max-blocks-per-source", "${{ inputs.max_blocks_per_source }}") }
+          $runnerArgs = @("exec", $dll, "--profile", $profile, "--artifact-dir", $artifact, "--seed", $env:SOAK_SEED, "--timeout-seconds", "9000")
+          if ($env:MAX_BLOCKS_PER_SOURCE -ne "0") { $runnerArgs += @("--max-blocks-per-source", $env:MAX_BLOCKS_PER_SOURCE) }
           dotnet-counters collect --format json --counters System.Runtime --output artifacts/acquisition-release-soak/runtime-counters.json -- dotnet @runnerArgs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
@@ -95,7 +106,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: acquisition-release-soak-${{ inputs.expected_sha }}-${{ inputs.profile }}
+          name: acquisition-release-soak-${{ github.run_id }}
           path: artifacts/acquisition-release-soak
           if-no-files-found: warn
           retention-days: 30

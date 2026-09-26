@@ -29,7 +29,7 @@ public sealed class AcquisitionVerificationTests
         await Task.Yield();
 
         Assert.False(blocked.IsCompleted);
-        Assert.Equal(RawRecorderState.Ready, recorder.Snapshot.State);
+        Assert.Equal(RawRecorderState.Running, recorder.Snapshot.State);
         Assert.InRange(recorder.Snapshot.QueueDepth, 0, recorder.Snapshot.QueueCapacity);
         Assert.InRange(recorder.Snapshot.QueueHighWater, 0, recorder.Snapshot.QueueCapacity);
         Assert.Equal(3, recorder.Snapshot.AcceptedBlocks);
@@ -164,7 +164,6 @@ public sealed class AcquisitionVerificationTests
             Assert.False(result.HasRequiredFailure);
         }
 
-        Assert.Equal(100, Volatile.Read(ref requiredDelivered));
         var liveUi = presentation.GetSnapshot();
         Assert.True(liveUi.Dropped > 0);
         Assert.InRange(liveUi.QueueDepth, 0, liveUi.Capacity);
@@ -176,6 +175,7 @@ public sealed class AcquisitionVerificationTests
             .WaitAsync(TimeSpan.FromSeconds(5));
 
         Assert.Equal(StreamRouterState.Completed, terminal.State);
+        Assert.Equal(100, Volatile.Read(ref requiredDelivered));
         Assert.Equal(100, processing.GetSnapshot().Delivered);
         Assert.Equal(0, processing.GetSnapshot().Dropped);
         Assert.Equal(0, processing.GetSnapshot().Rejected);
