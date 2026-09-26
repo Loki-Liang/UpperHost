@@ -308,6 +308,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             return WaitCompletionAsync(cancellationToken);
 
         Interlocked.Exchange(ref _abortRequested, 1);
+        CloseAllIngress();
         TryCancel(_sessionStop);
         TryCancel(_abort);
         WakeSupervisor();
@@ -508,7 +509,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
             try
             {
                 using var budget = CreateBudget(_definition.Options.EffectiveStopTimeout);
+                var ingress = _ingressBySource[handle.Source.SourceId];
+                ingress.Close();
                 await handle.Source.StopAsync(budget.Token).AsTask().WaitAsync(budget.Token).ConfigureAwait(false);
+                await ingress.WaitForDrainAsync(budget.Token).ConfigureAwait(false);
                 await handle.Source.FinalizeAsync(budget.Token).AsTask().WaitAsync(budget.Token).ConfigureAwait(false);
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Isolated, fault.Message);
 
@@ -555,6 +559,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
         var stopStarted = _timeProvider.GetTimestamp();
         TryCancel(_sessionStop);
+        CloseAllIngress();
 
         if (reason == ConvergenceReason.Abort)
         {
@@ -599,6 +604,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     SetSourceState(handle, AcquisitionComponentRuntimeState.Faulted);
             }
 
+            await WaitForAllIngressDrainAsync(convergenceToken).ConfigureAwait(false);
             await DetachAllOptionalAsync(convergenceToken).ConfigureAwait(false);
 
             foreach (var handle in _required.Values.OrderBy(EffectiveStopOrder))
@@ -731,6 +737,20 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     ex,
                     "Source abort failed."));
             }
+        }
+
+        try
+        {
+            await WaitForAllIngressDrainAsync(budget.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (budget.IsCancellationRequested)
+        {
+            AddSecondary(CreateFault(
+                AcquisitionFaultCategory.ShutdownTimeout,
+                "session-ingress",
+                null,
+                null,
+                "Acquisition ingress did not quiesce within the abort budget."));
         }
 
         foreach (var required in _required.Values.Reverse())
