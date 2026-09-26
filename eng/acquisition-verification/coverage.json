@@ -20,10 +20,13 @@
       "note": "Production StreamRouter is merged with Required/Optional QoS and bounded overload evidence."
     },
     "processing": {
-      "status": "Blocked",
+      "status": "Production",
       "issue": 59,
-      "evidence": [],
-      "note": "The #62 harness may use a representative identity consumer, but it must not be reported as production Signal Processing evidence until #59 is merged."
+      "evidence": [
+        "tests/OpenDeviceStudio.Tests/SignalProcessingTests.cs",
+        "tests/OpenDeviceStudio.Tests/AcquisitionVerificationTests.cs"
+      ],
+      "note": "Production SignalProcessing Stage Graph Runtime is merged on main via PR #86 and has Required/Optional fault, bounded slow-algorithm QoS, lineage, state isolation, and online/replay evidence. #62 retains independent capacity/soak evidence."
     },
     "presentation": {
       "status": "Blocked",
