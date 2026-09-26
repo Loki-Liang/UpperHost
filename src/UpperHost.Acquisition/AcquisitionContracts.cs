@@ -241,7 +241,7 @@ public sealed record AcquisitionSessionResult(
 public sealed class AcquisitionComponentContext
 {
     private readonly Func<AcquisitionFaultCategory, Exception?, string?, bool> _faultReporter;
-    private readonly AcquisitionIngressGate _ingressGate;
+    private readonly AcquisitionIngressGate? _ingressGate;
 
     internal AcquisitionComponentContext(
         string sessionId,
@@ -253,7 +253,7 @@ public sealed class AcquisitionComponentContext
         CancellationToken sessionStopToken,
         CancellationToken abortToken,
         TimeProvider timeProvider,
-        AcquisitionIngressGate ingressGate,
+        AcquisitionIngressGate? ingressGate,
         Func<AcquisitionFaultCategory, Exception?, string?, bool> faultReporter)
     {
         SessionId = sessionId;
@@ -281,8 +281,14 @@ public sealed class AcquisitionComponentContext
 
     public RawFirstAcquisitionIngress<TBlock> CreateRawFirstIngress<TBlock>(
         IAcquisitionRawSink<TBlock> raw,
-        IAcquisitionProcessingSink<TBlock> processing) =>
-        new(_ingressGate, raw, processing);
+        IAcquisitionProcessingSink<TBlock> processing)
+    {
+        if (Mode != AcquisitionSessionMode.LiveAcquisition || SourceId is null || _ingressGate is null)
+            throw new InvalidOperationException(
+                "Raw-first ingress can only be created from a live Source component context.");
+
+        return new RawFirstAcquisitionIngress<TBlock>(_ingressGate, raw, processing);
+    }
 
     public bool TryReportFault(
         AcquisitionFaultCategory category,
