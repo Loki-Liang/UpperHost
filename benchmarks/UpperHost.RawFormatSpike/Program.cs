@@ -150,7 +150,11 @@ static async Task<int> CountRecoverableArrowRowsAsync(byte[] bytes)
                 rows += batch.Length;
         }
     }
-    catch (Exception ex) when (ex is InvalidDataException or EndOfStreamException or IOException)
+    catch (Exception ex) when (
+        ex is InvalidDataException
+            or EndOfStreamException
+            or IOException
+            or ArgumentOutOfRangeException)
     {
     }
 
