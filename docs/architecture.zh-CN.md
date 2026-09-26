@@ -124,6 +124,22 @@ Domain Command
 
 Command Guard / Interlock 属于软件控制约束。它们不能代替硬件急停、安全继电器、安全 PLC 或认证安全回路。
 
+## Acquisition Session 生命周期权威
+
+UpperHost.Acquisition 提供采集路线唯一生命周期权威。AcquisitionSessionManager 由 Host 持有；每个运行中的 AcquisitionSession 只拥有一个有界 lifecycle supervisor。Session 在启动前冻结拓扑/配置，先 Prepare Required component，再 Prepare Source；所有 Required Ready 后才允许调用 Source.StartAsync。运行期 first/root Required fault 统一收敛，Optional fault 默认隔离，并最终只生成一个 terminal result。
+
+Lifecycle supervisor 只走控制信号，不承载 Raw block。高频热路径保持直接、有界：
+
+```text
+Source callback / reader
+ -> canonicalize
+ -> Raw recorder ingress accepted
+ -> processing handoff
+ -> router branches
+```
+
+RawFirstAcquisitionIngress 只负责 Raw Accepted -> Processing 的顺序不变量，不把 DSP、WPF 或具体存储实现塞进 Session Coordinator。Replay 是读取只读 Raw artifact 的新 Processing Session，并生成新的 ProcessingEpoch。多 Source 选择 isolate 策略时，必须通过 isolation observer 把失败 SourceId / connection epoch 传播到依赖的 quality/processing state，禁止无痕继续。
+
 ## Streaming
 
 连续数据设备走 Streaming：

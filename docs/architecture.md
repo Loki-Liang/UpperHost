@@ -128,6 +128,22 @@ A successful send means bytes were handed to the transport; it does not prove ph
 
 Software command guards and interlocks are application safety constraints. They do not replace hardware emergency stops, safety relays, safety PLCs or certified safety circuits.
 
+## Acquisition Session authority
+
+UpperHost.Acquisition provides the route-level lifecycle authority. AcquisitionSessionManager is host-owned; each running AcquisitionSession owns one bounded lifecycle supervisor. The coordinator freezes topology/configuration, prepares Required components before Sources, enforces the RequiredReady barrier before Source.StartAsync, converges the first Required fault, isolates Optional faults by default, and emits one terminal result.
+
+The lifecycle supervisor is control-plane only. It does not carry Raw blocks. The hot path remains direct and bounded:
+
+```text
+Source callback / reader
+ -> canonicalize
+ -> Raw recorder ingress accepted
+ -> processing handoff
+ -> router branches
+```
+
+RawFirstAcquisitionIngress enforces the Raw-accepted-before-processing invariant without moving DSP, WPF or storage implementation into the Session coordinator. Replay is a new processing session over a read-only Raw source artifact and gets a new ProcessingEpoch. Multi-source isolation is allowed only when an isolation observer propagates the failed SourceId/connection epoch into dependent quality/processing state.
+
 ## Streaming runtime
 
 Streaming workloads follow a separate first-class path:

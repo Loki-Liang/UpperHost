@@ -49,8 +49,16 @@ public sealed class DeviceStateHostingTests
         await app.StartAsync();
 
         await polled.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        var partition = new DeviceStatePartitionKey("state");
+        DeviceSnapshot<int>? snapshot = null;
+        using (var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2)))
+        {
+            while ((snapshot = store.Get("device-1", partition)) is null)
+                await Task.Delay(10, timeout.Token);
+        }
+
         Assert.True(poller.IsRunning);
-        Assert.Equal(42, store.Get("device-1", new DeviceStatePartitionKey("state"))!.Value);
+        Assert.Equal(42, snapshot.Value);
 
         await app.StopAsync();
         Assert.False(poller.IsRunning);

@@ -252,16 +252,33 @@ A successful byte write is not proof that a physical action completed. Product c
 
 ## 11. Acquisition
 
-Continuous high-rate acquisition should follow the streaming/dataflow path:
+AddUpperHostApplication() already registers the host-owned AcquisitionSessionManager. A product creates one frozen AcquisitionSessionDefinition per live/replay run and supplies its Source plus Required/Optional route adapters; it does not create another lifecycle coordinator.
+
+```csharp
+var manager = services.GetRequiredService<AcquisitionSessionManager>();
+await using var session = manager.CreateSession(new AcquisitionSessionDefinition(
+    AcquisitionSessionMode.LiveAcquisition,
+    sources,
+    requiredComponents,
+    optionalComponents));
+
+await session.StartAsync(startRequestToken);
+var result = await session.StopAsync();
+```
+
+For high-rate data, keep the Session coordinator out of the per-block hot path:
 
 ```text
 Hardware
- -> Transport
- -> Decoder
- -> IDataSource<T>
- -> bounded Dataflow
- -> Algorithm / Storage / UI
+ -> Transport / Provider
+ -> Decoder / Canonical Raw
+ -> Raw recorder accepted
+ -> Processing
+ -> bounded Router
+ -> Algorithm / Processed Storage / UI
 ```
+
+Required readiness is complete before Source start. Required faults terminate/converge through the Session; Optional presentation/algorithm faults are isolated unless the frozen definition explicitly escalates them. Replay sources are read-only by default and reuse processing implementations under a new ProcessingEpoch.
 
 Define capacity, backpressure, loss policy and UI downsampling explicitly. Do not use a WPF UI timer as the acquisition clock.
 
