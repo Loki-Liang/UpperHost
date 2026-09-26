@@ -214,18 +214,24 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        await _publishGate.WaitAsync().ConfigureAwait(false);
         BranchRuntime[] snapshot;
+        lock (_lifecycleGate)
+        {
+            snapshot = _branches.Length == 0 ? _configuredBranches.ToArray() : _branches;
+            Volatile.Write(ref _state, (int)StreamRouterState.Disposed);
+        }
+
+        // Cancellation must happen before waiting for the serialized publish gate.
+        // A Required/Wait publish can own that gate while blocked on a full branch.
+        // Its branch write observes this router lifetime token and exits, allowing
+        // deterministic shutdown instead of a publish-vs-dispose deadlock.
+        _routerCancellation.Cancel();
+
+        await _publishGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            lock (_lifecycleGate)
-            {
-                snapshot = _branches.Length == 0 ? _configuredBranches.ToArray() : _branches;
-                Volatile.Write(ref _state, (int)StreamRouterState.Disposed);
-                _routerCancellation.Cancel();
-                foreach (var branch in snapshot)
-                    branch.RequestAbort();
-            }
+            foreach (var branch in snapshot)
+                branch.RequestAbort();
         }
         finally
         {
@@ -479,19 +485,33 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 switch (Options.Overflow)
                 {
                     case StreamOverflowPolicy.Wait:
-                        try
+                        var lifetimeToken = _linkedCancellation?.Token ?? _branchCancellation.Token;
+                        using (var writeCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                                   cancellationToken,
+                                   lifetimeToken))
                         {
-                            await _channel.Writer.WriteAsync(envelope, cancellationToken).ConfigureAwait(false);
-                        }
-                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                        {
-                            ReleaseUnaccepted(envelope, countRejected: false);
-                            return Cancelled("publish_cancelled");
-                        }
-                        catch (ChannelClosedException)
-                        {
-                            ReleaseUnaccepted(envelope, countRejected: true);
-                            return ClosedResult();
+                            try
+                            {
+                                await _channel.Writer.WriteAsync(
+                                        envelope,
+                                        writeCancellation.Token)
+                                    .ConfigureAwait(false);
+                            }
+                            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                            {
+                                ReleaseUnaccepted(envelope, countRejected: false);
+                                return Cancelled("publish_cancelled");
+                            }
+                            catch (OperationCanceledException) when (lifetimeToken.IsCancellationRequested)
+                            {
+                                ReleaseUnaccepted(envelope, countRejected: true);
+                                return ClosedResult();
+                            }
+                            catch (ChannelClosedException)
+                            {
+                                ReleaseUnaccepted(envelope, countRejected: true);
+                                return ClosedResult();
+                            }
                         }
                         break;
 
