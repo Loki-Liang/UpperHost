@@ -248,6 +248,124 @@ public sealed class RawRecorderTests
                     or RawRecoveryIssueKind.TruncatedTail);
     }
 
+
+    [Fact]
+    public async Task Preflight_open_failure_prevents_recorder_ready()
+    {
+        using var temp = new TemporaryDirectory();
+        await using var recorder = new FileSystemRawRecorder(
+            Options(temp.Path),
+            TimeProvider.System,
+            new OpenFailingSegmentStreamFactory());
+
+        await Assert.ThrowsAsync<IOException>(
+            async () => await recorder.PrepareAsync(Descriptor("preflight-failure")).AsTask());
+
+        Assert.NotEqual(RawRecorderState.Ready, recorder.Snapshot.State);
+        Assert.NotEqual(RawRecorderState.Running, recorder.Snapshot.State);
+    }
+
+    [Fact]
+    public async Task Concurrent_accepts_cannot_oversubscribe_session_quota()
+    {
+        using var temp = new TemporaryDirectory();
+        var streamFactory = new GatedSegmentStreamFactory();
+        await using var recorder = new FileSystemRawRecorder(
+            Options(temp.Path, queueCapacity: 4, maxSessionBytes: 4),
+            TimeProvider.System,
+            streamFactory);
+
+        await recorder.PrepareAsync(Descriptor("quota-atomic"));
+
+        var firstTask = Task.Run(() => recorder.TryAccept(Block(1, [1, 0, 2, 0])));
+        var secondTask = Task.Run(() => recorder.TryAccept(Block(2, [3, 0, 4, 0])));
+        var results = await Task.WhenAll(firstTask, secondTask);
+
+        Assert.Single(results, static result => result.Status == RawRecorderAcceptStatus.Accepted);
+        Assert.Single(results, static result => result.Status == RawRecorderAcceptStatus.Faulted);
+        Assert.Equal(4, recorder.Snapshot.AcceptedBytes);
+        Assert.Equal(1, recorder.Snapshot.AcceptedBlocks);
+        Assert.Equal(RawRecorderState.Faulted, recorder.Snapshot.State);
+
+        streamFactory.ReleaseWrites.TrySetResult();
+        await Assert.ThrowsAsync<IOException>(
+            async () => await recorder.StopAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
+    public async Task Sequence_gap_duplicate_and_out_of_order_are_recorded_and_recoverable()
+    {
+        using var temp = new TemporaryDirectory();
+        await using var recorder = new FileSystemRawRecorder(Options(temp.Path));
+
+        await recorder.PrepareAsync(Descriptor("sequence-diagnostics"));
+        Assert.True((await recorder.AcceptAsync(BlockRange(10, 1, [10, 0]))).Accepted);
+        Assert.True((await recorder.AcceptAsync(BlockRange(12, 1, [12, 0]))).Accepted);
+        Assert.True((await recorder.AcceptAsync(BlockRange(12, 1, [12, 0]))).Accepted);
+        Assert.True((await recorder.AcceptAsync(BlockRange(12, 2, [12, 0, 13, 0]))).Accepted);
+        await recorder.StopAsync();
+        await recorder.FinalizeAsync();
+
+        var snapshot = recorder.Snapshot;
+        Assert.Equal(1, snapshot.SequenceGapCount);
+        Assert.Equal(1, snapshot.DuplicateBlockCount);
+        Assert.Equal(1, snapshot.OutOfOrderBlockCount);
+        Assert.Equal(13, Assert.Single(snapshot.LastSequences).LastSequence);
+
+        var directory = Assert.IsType<string>(snapshot.SessionDirectory);
+        var recovery = await FileSystemRawRecoveryScanner.ScanAsync(directory);
+
+        Assert.Equal(1, recovery.SequenceGapCount);
+        Assert.Equal(1, recovery.DuplicateBlockCount);
+        Assert.Equal(1, recovery.OutOfOrderBlockCount);
+    }
+
+    [Fact]
+    public async Task Flush_on_finalize_distinguishes_written_from_flushed_and_durable()
+    {
+        using var temp = new TemporaryDirectory();
+        await using var recorder = new FileSystemRawRecorder(
+            Options(temp.Path, durability: RawDurabilityLevel.FlushOnFinalize));
+
+        await recorder.PrepareAsync(Descriptor("flush-semantics"));
+        Assert.True((await recorder.AcceptAsync(Block(1, [1, 0]))).Accepted);
+        Assert.True((await recorder.AcceptAsync(Block(2, [2, 0]))).Accepted);
+
+        await recorder.StopAsync();
+        await recorder.FinalizeAsync();
+
+        var snapshot = recorder.Snapshot;
+        Assert.Equal(2, snapshot.WrittenBlocks);
+        Assert.Equal(2, snapshot.FlushedBlocks);
+        Assert.Equal(0, snapshot.DurableBlocks);
+        Assert.Equal(snapshot.WrittenBytes, snapshot.FlushedBytes);
+        Assert.Equal(0, snapshot.DurableBytes);
+    }
+
+    [Fact]
+    public async Task Recovery_reports_uncommitted_temp_manifest_without_mutating_it()
+    {
+        using var temp = new TemporaryDirectory();
+        await using var recorder = new FileSystemRawRecorder(Options(temp.Path));
+
+        await recorder.PrepareAsync(Descriptor("manifest-temp"));
+        var directory = Assert.IsType<string>(recorder.Snapshot.SessionDirectory);
+        var tempManifest = System.IO.Path.Combine(directory, "manifest.json.tmp");
+        await File.WriteAllTextAsync(tempManifest, "{\"generation\":999}");
+
+        var before = await File.ReadAllBytesAsync(tempManifest);
+        var report = await FileSystemRawRecoveryScanner.ScanAsync(directory);
+        var after = await File.ReadAllBytesAsync(tempManifest);
+
+        Assert.Contains(
+            report.Issues,
+            static issue => issue.Kind == RawRecoveryIssueKind.UncommittedManifest);
+        Assert.Equal(before, after);
+
+        File.Delete(tempManifest);
+        await recorder.AbortAsync("test cleanup");
+    }
+
     [Fact]
     public async Task Starter_raw_recording_is_default_on_and_opt_out_requires_audited_reason()
     {
@@ -281,16 +399,19 @@ public sealed class RawRecorderTests
 
     private static FileSystemRawRecorderOptions Options(
         string root,
-        int queueCapacity = 8) =>
+        int queueCapacity = 8,
+        long maxSegmentBytes = 1024 * 1024,
+        long maxSessionBytes = 16 * 1024 * 1024,
+        RawDurabilityLevel durability = RawDurabilityLevel.Buffered) =>
         new(
             RootDirectory: root,
             QueueCapacity: queueCapacity,
-            MaxSegmentBytes: 1024 * 1024,
+            MaxSegmentBytes: maxSegmentBytes,
             MaxSegmentDuration: TimeSpan.FromMinutes(1),
             HardMinimumFreeBytes: 0,
             WarningFreeBytes: 0,
-            MaxSessionBytes: 16 * 1024 * 1024,
-            Durability: RawDurabilityLevel.Buffered,
+            MaxSessionBytes: maxSessionBytes,
+            Durability: durability,
             FreeSpaceCheckIntervalBlocks: 1);
 
     private static RawRecordingSessionDescriptor Descriptor(string sessionId) =>
@@ -301,12 +422,18 @@ public sealed class RawRecorderTests
             DateTimeOffset.UtcNow);
 
     private static CanonicalRawBlock Block(long sequence, ReadOnlySpan<byte> payload) =>
+        BlockRange(sequence, 1, payload);
+
+    private static CanonicalRawBlock BlockRange(
+        long sequence,
+        int sequenceCount,
+        ReadOnlySpan<byte> payload) =>
         CanonicalRawBlock.CopyFrom(
             sourceId: "source-a",
             deviceId: "device-a",
             connectionEpoch: 1,
             sequenceStart: sequence,
-            sequenceCount: 1,
+            sequenceCount: sequenceCount,
             sampleCount: Math.Max(1, payload.Length / 2),
             channelCount: 1,
             channelLayoutId: "channel-0",
@@ -415,23 +542,46 @@ public sealed class RawRecorderTests
 
     private sealed class GatedSegmentStreamFactory : IRawSegmentStreamFactory
     {
+        private int _openCount;
+
         public TaskCompletionSource WriteEntered { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource ReleaseWrites { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Stream OpenWrite(string path) =>
-            new GatedWriteStream(path, WriteEntered, ReleaseWrites);
+            Interlocked.Increment(ref _openCount) == 1
+                ? OpenNormal(path)
+                : new GatedWriteStream(path, WriteEntered, ReleaseWrites);
     }
 
     private sealed class ThrowingSegmentStreamFactory : IRawSegmentStreamFactory
     {
+        private int _openCount;
+
         public TaskCompletionSource WriteAttempted { get; } =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Stream OpenWrite(string path) =>
-            new ThrowingWriteStream(path, WriteAttempted);
+            Interlocked.Increment(ref _openCount) == 1
+                ? OpenNormal(path)
+                : new ThrowingWriteStream(path, WriteAttempted);
     }
+
+    private sealed class OpenFailingSegmentStreamFactory : IRawSegmentStreamFactory
+    {
+        public Stream OpenWrite(string path) =>
+            throw new IOException("Injected Raw recorder preflight open failure.");
+    }
+
+    private static FileStream OpenNormal(string path) =>
+        new(
+            path,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.Read,
+            4096,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
 
     private sealed class GatedWriteStream(
         string path,
