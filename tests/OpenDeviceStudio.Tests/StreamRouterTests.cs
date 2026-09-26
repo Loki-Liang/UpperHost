@@ -402,7 +402,12 @@ public sealed class StreamRouterTests
         router.Start();
 
         for (var index = 0; index < 50; index++)
+        {
             await router.PublishAsync(index);
+            var live = branch.GetSnapshot();
+            Assert.InRange(live.QueueDepth, 0, live.Capacity);
+            Assert.InRange(live.HighWatermark, 0, live.Capacity);
+        }
 
         var terminal = await router.CompleteAsync(StreamCompletionMode.Drain);
         var snapshot = branch.GetSnapshot();
