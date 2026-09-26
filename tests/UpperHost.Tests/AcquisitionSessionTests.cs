@@ -177,6 +177,35 @@ public sealed class AcquisitionSessionTests
         Assert.Equal(["raw:1", "processing:1"], calls);
     }
 
+    [Fact]
+    public async Task Source_reported_required_fault_during_start_converges_without_running_transition_race()
+    {
+        RecordingSource? source = null;
+        source = new RecordingSource("source-a")
+        {
+            StartHook = _ =>
+            {
+                Assert.True(source!.Context!.TryReportFault(
+                    AcquisitionFaultCategory.Source,
+                    new IOException("start-time source fault"),
+                    "start-time source fault"));
+                return ValueTask.CompletedTask;
+            }
+        };
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live([source]));
+
+        await session.StartAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
+        Assert.Equal(AcquisitionFaultCategory.Source, result.RootFault?.Category);
+        Assert.Equal(AcquisitionStartupPhase.Completed, session.GetSnapshot().Phase);
+        Assert.Equal(1, source.StopCount);
+        Assert.Equal(1, source.DisposeCount);
+    }
+
     [Theory]
     [InlineData(AcquisitionComponentKind.RawRecorder, AcquisitionFaultCategory.RawIntegrity)]
     [InlineData(AcquisitionComponentKind.Processing, AcquisitionFaultCategory.Processing)]
@@ -311,6 +340,7 @@ public sealed class AcquisitionSessionTests
         Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
         Assert.Equal(AcquisitionFaultCategory.OptionalComponent, result.RootFault?.Category);
         Assert.Equal(optional.ComponentId, result.RootFault?.ComponentId);
+        Assert.Equal(AcquisitionStartupPhase.Completed, session.GetSnapshot().Phase);
         Assert.Contains(result.Components, item =>
             item.ComponentId == optional.ComponentId &&
             item.State == AcquisitionComponentRuntimeState.Faulted);
