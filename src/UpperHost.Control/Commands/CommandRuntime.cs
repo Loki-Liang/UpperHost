@@ -10,7 +10,8 @@ public enum CommandExecutionStatus
     Rejected,
     TimedOut,
     Cancelled,
-    Faulted
+    Faulted,
+    UnknownOutcome
 }
 
 public sealed record CommandExecutionOptions(TimeSpan Timeout)
