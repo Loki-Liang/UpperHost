@@ -362,7 +362,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 await handle.Registration.Component
                     .AttachAsync(CreateContext(componentId, null), attachCts.Token)
                     .ConfigureAwait(false);
-                SetOptionalState(handle, AcquisitionComponentRuntimeState.Running);
+                SetOptionalState(handle, AcquisitionComponentRuntimeState.Running, clearError: true);
                 return true;
             }
             catch (OperationCanceledException) when (_sessionStop.IsCancellationRequested || _abort.IsCancellationRequested)
@@ -653,7 +653,9 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 SetRequiredState(
                     handle,
-                    ok ? AcquisitionComponentRuntimeState.Completed : AcquisitionComponentRuntimeState.Faulted);
+                    ok && handle.Error is null
+                        ? AcquisitionComponentRuntimeState.Completed
+                        : AcquisitionComponentRuntimeState.Faulted);
             }
 
             foreach (var handle in _sources.Values)
@@ -673,7 +675,9 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
                 SetSourceState(
                     handle,
-                    ok ? AcquisitionComponentRuntimeState.Completed : AcquisitionComponentRuntimeState.Faulted);
+                    ok && handle.Error is null
+                        ? AcquisitionComponentRuntimeState.Completed
+                        : AcquisitionComponentRuntimeState.Faulted);
             }
 
             await DisposeAllAsync(convergenceToken, inFlight).ConfigureAwait(false);
@@ -1126,6 +1130,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             _definition.Options.MultiSourceFailurePolicy == AcquisitionMultiSourceFailurePolicy.IsolateFailedSource &&
             _sources.Count > 1)
         {
+            NoteComponentFault(fault);
             AddSecondary(fault);
             _sourceIsolationFaults.Enqueue(fault);
             AcquisitionTelemetry.Faults.Add(1, AcquisitionTelemetry.FaultTags(Mode, category, "source-isolated"));
@@ -1135,6 +1140,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
         if (_optional.TryGetValue(componentId, out var optional) && !optional.Registration.EscalateFault)
         {
+            NoteComponentFault(fault);
             AddSecondary(fault);
             _optionalFaults.Enqueue(fault);
             AcquisitionTelemetry.Faults.Add(1, AcquisitionTelemetry.FaultTags(Mode, category, "optional"));
@@ -1150,6 +1156,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
     private void RecordRootOrSecondary(AcquisitionFault fault, string role)
     {
+        NoteComponentFault(fault);
+
         if (Interlocked.CompareExchange(ref _rootFault, fault, null) is null)
         {
             AcquisitionTelemetry.Faults.Add(
@@ -1159,6 +1167,27 @@ public sealed class AcquisitionSession : IAsyncDisposable
         }
 
         AddSecondary(fault);
+    }
+
+    private void NoteComponentFault(AcquisitionFault fault)
+    {
+        lock (_stateGate)
+        {
+            if (fault.SourceId is not null && _sources.TryGetValue(fault.SourceId, out var source))
+            {
+                source.Error ??= fault.Message;
+                return;
+            }
+
+            if (_required.TryGetValue(fault.ComponentId, out var required))
+            {
+                required.Error ??= fault.Message;
+                return;
+            }
+
+            if (_optional.TryGetValue(fault.ComponentId, out var optional))
+                optional.Error ??= fault.Message;
+        }
     }
 
     private void AddSecondary(AcquisitionFault fault)
@@ -1338,12 +1367,15 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private void SetOptionalState(
         OptionalHandle handle,
         AcquisitionComponentRuntimeState state,
-        string? error = null)
+        string? error = null,
+        bool clearError = false)
     {
         lock (_stateGate)
         {
             handle.State = state;
-            if (error is not null)
+            if (clearError)
+                handle.Error = null;
+            else if (error is not null)
                 handle.Error = error;
         }
     }
