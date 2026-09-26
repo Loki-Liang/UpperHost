@@ -81,13 +81,18 @@ public sealed class AutomationStation
             "2.0",
             new AutomationSequenceNode(
                 "cycle",
-                AxisStep("home-axis", new HomeAxisCommand()),
+                AxisStep("home-axis", _ => new HomeAxisCommand()),
                 new AutomationCheckpointNode(
                     "home-safe",
                     AutomationCheckpointKind.SafeRecovery),
                 AxisStep(
                     "move-to-inspection",
-                    new MoveAxisCommand(100),
+                    context =>
+                    {
+                        var recipe = context.Recipe.Deserialize<InspectionRecipe>()
+                            ?? throw new InvalidOperationException("Inspection recipe snapshot is invalid.");
+                        return new MoveAxisCommand(recipe.InspectionPosition);
+                    },
                     pauseBoundaryAfter: true),
                 new AutomationCheckpointNode(
                     "inspection-safe-pause",
@@ -102,7 +107,7 @@ public sealed class AutomationStation
 
     private AutomationActionNode AxisStep(
         string id,
-        AxisCommand command,
+        Func<AutomationStepContext, AxisCommand> commandFactory,
         bool pauseBoundaryAfter = false) =>
         new(
             id,
@@ -111,7 +116,7 @@ public sealed class AutomationStation
                 {
                     var result = await context.DispatchAsync(
                         _axisDispatcher,
-                        command,
+                        commandFactory(context),
                         new CommandDispatchOptions(
                             ResourceClaims:
                             [
@@ -175,7 +180,7 @@ public sealed class AutomationStation
                 (context, cancellationToken) =>
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    context.SetOutput("capturedAt", DateTimeOffset.UtcNow);
+                    context.SetOutput("recipeHash", context.Recipe.Hash);
                     return Task.FromResult(AutomationStepResult.Success());
                 }));
 
@@ -189,12 +194,15 @@ public sealed class AutomationStation
                     var capture = context.Data.GetRequired(
                         new AutomationDataKey<CaptureResult>("capture", "result"));
 
+                    var recipe = context.Recipe.Deserialize<InspectionRecipe>()
+                        ?? throw new InvalidOperationException("Inspection recipe snapshot is invalid.");
+
                     return Task.FromResult(
-                        capture.Quality >= 0.95
+                        capture.Quality >= recipe.MinimumQuality
                             ? AutomationStepResult.Success(
                                 $"PASS: {capture.ImageId}, quality={capture.Quality:0.00}.")
                             : AutomationStepResult.Failure(
-                                "Inspection quality is below threshold."));
+                                $"Inspection quality {capture.Quality:0.00} is below {recipe.MinimumQuality:0.00}."));
                 }));
 }
 
