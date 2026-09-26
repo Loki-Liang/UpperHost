@@ -75,3 +75,10 @@ The pre-commit hook runs this source-scaffold contract locally. Package comparis
 Issue #27 already requires the compatibility gate before tag/GitHub Release/optional NuGet publish. A release must therefore reuse the same compatibility policy and must not bypass the PR evidence.
 
 Issue #42 owns the deeper clean source-scaffold E2E. This gate protects the structural/startup/configuration contract and keeps the existing source-scaffold build validation active; it does not claim to replace #42.
+
+
+## Source-level API analyzer policy
+
+UpperHost does not enable Roslyn PublicApiAnalyzers across every `src/UpperHost.*` project during the 0.1 alpha phase. A C# type being `public` does not automatically make it a stable supported extension surface. Package-level normal/strict ApiCompat plus .NET SDK Package Validation are the authoritative repository-wide API gates.
+
+PublicApiAnalyzers may be introduced later for deliberately selected stable contract projects/surfaces once their supported API boundary is explicit. Do not mechanically generate `PublicAPI.*` baselines for every implementation project.
