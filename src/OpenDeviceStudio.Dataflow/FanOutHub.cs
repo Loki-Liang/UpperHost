@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 
-namespace UpperHost.Dataflow;
+namespace OpenDeviceStudio.Dataflow;
 
 public enum FanOutBackpressureMode
 {

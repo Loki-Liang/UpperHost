@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using System.Threading.Channels;
 
-namespace UpperHost.Dataflow;
+namespace OpenDeviceStudio.Dataflow;
 
 public enum StreamRouterState
 {
@@ -186,7 +186,7 @@ public sealed class StreamBranchConsumerException(string branchId, Exception inn
 
 public static class StreamRouterMetrics
 {
-    public const string MeterName = "UpperHost.Dataflow.StreamRouter";
+    public const string MeterName = "OpenDeviceStudio.Dataflow.StreamRouter";
 }
 
 public sealed class StreamRouter<T> : IAsyncDisposable
@@ -1113,31 +1113,31 @@ internal static class StreamRouterTelemetry
     private static readonly Meter Meter = new(StreamRouterMetrics.MeterName);
 
     public static readonly Counter<long> Published =
-        Meter.CreateCounter<long>("upperhost.streamrouter.published");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.published");
 
     public static readonly Counter<long> Accepted =
-        Meter.CreateCounter<long>("upperhost.streamrouter.branch.accepted");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.branch.accepted");
 
     public static readonly Counter<long> Delivered =
-        Meter.CreateCounter<long>("upperhost.streamrouter.branch.delivered");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.branch.delivered");
 
     public static readonly Counter<long> Dropped =
-        Meter.CreateCounter<long>("upperhost.streamrouter.branch.dropped");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.branch.dropped");
 
     public static readonly Counter<long> Rejected =
-        Meter.CreateCounter<long>("upperhost.streamrouter.branch.rejected");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.branch.rejected");
 
     public static readonly Counter<long> Faults =
-        Meter.CreateCounter<long>("upperhost.streamrouter.branch.faults");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.branch.faults");
 
     public static readonly Counter<long> RouterFaults =
-        Meter.CreateCounter<long>("upperhost.streamrouter.faults");
+        Meter.CreateCounter<long>("opendevicestudio.streamrouter.faults");
 
     public static readonly UpDownCounter<long> ActiveBranches =
-        Meter.CreateUpDownCounter<long>("upperhost.streamrouter.active_branches");
+        Meter.CreateUpDownCounter<long>("opendevicestudio.streamrouter.active_branches");
 
     public static readonly Histogram<double> QueueLatencyMs =
-        Meter.CreateHistogram<double>("upperhost.streamrouter.branch.queue_latency", "ms");
+        Meter.CreateHistogram<double>("opendevicestudio.streamrouter.branch.queue_latency", "ms");
 
     public static TagList BranchTags(StreamBranchOptions options)
     {

@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Diagnostics;
 
-namespace UpperHost.Diagnostics;
+namespace OpenDeviceStudio.Diagnostics;
 
 public sealed class HealthService
 {

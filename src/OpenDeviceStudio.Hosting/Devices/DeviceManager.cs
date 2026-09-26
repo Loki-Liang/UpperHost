@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Hosting.Devices;
+namespace OpenDeviceStudio.Hosting.Devices;
 
 internal sealed class DeviceManager : IDeviceManager
 {
@@ -23,10 +23,10 @@ internal sealed class DeviceManager : IDeviceManager
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceId);
 
         if (!_registry.TryGet(deviceId, out var device) || device is null)
-            throw new KeyNotFoundException($"UpperHost device '{deviceId}' is not registered.");
+            throw new KeyNotFoundException($"OpenDeviceStudio device '{deviceId}' is not registered.");
 
         return device as TCapability
             ?? throw new NotSupportedException(
-                $"UpperHost device '{deviceId}' does not support capability '{typeof(TCapability).Name}' required to {operation}.");
+                $"OpenDeviceStudio device '{deviceId}' does not support capability '{typeof(TCapability).Name}' required to {operation}.");
     }
 }

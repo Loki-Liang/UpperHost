@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Diagnostics;
+namespace OpenDeviceStudio.Diagnostics;
 
 public sealed record TransportMetricsSnapshot(
     long BytesSent,

@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Hosting.Devices;
+namespace OpenDeviceStudio.Hosting.Devices;
 
 internal sealed class DeviceDiscoveryService : IDeviceDiscoveryService
 {

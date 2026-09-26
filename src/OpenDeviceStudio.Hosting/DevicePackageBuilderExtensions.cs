@@ -1,12 +1,12 @@
 using Microsoft.Extensions.DependencyInjection;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Hosting;
+namespace OpenDeviceStudio.Hosting;
 
 public static class DevicePackageBuilderExtensions
 {
-    public static UpperHostApplicationBuilder AddDevicePackage<TConfiguration>(
-        this UpperHostApplicationBuilder builder,
+    public static OpenDeviceStudioApplicationBuilder AddDevicePackage<TConfiguration>(
+        this OpenDeviceStudioApplicationBuilder builder,
         DevicePackageDescriptor descriptor,
         TConfiguration configuration)
         where TConfiguration : class
@@ -21,8 +21,8 @@ public static class DevicePackageBuilderExtensions
         return builder;
     }
 
-    public static UpperHostApplicationBuilder AddDevicePackageDescriptor(
-        this UpperHostApplicationBuilder builder,
+    public static OpenDeviceStudioApplicationBuilder AddDevicePackageDescriptor(
+        this OpenDeviceStudioApplicationBuilder builder,
         DevicePackageDescriptor descriptor)
     {
         ArgumentNullException.ThrowIfNull(builder);

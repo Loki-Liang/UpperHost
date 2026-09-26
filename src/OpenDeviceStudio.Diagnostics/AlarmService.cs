@@ -1,8 +1,8 @@
 using System.Collections.Concurrent;
-using UpperHost.Abstractions.Diagnostics;
-using UpperHost.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Observability;
 
-namespace UpperHost.Diagnostics;
+namespace OpenDeviceStudio.Diagnostics;
 
 public sealed class AlarmService : IAlarmService
 {
@@ -37,10 +37,10 @@ public sealed class AlarmService : IAlarmService
             metadata);
 
         _active[alarm.Id] = alarm;
-        UpperHostTelemetry.ActiveAlarms.Add(
+        OpenDeviceStudioTelemetry.ActiveAlarms.Add(
             1,
-            UpperHostTelemetry.CreateMetricTags(
-                new UpperHostMetricContext(AlarmSeverity: severity.ToString())));
+            OpenDeviceStudioTelemetry.CreateMetricTags(
+                new OpenDeviceStudioMetricContext(AlarmSeverity: severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(alarm);
     }
@@ -68,10 +68,10 @@ public sealed class AlarmService : IAlarmService
         if (!_active.TryRemove(id, out var alarm))
             return ValueTask.FromResult(false);
 
-        UpperHostTelemetry.ActiveAlarms.Add(
+        OpenDeviceStudioTelemetry.ActiveAlarms.Add(
             -1,
-            UpperHostTelemetry.CreateMetricTags(
-                new UpperHostMetricContext(AlarmSeverity: alarm.Severity.ToString())));
+            OpenDeviceStudioTelemetry.CreateMetricTags(
+                new OpenDeviceStudioMetricContext(AlarmSeverity: alarm.Severity.ToString())));
         Changed?.Invoke(alarm);
         return ValueTask.FromResult(true);
     }

@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
-using UpperHost.Abstractions.Events;
+using OpenDeviceStudio.Abstractions.Events;
 
-namespace UpperHost.Events;
+namespace OpenDeviceStudio.Events;
 
 public sealed class EventBus : IEventBus, IAsyncDisposable
 {
