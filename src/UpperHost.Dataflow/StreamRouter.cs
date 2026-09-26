@@ -505,6 +505,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
     {
         BranchRuntime[]? stopAll = null;
         var detachOptional = false;
+        var routerFaultedNow = false;
 
         lock (_topologyGate)
         {
@@ -518,7 +519,10 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             if (escalates)
             {
                 if (_fault is null)
+                {
                     _fault = error;
+                    routerFaultedNow = true;
+                }
 
                 Volatile.Write(ref _state, (int)StreamRouterState.Faulted);
                 stopAll = _branches.Values.ToArray();
@@ -533,6 +537,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
         }
 
         StreamRouterTelemetry.Faults.Add(1, StreamRouterTelemetry.BranchTags(branch.Options));
+        if (routerFaultedNow)
+            StreamRouterTelemetry.RouterFaults.Add(1);
 
         if (stopAll is not null)
         {
@@ -560,6 +566,8 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             Volatile.Write(ref _state, (int)StreamRouterState.Faulted);
             branches = _branches.Values.ToArray();
         }
+
+        StreamRouterTelemetry.RouterFaults.Add(1);
 
         foreach (var branch in branches)
             branch.StopAccepting(StreamCompletionMode.Drain);
@@ -1110,6 +1118,9 @@ internal static class StreamRouterTelemetry
 
     public static readonly Counter<long> Faults =
         Meter.CreateCounter<long>("upperhost.streamrouter.branch.faults");
+
+    public static readonly Counter<long> RouterFaults =
+        Meter.CreateCounter<long>("upperhost.streamrouter.faults");
 
     public static readonly UpDownCounter<long> ActiveBranches =
         Meter.CreateUpDownCounter<long>("upperhost.streamrouter.active_branches");
