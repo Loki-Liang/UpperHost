@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>Safe JSON file-system key/value storage provider for OpenDeviceStudio.</Description>
+    <Description>Safe JSON key/value and Apache Arrow Canonical RawData file-system storage providers for OpenDeviceStudio.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Apache.Arrow" />
   </ItemGroup>
 </Project>
