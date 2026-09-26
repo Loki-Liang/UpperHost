@@ -17,6 +17,7 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     private readonly TimeProvider _timeProvider;
     private readonly IRawSegmentStreamFactory _streamFactory;
     private readonly object _gate = new();
+    private readonly object _acceptGate = new();
     private readonly SemaphoreSlim _manifestGate = new(1, 1);
     private readonly CancellationTokenSource _faultCancellation = new();
     private readonly Dictionary<SegmentKey, SegmentWriter> _activeSegments = new();
@@ -437,18 +438,21 @@ public sealed class FileSystemRawRecorder : IRawRecorder
             reservedBytes = true;
             var owned = block.CloneOwned();
 
-            if (!queue.Writer.TryWrite(owned))
+            lock (_acceptGate)
             {
-                return new RawRecorderAcceptResult(
-                    CurrentRejectStatus(),
-                    _faultReason ?? "Raw recorder ingress is closed.");
-            }
+                if (!queue.Writer.TryWrite(owned))
+                {
+                    return new RawRecorderAcceptResult(
+                        CurrentRejectStatus(),
+                        _faultReason ?? "Raw recorder ingress is closed.");
+                }
 
-            ownsSlot = false;
-            reservedBytes = false;
-            TrackSequenceContinuity(owned);
-            Accepted(owned);
-            return RawRecorderAcceptResult.Success;
+                ownsSlot = false;
+                reservedBytes = false;
+                TrackSequenceContinuity(owned);
+                Accepted(owned);
+                return RawRecorderAcceptResult.Success;
+            }
         }
         finally
         {
