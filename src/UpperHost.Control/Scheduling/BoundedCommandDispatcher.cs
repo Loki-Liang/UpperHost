@@ -30,7 +30,9 @@ public sealed record CommandDispatchOptions(
     CommandPriority Priority = CommandPriority.Normal,
     IReadOnlyList<CommandResourceKey>? Resources = null,
     CommandAdmissionMode AdmissionMode = CommandAdmissionMode.Wait,
-    CommandExecutionOptions? Execution = null);
+    CommandExecutionOptions? Execution = null,
+    CommandSafetyMetadata? Safety = null,
+    long? ConnectionEpoch = null);
 
 public sealed record BoundedCommandDispatcherOptions(
     int Capacity = 256,
@@ -52,6 +54,11 @@ public sealed record BoundedCommandDispatcherOptions(
 /// Bounded, explicitly-owned command dispatcher. Construction has no background side effects;
 /// callers must start the dispatcher before admitting commands.
 /// </summary>
+public interface ICommandConnectionEpochValidator
+{
+    bool IsCurrent(long connectionEpoch, IReadOnlyList<CommandResourceKey>? resources);
+}
+
 public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposable
 {
     private sealed record Envelope(
@@ -87,6 +94,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private readonly SemaphoreSlim _executionSlots;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly ResourceCoordinator _resources = new();
+    private readonly ICommandConnectionEpochValidator? _epochValidator;
     private readonly object _activeGate = new();
     private readonly HashSet<Task> _active = [];
     private Task? _pump;
@@ -96,10 +104,12 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
     public BoundedCommandDispatcher(
         CommandRuntime<TCommand, TResult> runtime,
-        BoundedCommandDispatcherOptions? options = null)
+        BoundedCommandDispatcherOptions? options = null,
+        ICommandConnectionEpochValidator? epochValidator = null)
     {
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         _options = options ?? new BoundedCommandDispatcherOptions();
+        _epochValidator = epochValidator;
         _options.Validate();
 
         _pendingSlots = new SemaphoreSlim(_options.Capacity, _options.Capacity);
@@ -332,9 +342,26 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 return;
             }
 
+            if (envelope.Options.ConnectionEpoch is long connectionEpoch &&
+                _epochValidator is not null &&
+                !_epochValidator.IsCurrent(connectionEpoch, envelope.Options.Resources))
+            {
+                envelope.Completion.TrySetResult(
+                    Rejected(
+                        "connection_epoch_stale",
+                        "Command belongs to a stale connection epoch and will not be dispatched."));
+                return;
+            }
+
+            var executionOptions = envelope.Options.Execution ?? CommandExecutionOptions.Default;
+            executionOptions = executionOptions with
+            {
+                Safety = envelope.Options.Safety ?? CommandSafetyMetadata.MutatingNonIdempotent
+            };
+
             var result = await _runtime.ExecuteAsync(
                 envelope.Command,
-                envelope.Options.Execution,
+                executionOptions,
                 linked.Token).ConfigureAwait(false);
             envelope.Completion.TrySetResult(result);
         }
