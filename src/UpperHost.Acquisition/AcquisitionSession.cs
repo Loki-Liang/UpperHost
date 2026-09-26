@@ -1369,9 +1369,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     .ToArray());
         }
 
-        _completion.TrySetResult(result);
+        // Completion is the public terminal/quiescence boundary. Finish all
+        // session-internal terminal bookkeeping, including manager deregistration,
+        // before waking callers that await Completion.
         _wake.Writer.TryComplete();
         _onTerminal?.Invoke(this);
+        _completion.TrySetResult(result);
     }
 
     private void Transition(AcquisitionSessionState next, AcquisitionStartupPhase phase)
