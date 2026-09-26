@@ -12,7 +12,7 @@ public sealed class CommandOutcomeAndEpochTests
     {
         var time = new FakeTimeProvider();
         var target = new NeverCompletesTarget();
-        var runtime = new CommandRuntime<TestCommand, string>(target, timeProvider: time);
+        var runtime = new CommandRuntime<TestCommand, string>(target, guards: null, time);
         await using var dispatcher = new BoundedCommandDispatcher<TestCommand, string>(runtime);
 
         await dispatcher.StartAsync();
