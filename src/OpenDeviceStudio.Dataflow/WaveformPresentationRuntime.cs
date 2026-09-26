@@ -783,22 +783,12 @@ public sealed class LatestPresentationDownsampler : IPresentationDownsampler
 
         var latest = new PresentationRenderPoint?[builders.Length];
         var inputSamples = 0L;
-        var segment = 0;
 
         foreach (var block in blocks)
         {
-            if (block.BreakBefore ||
-                block.Quality.HasFlag(PresentationDataQualityFlags.SourceGap) ||
-                block.Quality.HasFlag(PresentationDataQualityFlags.ProcessingGap) ||
-                block.Quality.HasFlag(PresentationDataQualityFlags.Discontinuous))
-            {
-                segment++;
-            }
-
             if (block.Quality.HasFlag(PresentationDataQualityFlags.Invalid) ||
                 block.Quality.HasFlag(PresentationDataQualityFlags.ProcessingFault))
             {
-                segment++;
                 continue;
             }
 
