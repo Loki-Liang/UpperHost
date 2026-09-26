@@ -114,8 +114,8 @@ public sealed class AcquisitionSession : IAsyncDisposable
     {
         lock (_stateGate)
         {
-            var ready = _required.Values.Count(static item => item.State == AcquisitionComponentRuntimeState.Ready) +
-                        _sources.Values.Count(static item => item.State == AcquisitionComponentRuntimeState.Ready);
+            var ready = _required.Values.Count(static item => IsReadyOrBeyond(item.State)) +
+                        _sources.Values.Count(static item => IsReadyOrBeyond(item.State));
 
             return new AcquisitionSessionSnapshot(
                 SessionId,
@@ -774,7 +774,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 inFlight.Add(task);
                 await task.WaitAsync(budget.Token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException || !budget.IsCancellationRequested)
+            catch (OperationCanceledException) when (budget.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
             {
                 AddSecondary(CreateFault(
                     AcquisitionFaultCategory.Source,
@@ -796,7 +800,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 inFlight.Add(task);
                 await task.WaitAsync(budget.Token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException || !budget.IsCancellationRequested)
+            catch (OperationCanceledException) when (budget.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
             {
                 AddSecondary(CreateFault(
                     FaultCategoryFor(required.Registration.Component.Kind),
@@ -818,7 +826,11 @@ public sealed class AcquisitionSession : IAsyncDisposable
                 inFlight.Add(task);
                 await task.WaitAsync(budget.Token).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException || !budget.IsCancellationRequested)
+            catch (OperationCanceledException) when (budget.IsCancellationRequested)
+            {
+                break;
+            }
+            catch (Exception ex)
             {
                 AddSecondary(CreateFault(
                     AcquisitionFaultCategory.Finalization,
@@ -1146,7 +1158,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         Transition(terminalState, AcquisitionStartupPhase.Completed);
 
         if (Interlocked.Exchange(ref _activeMetric, 0) == 1)
-            AcquisitionTelemetry.ActiveSessions.Add(-1, new("upperhost.acquisition.mode", Mode.ToString()));
+            AcquisitionTelemetry.ActiveSessions.Add(-1, AcquisitionTelemetry.ModeTags(Mode));
 
         AcquisitionSessionResult result;
         lock (_stateGate)
@@ -1212,7 +1224,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
             {
                 _startedAt ??= _timeProvider.GetUtcNow();
                 if (Interlocked.Exchange(ref _activeMetric, 1) == 0)
-                    AcquisitionTelemetry.ActiveSessions.Add(1, new("upperhost.acquisition.mode", Mode.ToString()));
+                    AcquisitionTelemetry.ActiveSessions.Add(1, AcquisitionTelemetry.ModeTags(Mode));
             }
 
             if (next is AcquisitionSessionState.Completed or AcquisitionSessionState.Faulted or AcquisitionSessionState.Aborted)
@@ -1278,16 +1290,35 @@ public sealed class AcquisitionSession : IAsyncDisposable
         }
     }
 
-    private CancellationTokenSource CreateBudget(TimeSpan timeout)
+    private OperationBudget CreateBudget(TimeSpan timeout) =>
+        new(_timeProvider, timeout);
+
+    private sealed class OperationBudget : IDisposable
     {
-        var cts = new CancellationTokenSource();
-        var timer = _timeProvider.CreateTimer(
-            static state => ((CancellationTokenSource)state!).Cancel(),
-            cts,
-            timeout,
-            Timeout.InfiniteTimeSpan);
-        cts.Token.Register(static state => ((ITimer)state!).Dispose(), timer);
-        return cts;
+        private readonly CancellationTokenSource _source = new();
+        private readonly ITimer _timer;
+        private int _disposed;
+
+        public OperationBudget(TimeProvider timeProvider, TimeSpan timeout)
+        {
+            _timer = timeProvider.CreateTimer(
+                static state => ((CancellationTokenSource)state!).Cancel(),
+                _source,
+                timeout,
+                Timeout.InfiniteTimeSpan);
+        }
+
+        public CancellationToken Token => _source.Token;
+        public bool IsCancellationRequested => _source.IsCancellationRequested;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0)
+                return;
+
+            _timer.Dispose();
+            _source.Dispose();
+        }
     }
 
     private void WakeSupervisor() => _wake.Writer.TryWrite(1);
@@ -1306,6 +1337,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
         }
     }
+
+    private static bool IsReadyOrBeyond(AcquisitionComponentRuntimeState state) =>
+        state is AcquisitionComponentRuntimeState.Ready
+            or AcquisitionComponentRuntimeState.Running
+            or AcquisitionComponentRuntimeState.Stopping
+            or AcquisitionComponentRuntimeState.Completed;
 
     private static bool IsAllowedTransition(AcquisitionSessionState from, AcquisitionSessionState to) =>
         (from, to) switch
