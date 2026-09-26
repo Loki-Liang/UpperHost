@@ -52,7 +52,7 @@ public sealed class StateMachine<TState, TTrigger>
             if (_transitionInProgress)
                 throw new InvalidOperationException("A state transition side effect is already in progress.");
 
-            if (!_transitions.TryGetValue((State, trigger), out transition!))
+            if (!_transitions.TryGetValue((State, trigger), out transition))
                 throw new InvalidOperationException($"No transition from '{State}' with trigger '{trigger}'.");
 
             if (!(transition.Guard?.Invoke() ?? true))
