@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 using UpperHost.Abstractions.Diagnostics;
 using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Storage;
@@ -27,11 +28,35 @@ public static class UpperHostStarterExtensions
         builder.AddUpperHost();
         builder.Services.AddUpperHostConnections();
         builder.Services.AddUpperHostAcquisition();
+        builder.AddAutomationRuntime();
         builder.Services.TryAddSingleton<WorkflowRunner>();
         builder.Services.TryAddSingleton<IEventBus, EventBus>();
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
         builder.Services.TryAddSingleton<HealthService>();
         builder.AddConfiguredUpperHostObservability();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddAutomationRuntime(
+        this UpperHostApplicationBuilder builder,
+        BoundedAutomationExecutionJournalOptions? journalOptions = null,
+        int maxSharedReadersPerResource = 4)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.Services.AddUpperHostControlResourceArbiter(maxSharedReadersPerResource);
+        builder.Services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        builder.Services.TryAddSingleton<IAutomationJournalSink, InMemoryAutomationJournalSink>();
+        builder.Services.TryAddSingleton(sp =>
+            new BoundedAutomationExecutionJournal(
+                sp.GetRequiredService<IAutomationJournalSink>(),
+                journalOptions));
+        builder.Services.TryAddSingleton<IAutomationExecutionJournal>(sp =>
+            sp.GetRequiredService<BoundedAutomationExecutionJournal>());
+        builder.Services.TryAddSingleton<IAutomationRecoveryReconciler, ConservativeAutomationRecoveryReconciler>();
+        builder.Services.TryAddSingleton<AutomationExecutionCoordinator>();
+        builder.Services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, AutomationExecutionJournalHostedService>());
         return builder;
     }
 
@@ -100,4 +125,15 @@ public static class UpperHostStarterExtensions
         builder.Services.AddSingleton<IKeyValueStore>(_ => new JsonFileKeyValueStore(directory));
         return builder;
     }
+}
+
+
+internal sealed class AutomationExecutionJournalHostedService(
+    BoundedAutomationExecutionJournal journal) : IHostedService
+{
+    public Task StartAsync(CancellationToken cancellationToken) =>
+        journal.StartAsync(cancellationToken);
+
+    public Task StopAsync(CancellationToken cancellationToken) =>
+        journal.StopAsync(cancellationToken);
 }
