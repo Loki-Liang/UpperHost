@@ -1,16 +1,16 @@
-# UpperHost 脚手架定位
+# OpenDeviceStudio 脚手架定位
 
 简体中文 | [English](scaffold.md)
 
-UpperHost 的官方定位是：
+OpenDeviceStudio 的官方定位是：
 
-> **UpperHost：面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架。**
+> **OpenDeviceStudio：面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架。**
 
 它的目标是给上位机开发者提供一套可直接复用的工程骨架和公共基础设施，让设备控制、自动化、数据采集类产品不再重复实现通信、生命周期、测试、诊断和扩展机制。
 
 ## 脚手架提供什么
 
-UpperHost 同时服务三条一级开发路线：
+OpenDeviceStudio 同时服务三条一级开发路线：
 
 - **Control**：命令、参数、读回、状态、联锁、诊断。
 - **Automation**：多设备协同、状态机、Workflow、调度、告警、故障恢复。
@@ -30,12 +30,12 @@ UpperHost 同时服务三条一级开发路线：
 - 确定性 Simulator / Fault Injection；
 - 自动化测试和架构治理；
 - 可发布的 NuGet 模块；
-- 可直接二开的 `app/UpperHost.App` 产品工程；
+- 可直接二开的 `app/OpenDeviceStudio.App` 产品工程；
 - 可运行 Reference Samples。
 
 ## 产品职责边界
 
-使用 UpperHost 创建的具体产品负责自己的：
+使用 OpenDeviceStudio 创建的具体产品负责自己的：
 
 - Device 业务语义；
 - 私有协议；
@@ -43,17 +43,17 @@ UpperHost 同时服务三条一级开发路线：
 - 产品工作流；
 - 产品 UI。
 
-UpperHost 负责跨产品复用的 Runtime 契约、Provider、Starter Application 约定、Testing 接缝、Diagnostics 与 Presentation Adapter。
+OpenDeviceStudio 负责跨产品复用的 Runtime 契约、Provider、Starter Application 约定、Testing 接缝、Diagnostics 与 Presentation Adapter。
 
 ## 主要开发体验
 
-UpperHost 采用类似成熟快速开发框架的**源码直接二开**方式。开发者拉取仓库后，直接把它作为自己的上位机产品工程继续开发：
+OpenDeviceStudio 采用类似成熟快速开发框架的**源码直接二开**方式。开发者拉取仓库后，直接把它作为自己的上位机产品工程继续开发：
 
 ```text
-git clone UpperHost
+git clone OpenDeviceStudio
         |
         v
-app/UpperHost.App 直接运行
+app/OpenDeviceStudio.App 直接运行
         |
         +-- 产品 Device Capability
         +-- 产品 Protocol / Provider
@@ -65,13 +65,13 @@ app/UpperHost.App 直接运行
 Build / Test / Package 产品
 ```
 
-`app/UpperHost.App` 是正式二开入口；`src/UpperHost.*` 是可复用基础设施；`samples/` 仅用于演示正确用法。
+`app/OpenDeviceStudio.App` 是正式二开入口；`src/OpenDeviceStudio.*` 是可复用基础设施；`samples/` 仅用于演示正确用法。
 
-二开用户不需要先编译 UpperHost 本体、打包项目模板或生成第二套工程。只有开发 UpperHost Runtime 本身时，才进入框架贡献者工作流。
+二开用户不需要先编译 OpenDeviceStudio 本体、打包项目模板或生成第二套工程。只有开发 OpenDeviceStudio Runtime 本身时，才进入框架贡献者工作流。
 
 ## 架构基线
 
-UpperHost 默认保持 **Modular Monolith**。
+OpenDeviceStudio 默认保持 **Modular Monolith**。
 
 模块职责和依赖方向清晰，但生成的上位机产品默认仍作为一个应用/进程运行。
 
@@ -79,11 +79,11 @@ UpperHost 默认保持 **Modular Monolith**。
 
 ## Presentation 边界
 
-WPF 是当前默认 Presentation Adapter 和工程模板，不代表 UpperHost 本身只能是 WPF。
+WPF 是当前默认 Presentation Adapter 和工程模板，不代表 OpenDeviceStudio 本身只能是 WPF。
 
 未来可以增加其他 Presentation Stack，但必须复用同一套 Runtime Contract。
 
-未来提供的 Reference Presentation Application 统一复用 UpperHost Runtime Contract，仅用于展示具体产品如何组合脚手架模块。
+未来提供的 Reference Presentation Application 统一复用 OpenDeviceStudio Runtime Contract，仅用于展示具体产品如何组合脚手架模块。
 
 ## 交付规则
 

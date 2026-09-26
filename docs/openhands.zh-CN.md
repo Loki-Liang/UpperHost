@@ -2,7 +2,7 @@
 
 简体中文 | [English](openhands.md)
 
-UpperHost 已加入 OpenHands V1 / Agent Canvas 仓库级配置。OpenHands 只作为开发工具，不是 UpperHost 运行时依赖。
+OpenDeviceStudio 已加入 OpenHands V1 / Agent Canvas 仓库级配置。OpenHands 只作为开发工具，不是 OpenDeviceStudio 运行时依赖。
 
 ## 分层治理
 
@@ -63,11 +63,11 @@ agents/review.md 固化统一生产质量门禁：
 
 ## 平台验证边界
 
-OpenHands 常运行在 Linux，而 UpperHost 包含 Windows/WPF 项目。Linux 提交前验证使用：
+OpenHands 常运行在 Linux，而 OpenDeviceStudio 包含 Windows/WPF 项目。Linux 提交前验证使用：
 
-    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+    dotnet restore OpenDeviceStudio.slnx -p:EnableWindowsTargeting=true
+    dotnet build OpenDeviceStudio.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build
 
 最终 Windows Build、完整测试、Package Compatibility 和 Source Scaffold 验证仍由 GitHub Actions 负责。
 

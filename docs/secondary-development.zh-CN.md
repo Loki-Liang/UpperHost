@@ -1,19 +1,19 @@
-# UpperHost 二次开发基础能力
+# OpenDeviceStudio 二次开发基础能力
 
 简体中文 | [English](secondary-development.md)
 
 这份文档回答两个问题：
 
-1. **UpperHost 当前已经提供哪些基础能力，不需要产品项目重复建设？**
+1. **OpenDeviceStudio 当前已经提供哪些基础能力，不需要产品项目重复建设？**
 2. **二次开发时应该从哪里接入、替换或扩展？**
 
-UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手架。产品代码优先放在 `app/UpperHost.App`；只有确认能够跨产品复用的能力，才下沉到 `src/UpperHost.*`。
+OpenDeviceStudio 的定位是源码直接二开的企业级 .NET 上位机开发脚手架。产品代码优先放在 `app/OpenDeviceStudio.App`；只有确认能够跨产品复用的能力，才下沉到 `src/OpenDeviceStudio.*`。
 
 ## 1. 当前内置能力总览
 
-| 能力 | UpperHost 当前提供 | 二开入口 |
+| 能力 | OpenDeviceStudio 当前提供 | 二开入口 |
 | --- | --- | --- |
-| 应用 Host / 生命周期 | 基于 .NET Generic Host；统一 Start / Stop / Dispose | `UpperHostApplication.CreateBuilder()`、`AddHostedService<T>()` |
+| 应用 Host / 生命周期 | 基于 .NET Generic Host；统一 Start / Stop / Dispose | `OpenDeviceStudioApplication.CreateBuilder()`、`AddHostedService<T>()` |
 | DI 依赖注入 | Microsoft.Extensions.DependencyInjection | `builder.Services` |
 | Configuration | Generic Host Configuration；支持 appsettings、环境变量、命令行等标准来源 | `builder.Configuration`、Options Pattern |
 | Logging | `Microsoft.Extensions.Logging` 作为业务契约；Console；可选 Serilog JSON 滚动文件日志 | 注入 `ILogger<T>`；通过 Observability 配置或标准 Logging Provider 扩展 |
@@ -22,7 +22,7 @@ UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手�
 | Device 模型 | `IDevice` + Capability 组合；自动进入 `IDeviceRegistry` | 实现 `IDevice`、`IConnectable`、`ICommandable<,>` 等 |
 | Device Discovery | 多 Provider `IDeviceDiscoverer` 聚合 | 实现并注册 `IDeviceDiscoverer` |
 | 连接生命周期 | `IConnectionManager`；Shared / Exclusive Lease | 业务层获取托管连接，不自行争抢物理 Handle |
-| Transport | Serial、TCP、Simulator；统一 `ITransport` 扩展边界 | 实现 `ITransport`，通过 `AddUpperHostTransport<T>()` 注册 |
+| Transport | Serial、TCP、Simulator；统一 `ITransport` 扩展边界 | 实现 `ITransport`，通过 `AddOpenDeviceStudioTransport<T>()` 注册 |
 | Protocol | Command Encoder、Message Decoder、Request/Response / Streaming 边界 | 实现 `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control Runtime | Host-owned bounded Command Dispatcher、Guard / Interlock、UnknownOutcome、资源仲裁、参数/Readback 基础能力 | 每个强类型命令合同通过 `AddCommandDispatcher<TCommand,TResult>()` 注册；产品定义安全和完成语义 |
 | Streaming / Dataflow | 有界 Fan-out、背压与丢弃策略基础能力 | 将设备 Stream 接入 Dataflow，明确容量和 loss policy |
@@ -31,18 +31,18 @@ UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手�
 | Event | Typed `IEventBus` | 发布/订阅产品事件，不使用全局静态事件 |
 | Alarm | `IAlarmService` raise / acknowledge / clear 生命周期 | 产品定义报警规则与触发条件 |
 | Storage | `IKeyValueStore` 抽象 + JSON FileSystem Provider | 使用 `AddFileSystemStorage()` 或实现新的 `IKeyValueStore` |
-| Module / Plugin | `IUpperHostModule` + 受信任进程内模块加载 | 模块内 `ConfigureServices`；仅从受信任位置加载 |
-| Presentation | WPF Adapter 与可复用设备/参数/命令/告警控件 | 产品 UI 放在 `app/UpperHost.App`，Core 不依赖 WPF |
+| Module / Plugin | `IOpenDeviceStudioModule` + 受信任进程内模块加载 | 模块内 `ConfigureServices`；仅从受信任位置加载 |
+| Presentation | WPF Adapter 与可复用设备/参数/命令/告警控件 | 产品 UI 放在 `app/OpenDeviceStudio.App`，Core 不依赖 WPF |
 | Testing | Simulator、FaultInjectingTransport、模块/Provider 测试基础设施 | 真实硬件前先覆盖 Simulator / Fault Path |
 
 ## 2. 二开从一个 Composition Root 开始
 
-产品启动入口是 `app/UpperHost.App/App.xaml.cs`。UpperHost 先安装平台默认能力，再注册产品自己的服务：
+产品启动入口是 `app/OpenDeviceStudio.App/App.xaml.cs`。OpenDeviceStudio 先安装平台默认能力，再注册产品自己的服务：
 
 ```csharp
-var builder = UpperHostApplication
+var builder = OpenDeviceStudioApplication
     .CreateBuilder(e.Args)
-    .AddUpperHostApplication();
+    .AddOpenDeviceStudioApplication();
 
 builder.Services.AddSingleton<MainWindow>();
 builder.Services.AddSingleton<IMyMachineService, MyMachineService>();
@@ -54,14 +54,14 @@ await _host.StartAsync();
 
 原则：
 
-- 平台基础设施由 UpperHost 注册。
+- 平台基础设施由 OpenDeviceStudio 注册。
 - 产品服务、设备、协议、业务流程在产品 Composition Root 注册。
 - 不在业务代码里调用 Service Locator。
 - 不为了“方便”建立静态全局单例。
 
 ## 3. DI：直接使用标准 Microsoft DI
 
-UpperHost 没有自造 DI Container。二开使用 `builder.Services`：
+OpenDeviceStudio 没有自造 DI Container。二开使用 `builder.Services`：
 
 ```csharp
 builder.Services.AddSingleton<IMachineRuntime, MachineRuntime>();
@@ -86,15 +86,15 @@ public sealed class MachineRuntime(
 - `Transient`：无状态、创建成本低的短生命周期对象。
 - `Scoped`：仅在产品显式创建 Scope 时使用；WPF 桌面应用不会天然像 ASP.NET Request 一样自动创建 Scope。
 
-如果要替换 UpperHost 默认实现，应在 Composition Root 明确注册替代实现，并保持公共 Contract 不变；不要修改 Core 只为适配单个产品。
+如果要替换 OpenDeviceStudio 默认实现，应在 Composition Root 明确注册替代实现，并保持公共 Contract 不变；不要修改 Core 只为适配单个产品。
 
 ## 4. Configuration：产品配置走 Options Pattern
 
-`UpperHostApplication.CreateBuilder()` 基于 .NET Generic Host，因此可以使用标准 Configuration 来源。UpperHost 自己的基础配置位于：
+`OpenDeviceStudioApplication.CreateBuilder()` 基于 .NET Generic Host，因此可以使用标准 Configuration 来源。OpenDeviceStudio 自己的基础配置位于：
 
 ```text
-UpperHost:Transport
-UpperHost:Observability
+OpenDeviceStudio:Transport
+OpenDeviceStudio:Observability
 ```
 
 产品配置建议建立自己的 Section：
@@ -141,7 +141,7 @@ public sealed class AxisService(ILogger<AxisService> logger)
 }
 ```
 
-UpperHost 当前默认日志链路：
+OpenDeviceStudio 当前默认日志链路：
 
 ```text
 业务代码
@@ -150,16 +150,16 @@ UpperHost 当前默认日志链路：
       -> 可选 Serilog JSON Rolling File
 ```
 
-默认文件日志由 `UpperHost:Observability:Logging:File` 控制，例如：
+默认文件日志由 `OpenDeviceStudio:Observability:Logging:File` 控制，例如：
 
 ```json
 {
-  "UpperHost": {
+  "OpenDeviceStudio": {
     "Observability": {
       "Logging": {
         "File": {
           "Enabled": true,
-          "Path": "logs/upperhost-.json",
+          "Path": "logs/opendevicestudio-.json",
           "MinimumLevel": "Information"
         }
       }
@@ -171,7 +171,7 @@ UpperHost 当前默认日志链路：
 如果产品需要 NLog、云日志、SIEM 或其他 Provider：
 
 1. 业务代码仍保留 `ILogger<T>`。
-2. 关闭不需要的 UpperHost 文件日志。
+2. 关闭不需要的 OpenDeviceStudio 文件日志。
 3. 在 Composition Root 通过标准 `AddLogging(...)` 增加产品 Provider。
 4. 不把具体日志框架类型泄漏到 Device / Protocol / Workflow 公共 Contract。
 
@@ -179,10 +179,10 @@ UpperHost 当前默认日志链路：
 
 ## 6. Metrics、Tracing、Health：不要每个设备自己造一套
 
-UpperHost 提供统一 Observability 基线：
+OpenDeviceStudio 提供统一 Observability 基线：
 
-- Meter：`UpperHost`。
-- ActivitySource：`UpperHost`。
+- Meter：`OpenDeviceStudio`。
+- ActivitySource：`OpenDeviceStudio`。
 - 可选 OpenTelemetry OTLP Export。
 - `IHealthProbe` / `HealthService`。
 - Transport、Command、Reconnect、Alarm、Streaming 等已有公共指标或观测点。
@@ -268,7 +268,7 @@ USB、CAN、BLE、厂商 SDK 等新连接方式：
 
 1. 实现 `ITransport` 或与设备能力更匹配的 Provider Contract。
 2. 不把业务命令、CRC 语义、UI、业务状态机塞进 Transport。
-3. 使用统一注册入口 `AddUpperHostTransport<TTransport>()`，复用 ConnectionManager、Resilience、Observability 等公共包装。
+3. 使用统一注册入口 `AddOpenDeviceStudioTransport<TTransport>()`，复用 ConnectionManager、Resilience、Observability 等公共包装。
 
 ### 新 Protocol
 
@@ -319,7 +319,7 @@ WPF / Workflow
 
 ## 11. Acquisition 二开
 
-AddUpperHostApplication() 已默认注册由 Host 持有的 AcquisitionSessionManager。每次 Live/Replay 运行创建一个冻结的 AcquisitionSessionDefinition，把 Source、Required、Optional adapter 交给同一个 Session；产品禁止再创建第二套采集生命周期协调器。
+AddOpenDeviceStudioApplication() 已默认注册由 Host 持有的 AcquisitionSessionManager。每次 Live/Replay 运行创建一个冻结的 AcquisitionSessionDefinition，把 Source、Required、Optional adapter 交给同一个 Session；产品禁止再创建第二套采集生命周期协调器。
 
 ```csharp
 var manager = services.GetRequiredService<AcquisitionSessionManager>();
@@ -357,14 +357,14 @@ Hardware
 builder.AddFileSystemStorage("data");
 ```
 
-跨产品需要 SQLite、SQL Server、时序数据库等实现时，实现稳定的 `IKeyValueStore` 或新增独立 Storage Provider，数据库 SDK 不进入 `UpperHost.Abstractions`。
+跨产品需要 SQLite、SQL Server、时序数据库等实现时，实现稳定的 `IKeyValueStore` 或新增独立 Storage Provider，数据库 SDK 不进入 `OpenDeviceStudio.Abstractions`。
 
 ## 13. Module / Plugin 二开
 
 需要模块化部署时实现：
 
 ```text
-IUpperHostModule
+IOpenDeviceStudioModule
   -> ConfigureServices(IServiceCollection, IConfiguration)
 ```
 
@@ -412,7 +412,7 @@ Plugin 是**受信任的进程内扩展**，不是安全沙箱。不要加载未
 ## 16. 推荐二开目录
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
 ├─ Devices/          # 产品设备实现
 ├─ Protocols/        # 产品私有协议
 ├─ Services/         # Application Services
@@ -424,7 +424,7 @@ app/UpperHost.App/
 ├─ App.xaml.cs       # Composition Root
 └─ appsettings.json
 
-src/UpperHost.*/
+src/OpenDeviceStudio.*/
 └─ 只有确认跨产品复用的 Runtime / Provider / Infrastructure 才进入这里
 ```
 
@@ -432,7 +432,7 @@ src/UpperHost.*/
 
 - [零基础入门](getting-started.zh-CN.md)
 - [架构说明](architecture.zh-CN.md)
-- [扩展 UpperHost](extending.zh-CN.md)
+- [扩展 OpenDeviceStudio](extending.zh-CN.md)
 - [Control Runtime](control-runtime.zh-CN.md)
 - [Recipe 与 Scheduling](recipes-and-scheduling.zh-CN.md)
 - [Observability](observability.zh-CN.md)
