@@ -32,7 +32,8 @@ public sealed record CommandDispatchOptions(
     CommandAdmissionMode AdmissionMode = CommandAdmissionMode.Wait,
     CommandExecutionOptions? Execution = null,
     CommandSafetyMetadata? Safety = null,
-    long? ConnectionEpoch = null);
+    long? ConnectionEpoch = null,
+    TimeSpan? QueueTimeout = null);
 
 public sealed record BoundedCommandDispatcherOptions(
     int Capacity = 256,
@@ -72,6 +73,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         CommandDispatchOptions Options,
         IReadOnlyList<CommandResourceClaim> ResourceClaims,
         IDisposable ResourcePendingReservation,
+        long EnqueuedTimestamp,
+        TimeSpan? QueueTimeout,
         CancellationToken CancellationToken,
         TaskCompletionSource<CommandExecutionResult<TResult>> Completion);
 
@@ -104,6 +107,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private readonly CommandResourceCoordinator _resources;
     private readonly CommandResourcePendingLimiter _resourcePending;
     private readonly ICommandConnectionEpochValidator? _epochValidator;
+    private readonly TimeProvider _timeProvider;
     private readonly object _activeGate = new();
     private readonly HashSet<Task> _active = [];
     private Task? _pump;
@@ -114,11 +118,13 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     public BoundedCommandDispatcher(
         CommandRuntime<TCommand, TResult> runtime,
         BoundedCommandDispatcherOptions? options = null,
-        ICommandConnectionEpochValidator? epochValidator = null)
+        ICommandConnectionEpochValidator? epochValidator = null,
+        TimeProvider? timeProvider = null)
     {
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         _options = options ?? new BoundedCommandDispatcherOptions();
         _epochValidator = epochValidator;
+        _timeProvider = timeProvider ?? TimeProvider.System;
         _options.Validate();
 
         _pendingSlots = new SemaphoreSlim(_options.Capacity, _options.Capacity);
@@ -164,15 +170,27 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
         if (!_lanes.TryGetValue(options.Priority, out var lane))
             throw new ArgumentOutOfRangeException(nameof(options), "Unknown command priority.");
+        if (options.QueueTimeout is { } queueTimeout && queueTimeout <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(options), "Queue timeout must be greater than zero.");
+
+        var enqueuedTimestamp = _timeProvider.GetTimestamp();
+        using var admissionCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var admissionTimer = CreateQueueTimer(options.QueueTimeout, admissionCts);
 
         var slotAcquired = options.AdmissionMode switch
         {
             CommandAdmissionMode.Reject => _pendingSlots.Wait(0),
-            _ => await WaitForPendingSlotAsync(cancellationToken).ConfigureAwait(false)
+            _ => await WaitForPendingSlotAsync(admissionCts.Token).ConfigureAwait(false)
         };
 
         if (!slotAcquired)
+        {
+            if (cancellationToken.IsCancellationRequested)
+                return Cancelled();
+            if (admissionCts.IsCancellationRequested)
+                return ExpiredBeforeDispatch();
             return Rejected("dispatcher_capacity", "Command dispatcher capacity is full.");
+        }
 
         var resourceClaims = NormalizeResourceClaims(options);
         IDisposable? resourcePendingReservation = null;
@@ -180,7 +198,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         {
             resourcePendingReservation = options.AdmissionMode == CommandAdmissionMode.Reject
                 ? _resourcePending.TryReserve(resourceClaims)
-                : await _resourcePending.ReserveAsync(resourceClaims, cancellationToken).ConfigureAwait(false);
+                : await _resourcePending.ReserveAsync(resourceClaims, admissionCts.Token).ConfigureAwait(false);
 
             if (resourcePendingReservation is null)
             {
@@ -197,6 +215,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 options,
                 resourceClaims,
                 resourcePendingReservation,
+                enqueuedTimestamp,
+                options.QueueTimeout,
                 cancellationToken,
                 completion);
 
@@ -211,7 +231,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             }
             else
             {
-                await lane.Writer.WriteAsync(envelope, cancellationToken).ConfigureAwait(false);
+                await lane.Writer.WriteAsync(envelope, admissionCts.Token).ConfigureAwait(false);
             }
 
             resourcePendingReservation = null;
@@ -219,11 +239,13 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             _available.Release();
             return await completion.Task.ConfigureAwait(false);
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException)
         {
             resourcePendingReservation?.Dispose();
             _pendingSlots.Release();
-            return Cancelled();
+            return cancellationToken.IsCancellationRequested
+                ? Cancelled()
+                : ExpiredBeforeDispatch();
         }
         catch (ChannelClosedException)
         {
@@ -369,14 +391,21 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
     private async Task ExecuteAsync(Envelope envelope, CancellationToken dispatcherToken)
     {
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(
+        using var dispatchCts = CancellationTokenSource.CreateLinkedTokenSource(
             dispatcherToken,
             envelope.CancellationToken);
+        using var queueTimer = CreateRemainingQueueTimer(envelope, dispatchCts);
 
         try
         {
+            if (IsQueueExpired(envelope))
+            {
+                envelope.Completion.TrySetResult(ExpiredBeforeDispatch());
+                return;
+            }
+
             await using var lease = await _resources
-                .AcquireAsync(envelope.ResourceClaims, linked.Token)
+                .AcquireAsync(envelope.ResourceClaims, dispatchCts.Token)
                 .ConfigureAwait(false);
 
             if (envelope.CancellationToken.IsCancellationRequested)
@@ -384,6 +413,18 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
                 envelope.Completion.TrySetResult(Cancelled());
                 return;
             }
+
+            if (IsQueueExpired(envelope))
+            {
+                envelope.Completion.TrySetResult(ExpiredBeforeDispatch());
+                return;
+            }
+
+            queueTimer?.Dispose();
+
+            using var executionCts = CancellationTokenSource.CreateLinkedTokenSource(
+                dispatcherToken,
+                envelope.CancellationToken);
 
             if (envelope.Options.ConnectionEpoch is long connectionEpoch &&
                 _epochValidator is not null &&
@@ -407,11 +448,19 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             var result = await _runtime.ExecuteAsync(
                 envelope.Command,
                 executionOptions,
-                linked.Token).ConfigureAwait(false);
+                executionCts.Token).ConfigureAwait(false);
             envelope.Completion.TrySetResult(result);
         }
         catch (OperationCanceledException ex)
         {
+            if (!envelope.CancellationToken.IsCancellationRequested &&
+                !dispatcherToken.IsCancellationRequested &&
+                IsQueueExpired(envelope))
+            {
+                envelope.Completion.TrySetResult(ExpiredBeforeDispatch(ex));
+                return;
+            }
+
             envelope.Completion.TrySetResult(new CommandExecutionResult<TResult>(
                 Guid.NewGuid().ToString("N"),
                 CommandExecutionStatus.Cancelled,
@@ -462,6 +511,46 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         }
     }
 
+    private ITimer? CreateQueueTimer(
+        TimeSpan? queueTimeout,
+        CancellationTokenSource cancellation)
+    {
+        if (queueTimeout is null)
+            return null;
+
+        return _timeProvider.CreateTimer(
+            static state => ((CancellationTokenSource)state!).Cancel(),
+            cancellation,
+            queueTimeout.Value,
+            Timeout.InfiniteTimeSpan);
+    }
+
+    private ITimer? CreateRemainingQueueTimer(
+        Envelope envelope,
+        CancellationTokenSource cancellation)
+    {
+        if (envelope.QueueTimeout is null)
+            return null;
+
+        var elapsed = _timeProvider.GetElapsedTime(envelope.EnqueuedTimestamp);
+        var remaining = envelope.QueueTimeout.Value - elapsed;
+        if (remaining <= TimeSpan.Zero)
+        {
+            cancellation.Cancel();
+            return null;
+        }
+
+        return _timeProvider.CreateTimer(
+            static state => ((CancellationTokenSource)state!).Cancel(),
+            cancellation,
+            remaining,
+            Timeout.InfiniteTimeSpan);
+    }
+
+    private bool IsQueueExpired(Envelope envelope) =>
+        envelope.QueueTimeout is { } timeout &&
+        _timeProvider.GetElapsedTime(envelope.EnqueuedTimestamp) >= timeout;
+
     private static IReadOnlyList<CommandResourceClaim> NormalizeResourceClaims(CommandDispatchOptions options)
     {
         var claims = new Dictionary<CommandResourceKey, CommandResourceAccess>();
@@ -498,6 +587,16 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             code,
             message,
             null,
+            TimeSpan.Zero);
+
+    private static CommandExecutionResult<TResult> ExpiredBeforeDispatch(Exception? exception = null) =>
+        new(
+            Guid.NewGuid().ToString("N"),
+            CommandExecutionStatus.TimedOut,
+            default,
+            "command_expired_before_dispatch",
+            "Command expired before it crossed the dispatch side-effect boundary.",
+            exception,
             TimeSpan.Zero);
 
     private static CommandExecutionResult<TResult> Cancelled() =>
