@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Diagnostics;
 
-namespace UpperHost.Connections;
+namespace OpenDeviceStudio.Connections;
 
 public sealed class ConnectionHealthProbe : IHealthProbe
 {
@@ -10,7 +10,7 @@ public sealed class ConnectionHealthProbe : IHealthProbe
     public ConnectionHealthProbe(IConnectionManager manager) =>
         _manager = manager ?? throw new ArgumentNullException(nameof(manager));
 
-    public string Name => "upperhost.connections";
+    public string Name => "opendevicestudio.connections";
 
     public Task<HealthReport> CheckAsync(CancellationToken cancellationToken = default)
     {

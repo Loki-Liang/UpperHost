@@ -1,7 +1,7 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Parameters;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Parameters;
 
-namespace UpperHost.Control.Recipes;
+namespace OpenDeviceStudio.Control.Recipes;
 
 public sealed record RecipeParameterValue(
     string DeviceId,

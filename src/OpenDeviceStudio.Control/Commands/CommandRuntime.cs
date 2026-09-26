@@ -1,8 +1,8 @@
 using System.Diagnostics;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Observability;
 
-namespace UpperHost.Control.Commands;
+namespace OpenDeviceStudio.Control.Commands;
 
 public enum CommandExecutionStatus
 {
@@ -171,10 +171,10 @@ public sealed class CommandRuntime<TCommand, TResult>
 
         var executionId = Guid.NewGuid().ToString("N");
         var context = new CommandExecutionContext(executionId);
-        using var activity = UpperHostTelemetry.StartActivity(
-            "upperhost.command.execute",
+        using var activity = OpenDeviceStudioTelemetry.StartActivity(
+            "opendevicestudio.command.execute",
             ActivityKind.Internal,
-            new UpperHostTelemetryContext(
+            new OpenDeviceStudioTelemetryContext(
                 CommandId: executionId,
                 Operation: typeof(TCommand).Name));
 
@@ -316,23 +316,23 @@ public sealed class CommandRuntime<TCommand, TResult>
         CommandExecutionMilestone milestone,
         Activity? activity)
     {
-        var tags = UpperHostTelemetry.CreateMetricTags(
-            new UpperHostMetricContext(
+        var tags = OpenDeviceStudioTelemetry.CreateMetricTags(
+            new OpenDeviceStudioMetricContext(
                 Operation: typeof(TCommand).Name,
                 Outcome: status.ToString(),
                 ErrorType: exception?.GetType().FullName));
 
-        UpperHostTelemetry.CommandExecutions.Add(1, tags);
-        UpperHostTelemetry.CommandDurationSeconds.Record(duration.TotalSeconds, tags);
+        OpenDeviceStudioTelemetry.CommandExecutions.Add(1, tags);
+        OpenDeviceStudioTelemetry.CommandDurationSeconds.Record(duration.TotalSeconds, tags);
         if (status != CommandExecutionStatus.Succeeded)
-            UpperHostTelemetry.CommandFailures.Add(1, tags);
+            OpenDeviceStudioTelemetry.CommandFailures.Add(1, tags);
 
         if (activity is not null)
         {
-            activity.SetTag("upperhost.result", status.ToString());
-            activity.SetTag("upperhost.error.code", code);
-            activity.SetTag("upperhost.command.milestone", milestone.ToString());
-            activity.SetTag("upperhost.elapsed_ms", duration.TotalMilliseconds);
+            activity.SetTag("opendevicestudio.result", status.ToString());
+            activity.SetTag("opendevicestudio.error.code", code);
+            activity.SetTag("opendevicestudio.command.milestone", milestone.ToString());
+            activity.SetTag("opendevicestudio.elapsed_ms", duration.TotalMilliseconds);
             if (exception is not null)
                 activity.SetTag("error.type", exception.GetType().FullName);
 

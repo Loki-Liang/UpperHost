@@ -1,7 +1,7 @@
 using System.Globalization;
-using UpperHost.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Devices;
 
-namespace UpperHost.Control.Parameters;
+namespace OpenDeviceStudio.Control.Parameters;
 
 public sealed record ParameterReadResult(string Key, object? Value, DeviceParameterDescriptor Descriptor);
 

@@ -1,8 +1,8 @@
 using System.Threading.Channels;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Control.Commands;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Control.Commands;
 
-namespace UpperHost.Control.Scheduling;
+namespace OpenDeviceStudio.Control.Scheduling;
 
 public enum CommandAdmissionMode
 {

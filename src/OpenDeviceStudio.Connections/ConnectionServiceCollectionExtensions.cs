@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Diagnostics;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Diagnostics;
 
-namespace UpperHost.Connections;
+namespace OpenDeviceStudio.Connections;
 
 public static class ConnectionServiceCollectionExtensions
 {
-    public static IServiceCollection AddUpperHostConnections(this IServiceCollection services)
+    public static IServiceCollection AddOpenDeviceStudioConnections(this IServiceCollection services)
     {
         ArgumentNullException.ThrowIfNull(services);
 

@@ -1,8 +1,8 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Connections;
+namespace OpenDeviceStudio.Connections;
 
 public sealed class ConnectionManagedTransport : ITransport
 {

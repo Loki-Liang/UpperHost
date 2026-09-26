@@ -1,6 +1,6 @@
-using UpperHost.Control.Commands;
+using OpenDeviceStudio.Control.Commands;
 
-namespace UpperHost.Control.Interlocks;
+namespace OpenDeviceStudio.Control.Interlocks;
 
 public sealed record InterlockDecision(bool Satisfied, string? Code = null, string? Message = null)
 {

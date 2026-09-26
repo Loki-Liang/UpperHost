@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using UpperHost.Control.Commands;
+using OpenDeviceStudio.Control.Commands;
 
-namespace UpperHost.Control.Scheduling;
+namespace OpenDeviceStudio.Control.Scheduling;
 
 public static class CommandDispatcherServiceCollectionExtensions
 {
-    public static IServiceCollection AddUpperHostCommandDispatcher<TCommand, TResult>(
+    public static IServiceCollection AddOpenDeviceStudioCommandDispatcher<TCommand, TResult>(
         this IServiceCollection services,
         BoundedCommandDispatcherOptions? options = null)
     {
@@ -20,7 +20,7 @@ public static class CommandDispatcherServiceCollectionExtensions
         var configured = options ?? new BoundedCommandDispatcherOptions();
         configured.Validate();
 
-        services.AddUpperHostControlResourceArbiter(configured.MaxSharedReadersPerResource);
+        services.AddOpenDeviceStudioControlResourceArbiter(configured.MaxSharedReadersPerResource);
 
         services.AddSingleton<CommandDispatcherRegistrationMarker<TCommand, TResult>>();
         services.TryAddSingleton<CommandRuntime<TCommand, TResult>>();
@@ -38,7 +38,7 @@ public static class CommandDispatcherServiceCollectionExtensions
         return services;
     }
 
-    public static IServiceCollection AddUpperHostControlResourceArbiter(
+    public static IServiceCollection AddOpenDeviceStudioControlResourceArbiter(
         this IServiceCollection services,
         int maxSharedReadersPerResource = 4)
     {

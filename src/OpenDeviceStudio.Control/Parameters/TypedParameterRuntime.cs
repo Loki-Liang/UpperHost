@@ -1,8 +1,8 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
 
-namespace UpperHost.Control.Parameters;
+namespace OpenDeviceStudio.Control.Parameters;
 
 public interface IParameterValueCodec<T>
 {

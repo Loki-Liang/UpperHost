@@ -1,11 +1,11 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using UpperHost.Abstractions.Connections;
-using UpperHost.Abstractions.Observability;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Connections;
+using OpenDeviceStudio.Abstractions.Observability;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Connections;
+namespace OpenDeviceStudio.Connections;
 
 public sealed class ConnectionManager : IConnectionManager
 {
@@ -57,9 +57,9 @@ public sealed class ConnectionManager : IConnectionManager
                 await OpenAsync(entry, cancellationToken).ConfigureAwait(false);
 
             entry.LeaseCount++;
-            UpperHostTelemetry.ActiveConnectionLeases.Add(
+            OpenDeviceStudioTelemetry.ActiveConnectionLeases.Add(
                 1,
-                UpperHostTelemetry.CreateMetricTags(MetricContext(entry, "lease", "acquired")));
+                OpenDeviceStudioTelemetry.CreateMetricTags(MetricContext(entry, "lease", "acquired")));
             Record("acquire", entry, "success");
 
             _logger?.LogInformation(
@@ -101,9 +101,9 @@ public sealed class ConnectionManager : IConnectionManager
             {
                 if (entry.LeaseCount > 0)
                 {
-                    UpperHostTelemetry.ActiveConnectionLeases.Add(
+                    OpenDeviceStudioTelemetry.ActiveConnectionLeases.Add(
                         -entry.LeaseCount,
-                        UpperHostTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
+                        OpenDeviceStudioTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
                     entry.LeaseCount = 0;
                 }
 
@@ -148,9 +148,9 @@ public sealed class ConnectionManager : IConnectionManager
                 return;
 
             entry.LeaseCount--;
-            UpperHostTelemetry.ActiveConnectionLeases.Add(
+            OpenDeviceStudioTelemetry.ActiveConnectionLeases.Add(
                 -1,
-                UpperHostTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
+                OpenDeviceStudioTelemetry.CreateMetricTags(LeaseMetricContext(entry)));
             Record("release", entry, "success");
 
             _logger?.LogInformation(
@@ -253,15 +253,15 @@ public sealed class ConnectionManager : IConnectionManager
     }
 
     private static Activity? StartActivity(string operation, Entry entry) =>
-        UpperHostTelemetry.StartActivity(
-            $"upperhost.connection.{operation}",
+        OpenDeviceStudioTelemetry.StartActivity(
+            $"opendevicestudio.connection.{operation}",
             ActivityKind.Internal,
-            new UpperHostTelemetryContext(
+            new OpenDeviceStudioTelemetryContext(
                 ConnectionId: entry.Definition.Id.Value,
                 Transport: entry.Definition.Endpoint.Scheme,
                 Operation: operation));
 
-    private static UpperHostMetricContext MetricContext(
+    private static OpenDeviceStudioMetricContext MetricContext(
         Entry entry,
         string operation,
         string outcome,
@@ -272,7 +272,7 @@ public sealed class ConnectionManager : IConnectionManager
             Outcome: outcome,
             ErrorType: errorType);
 
-    private static UpperHostMetricContext LeaseMetricContext(Entry entry) =>
+    private static OpenDeviceStudioMetricContext LeaseMetricContext(Entry entry) =>
         new(
             Transport: entry.Definition.Endpoint.Scheme,
             Operation: "lease");
@@ -283,17 +283,17 @@ public sealed class ConnectionManager : IConnectionManager
         string outcome,
         string? errorType = null)
     {
-        var tags = UpperHostTelemetry.CreateMetricTags(
+        var tags = OpenDeviceStudioTelemetry.CreateMetricTags(
             MetricContext(entry, operation, outcome, errorType));
-        UpperHostTelemetry.ConnectionOperations.Add(1, tags);
+        OpenDeviceStudioTelemetry.ConnectionOperations.Add(1, tags);
         if (errorType is not null)
-            UpperHostTelemetry.ConnectionFailures.Add(1, tags);
+            OpenDeviceStudioTelemetry.ConnectionFailures.Add(1, tags);
     }
 
     private static void MarkFailure(Activity? activity, Exception exception, string errorCode)
     {
         activity?.SetTag("error.type", exception.GetType().FullName);
-        activity?.SetTag("upperhost.error.code", errorCode);
+        activity?.SetTag("opendevicestudio.error.code", errorCode);
         activity?.SetStatus(ActivityStatusCode.Error, errorCode);
     }
 
