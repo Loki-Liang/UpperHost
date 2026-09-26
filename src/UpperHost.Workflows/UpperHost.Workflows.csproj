@@ -4,5 +4,6 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+    <ProjectReference Include="../UpperHost.Control/UpperHost.Control.csproj" />
   </ItemGroup>
 </Project>
