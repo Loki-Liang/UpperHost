@@ -8,23 +8,47 @@ namespace UpperHost.Tests;
 public sealed class AcquisitionSessionTests
 {
     [Fact]
-    public async Task Raw_acceptance_always_precedes_processing_handoff()
+    public async Task Raw_acceptance_precedes_processing_and_closed_session_rejects_late_blocks()
     {
         var calls = new List<string>();
         var raw = new RecordingRawSink(calls);
         var processing = new RecordingProcessingSink(calls);
-        var ingress = new RawFirstAcquisitionIngress<int>(raw, processing);
+        RawFirstAcquisitionIngress<int>? ingress = null;
+        RecordingSource? source = null;
 
-        await ingress.PublishAsync(42);
+        source = new RecordingSource("source-a")
+        {
+            StartHook = async token =>
+            {
+                ingress = source.Context!.CreateRawFirstIngress(raw, processing);
+                await ingress.PublishAsync(42, token);
+            }
+        };
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live([source]));
+
+        await session.StartAsync();
 
         Assert.Equal(["raw:42", "processing:42"], calls);
 
         raw.Accept = false;
-        var error = await Assert.ThrowsAsync<AcquisitionRawRejectedException>(
-            async () => await ingress.PublishAsync(43));
+        var rejected = await Assert.ThrowsAsync<AcquisitionRawRejectedException>(
+            async () => await ingress!.PublishAsync(43));
 
-        Assert.Contains("rejected", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("rejected", rejected.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("processing:43", calls);
+
+        raw.Accept = true;
+        var result = await session.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
+
+        await Assert.ThrowsAsync<AcquisitionIngressClosedException>(
+            async () => await ingress!.PublishAsync(44));
+
+        Assert.DoesNotContain("raw:44", calls);
+        Assert.DoesNotContain("processing:44", calls);
+        Assert.Equal(1, session.GetSnapshot().RejectedLateIngress);
     }
 
     [Fact]
@@ -60,12 +84,23 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
-    public async Task Partial_source_start_failure_rolls_back_and_never_reports_completed()
+    public async Task Partial_source_start_callback_is_preserved_then_late_callback_is_rejected()
     {
+        var calls = new List<string>();
+        var rawSink = new RecordingRawSink(calls);
+        var processingSink = new RecordingProcessingSink(calls);
         var recorder = new RecordingComponent("raw", AcquisitionComponentKind.RawRecorder);
-        var source = new RecordingSource("source-a")
+        RawFirstAcquisitionIngress<int>? ingress = null;
+        RecordingSource? source = null;
+
+        source = new RecordingSource("source-a")
         {
-            StartHook = _ => throw new InvalidOperationException("partial start")
+            StartHook = async token =>
+            {
+                ingress = source.Context!.CreateRawFirstIngress(rawSink, processingSink);
+                await ingress.PublishAsync(1, token);
+                throw new InvalidOperationException("partial start");
+            }
         };
 
         await using var manager = new AcquisitionSessionManager();
@@ -78,11 +113,16 @@ public sealed class AcquisitionSessionTests
 
         Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
         Assert.Equal(AcquisitionFaultCategory.Source, result.RootFault?.Category);
+        Assert.Equal(["raw:1", "processing:1"], calls);
         Assert.Equal(1, source.StartCount);
         Assert.Equal(1, source.StopCount);
         Assert.Equal(1, recorder.StopCount);
         Assert.Equal(1, recorder.FinalizeCount);
         Assert.Equal(1, recorder.DisposeCount);
+
+        await Assert.ThrowsAsync<AcquisitionIngressClosedException>(
+            async () => await ingress!.PublishAsync(2));
+        Assert.Equal(["raw:1", "processing:1"], calls);
     }
 
     [Fact]
