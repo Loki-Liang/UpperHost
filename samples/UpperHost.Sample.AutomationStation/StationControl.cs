@@ -1,7 +1,6 @@
-using UpperHost.Abstractions.Workflows;
 using UpperHost.Control.Commands;
 using UpperHost.Control.Interlocks;
-using UpperHost.StateMachines;
+using UpperHost.Control.Scheduling;
 using UpperHost.Workflows;
 
 namespace UpperHost.Sample.AutomationStation;
@@ -10,123 +9,196 @@ public sealed class DoorClosedInterlock(SafetyDoorDevice door) : IInterlock<Axis
 {
     public string Name => "safety-door-closed";
 
-    public ValueTask<InterlockDecision> CheckAsync(AxisCommand command, CancellationToken cancellationToken = default)
+    public ValueTask<InterlockDecision> CheckAsync(
+        AxisCommand command,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         return ValueTask.FromResult(
             door.IsClosed
                 ? InterlockDecision.Pass()
-                : InterlockDecision.Block("safety_door_open", "Axis motion is blocked while the safety door is open."));
+                : InterlockDecision.Block(
+                    "safety_door_open",
+                    "Axis motion is blocked while the safety door is open."));
     }
-}
-
-public enum StationState
-{
-    Idle,
-    Preparing,
-    Running,
-    Completed,
-    Faulted
-}
-
-public enum StationTrigger
-{
-    Start,
-    BeginCycle,
-    Complete,
-    Fail,
-    Reset
 }
 
 public sealed class AutomationStation
 {
-    private readonly WorkflowRunner _runner;
-    private readonly CommandRuntime<AxisCommand, AxisResult> _axisRuntime;
-    private readonly CameraDevice _camera;
-    private readonly StateMachine<StationState, StationTrigger> _stateMachine;
+    private static readonly CommandResourceKey AxisResource =
+        new("device", "axis-x");
+    private static readonly CommandResourceKey CameraResource =
+        new("device", "camera-1");
+
+    private static readonly CommandSafetyMetadata MotionSafety =
+        new(
+            ReadOnly: false,
+            Idempotent: false,
+            Motion: true,
+            Hazardous: false,
+            RetryAllowed: false);
+
+    private readonly AutomationExecutionCoordinator _coordinator;
+    private readonly BoundedCommandDispatcher<AxisCommand, AxisResult> _axisDispatcher;
+    private readonly BoundedCommandDispatcher<CaptureCommand, CaptureResult> _cameraDispatcher;
+    private readonly AutomationExecutionPlan _plan;
 
     public AutomationStation(
-        WorkflowRunner runner,
-        CommandRuntime<AxisCommand, AxisResult> axisRuntime,
-        CameraDevice camera)
+        AutomationExecutionCoordinator coordinator,
+        BoundedCommandDispatcher<AxisCommand, AxisResult> axisDispatcher,
+        BoundedCommandDispatcher<CaptureCommand, CaptureResult> cameraDispatcher)
     {
-        _runner = runner;
-        _axisRuntime = axisRuntime;
-        _camera = camera;
-        _stateMachine = new StateMachine<StationState, StationTrigger>(StationState.Idle)
-            .Configure(StationState.Idle, StationTrigger.Start, StationState.Preparing)
-            .Configure(StationState.Preparing, StationTrigger.BeginCycle, StationState.Running)
-            .Configure(StationState.Running, StationTrigger.Complete, StationState.Completed)
-            .Configure(StationState.Running, StationTrigger.Fail, StationState.Faulted)
-            .Configure(StationState.Completed, StationTrigger.Reset, StationState.Idle)
-            .Configure(StationState.Faulted, StationTrigger.Reset, StationState.Idle);
+        _coordinator = coordinator;
+        _axisDispatcher = axisDispatcher;
+        _cameraDispatcher = cameraDispatcher;
+        _plan = AutomationExecutionPlan.Compile(BuildDefinition());
     }
 
-    public StationState State => _stateMachine.State;
+    public AutomationStationState State => _coordinator.StationState;
 
-    public async Task<WorkflowRunResult> RunCycleAsync(CancellationToken cancellationToken = default)
+    public async Task<AutomationExecutionResult> RunCycleAsync(
+        InspectionRecipe recipe,
+        CancellationToken cancellationToken = default)
     {
-        await _stateMachine.FireAsync(StationTrigger.Start, cancellationToken).ConfigureAwait(false);
-        await _stateMachine.FireAsync(StationTrigger.BeginCycle, cancellationToken).ConfigureAwait(false);
-
-        var context = new WorkflowContext();
-        var workflow = WorkflowDefinition.Create(
+        var snapshot = AutomationRecipeSnapshot.Create(
             "inspection-cycle",
-            new AxisCommandStep("home-axis", _axisRuntime, new HomeAxisCommand()),
-            new AxisCommandStep("move-to-inspection", _axisRuntime, new MoveAxisCommand(100)),
-            new CaptureStep(_camera),
-            new JudgeStep());
+            recipe.Version,
+            recipe);
 
-        var result = await _runner.RunAsync(workflow, context, cancellationToken).ConfigureAwait(false);
-        await _stateMachine.FireAsync(
-            result.Status == WorkflowStepStatus.Succeeded ? StationTrigger.Complete : StationTrigger.Fail,
-            CancellationToken.None).ConfigureAwait(false);
-        return result;
+        var start = _coordinator.TryStart(_plan, snapshot, AutomationMode.Auto);
+        if (!start.Accepted || start.Execution is null)
+            throw new InvalidOperationException(
+                $"Automation cycle rejected: {start.Code} - {start.Message}");
+
+        return await start.Execution.Completion.WaitAsync(cancellationToken).ConfigureAwait(false);
     }
 
-    public Task ResetAsync(CancellationToken cancellationToken = default) =>
-        _stateMachine.FireAsync(StationTrigger.Reset, cancellationToken);
+    public AutomationControlResult Reset() => _coordinator.TryResetStation();
+
+    private AutomationWorkflowDefinition BuildDefinition() =>
+        new(
+            "inspection-cycle",
+            "2.0",
+            new AutomationSequenceNode(
+                "cycle",
+                AxisStep("home-axis", new HomeAxisCommand()),
+                new AutomationCheckpointNode(
+                    "home-safe",
+                    AutomationCheckpointKind.SafeRecovery),
+                AxisStep(
+                    "move-to-inspection",
+                    new MoveAxisCommand(100),
+                    pauseBoundaryAfter: true),
+                new AutomationCheckpointNode(
+                    "inspection-safe-pause",
+                    AutomationCheckpointKind.SafePause),
+                new AutomationParallelNode(
+                    "inspection-parallel",
+                    maxConcurrency: 2,
+                    AutomationJoinMode.WaitAll,
+                    CaptureStep(),
+                    MetadataStep()),
+                JudgeStep()));
+
+    private AutomationActionNode AxisStep(
+        string id,
+        AxisCommand command,
+        bool pauseBoundaryAfter = false) =>
+        new(
+            id,
+            new AutomationStepDescriptor(
+                async (context, cancellationToken) =>
+                {
+                    var result = await context.DispatchAsync(
+                        _axisDispatcher,
+                        command,
+                        new CommandDispatchOptions(
+                            ResourceClaims:
+                            [
+                                new CommandResourceClaim(
+                                    AxisResource,
+                                    CommandResourceAccess.Exclusive)
+                            ],
+                            Safety: MotionSafety),
+                        cancellationToken).ConfigureAwait(false);
+
+                    return AutomationStepResult.FromCommand(result);
+                },
+                new AutomationStepPolicy(
+                    Timeout: TimeSpan.FromSeconds(5),
+                    Resources:
+                    [
+                        new CommandResourceClaim(
+                            AxisResource,
+                            CommandResourceAccess.Exclusive)
+                    ],
+                    PauseBoundaryAfter: pauseBoundaryAfter,
+                    CancelOnStop: false)));
+
+    private AutomationActionNode CaptureStep() =>
+        new(
+            "capture",
+            new AutomationStepDescriptor(
+                async (context, cancellationToken) =>
+                {
+                    var result = await context.DispatchAsync(
+                        _cameraDispatcher,
+                        new CaptureCommand(),
+                        new CommandDispatchOptions(
+                            ResourceClaims:
+                            [
+                                new CommandResourceClaim(
+                                    CameraResource,
+                                    CommandResourceAccess.Exclusive)
+                            ],
+                            Safety: CommandSafetyMetadata.MutatingNonIdempotent),
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (result.IsSuccess && result.Value is not null)
+                        context.SetOutput("result", result.Value);
+
+                    return AutomationStepResult.FromCommand(result);
+                },
+                new AutomationStepPolicy(
+                    Timeout: TimeSpan.FromSeconds(5),
+                    Resources:
+                    [
+                        new CommandResourceClaim(
+                            CameraResource,
+                            CommandResourceAccess.Exclusive)
+                    ])));
+
+    private static AutomationActionNode MetadataStep() =>
+        new(
+            "cycle-metadata",
+            new AutomationStepDescriptor(
+                (context, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    context.SetOutput("capturedAt", DateTimeOffset.UtcNow);
+                    return Task.FromResult(AutomationStepResult.Success());
+                }));
+
+    private static AutomationActionNode JudgeStep() =>
+        new(
+            "judge",
+            new AutomationStepDescriptor(
+                (context, cancellationToken) =>
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    var capture = context.Data.GetRequired(
+                        new AutomationDataKey<CaptureResult>("capture", "result"));
+
+                    return Task.FromResult(
+                        capture.Quality >= 0.95
+                            ? AutomationStepResult.Success(
+                                $"PASS: {capture.ImageId}, quality={capture.Quality:0.00}.")
+                            : AutomationStepResult.Failure(
+                                "Inspection quality is below threshold."));
+                }));
 }
 
-internal sealed class AxisCommandStep(
-    string name,
-    CommandRuntime<AxisCommand, AxisResult> runtime,
-    AxisCommand command) : IWorkflowStep
-{
-    public string Name => name;
-
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowContext context, CancellationToken cancellationToken = default)
-    {
-        var result = await runtime.ExecuteAsync(command, cancellationToken: cancellationToken).ConfigureAwait(false);
-        return result.IsSuccess
-            ? WorkflowStepResult.Success(result.Value?.Message)
-            : WorkflowStepResult.Failure($"Axis command {result.Status}: {result.Code} - {result.Message}", result.Exception);
-    }
-}
-
-internal sealed class CaptureStep(CameraDevice camera) : IWorkflowStep
-{
-    public string Name => "capture";
-
-    public async Task<WorkflowStepResult> ExecuteAsync(WorkflowContext context, CancellationToken cancellationToken = default)
-    {
-        var capture = await camera.ExecuteAsync(new CaptureCommand(), cancellationToken).ConfigureAwait(false);
-        context.Set("capture", capture);
-        return WorkflowStepResult.Success($"Captured {capture.ImageId}.");
-    }
-}
-
-internal sealed class JudgeStep : IWorkflowStep
-{
-    public string Name => "judge";
-
-    public Task<WorkflowStepResult> ExecuteAsync(WorkflowContext context, CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var capture = context.Get<CaptureResult>("capture");
-        return Task.FromResult(
-            capture is not null && capture.Quality >= 0.95
-                ? WorkflowStepResult.Success($"PASS: {capture.ImageId}, quality={capture.Quality:0.00}.")
-                : WorkflowStepResult.Failure("Inspection quality is below threshold."));
-    }
-}
+public sealed record InspectionRecipe(
+    string Version,
+    double InspectionPosition,
+    double MinimumQuality);
