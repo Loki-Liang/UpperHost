@@ -229,6 +229,10 @@ public sealed class SignalProcessingTests
         await runtime.ProcessAsync(Block("session", "epoch", "source-a", 2, [10]));
         await runtime.ProcessAsync(Block("session", "epoch", "source-a", 3, [20]));
 
+        await WaitUntilAsync(
+            () => runtime.GetSnapshot().Stages.Single(
+                static item => item.StageId == "accumulate").DroppedWhileBlocked == 2);
+
         Assert.True(await runtime.ResetPartitionAsync(
             "accumulate",
             new SignalPartitionKey("source-a", "layout-1")));
@@ -578,6 +582,13 @@ public sealed class SignalProcessingTests
 
         public override ISignalStage<float> Create(SignalStageInstanceContext context) =>
             new GatedStage(Entered, Release);
+    }
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        while (!predicate())
+            await Task.Delay(1, timeout.Token);
     }
 
     private abstract class FactoryBase : ISignalStageFactory<float>
