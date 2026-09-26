@@ -19,7 +19,8 @@ public sealed record AutomationRecoveryEvidence(
     bool HasUnknownPhysicalOutcome,
     IReadOnlyList<string> CommandExecutionIds,
     IReadOnlyList<string> RequiredDeviceIds,
-    string? FailureReason);
+    string? FailureReason,
+    long LastJournalSequence);
 
 public sealed record AutomationReconciliationResult(
     bool Reconciled,
