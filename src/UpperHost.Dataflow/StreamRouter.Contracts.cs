@@ -125,7 +125,7 @@ public sealed record StreamPublishResult(
         branch.Delivery == StreamBranchDelivery.Required &&
         branch.Status != StreamBranchPublishStatus.Accepted);
 
-    public bool RequiresStop => RouterState == StreamRouterState.Faulted || HasRequiredFailure;
+    public bool RequiresStop => RouterState != StreamRouterState.Running || HasRequiredFailure;
 
     public bool IsSuccess => !RequiresStop;
 }
