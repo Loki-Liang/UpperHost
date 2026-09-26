@@ -96,3 +96,7 @@ public sealed class PublicApi
 finally {
     Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
 }
+
+# Expected ApiCompat failures above are asserted intentionally. Reset the process
+# exit code so a successful deliberate-break test cannot fail the GitHub Actions step.
+exit 0
