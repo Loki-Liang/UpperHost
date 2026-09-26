@@ -1,8 +1,8 @@
-# UpperHost.Transport.Usb
+# OpenDeviceStudio.Transport.Usb
 
 简体中文 | [English](README.md)
 
-`UpperHost.Transport.Usb` 用于把**字节型 USB Endpoint** 接入 UpperHost `ITransport`，同时禁止 Core 直接依赖 WinUSB、libusb、FTDI 或厂商 Native DLL。
+`OpenDeviceStudio.Transport.Usb` 用于把**字节型 USB Endpoint** 接入 OpenDeviceStudio `ITransport`，同时禁止 Core 直接依赖 WinUSB、libusb、FTDI 或厂商 Native DLL。
 
 ## 接入方式
 

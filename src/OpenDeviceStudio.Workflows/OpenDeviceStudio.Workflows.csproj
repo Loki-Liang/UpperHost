@@ -3,6 +3,6 @@
     <Description>Composable workflow runtime for device application processes.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
   </ItemGroup>
 </Project>

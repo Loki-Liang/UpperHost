@@ -1,8 +1,8 @@
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Tcp;
+namespace OpenDeviceStudio.Transport.Tcp;
 
 public sealed record TcpTransportOptions(string Host, int Port, int ReadBufferSize = 16 * 1024);
 

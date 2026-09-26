@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.Usb;
+namespace OpenDeviceStudio.Transport.Usb;
 
 public sealed record UsbTransportOptions(
     ushort VendorId,

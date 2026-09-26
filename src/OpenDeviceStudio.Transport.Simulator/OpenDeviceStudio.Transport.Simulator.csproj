@@ -3,6 +3,6 @@
     <Description>Deterministic simulator transport for development, tests and demos.</Description>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
   </ItemGroup>
 </Project>

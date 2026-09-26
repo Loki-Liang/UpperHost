@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
-using UpperHost.Abstractions.Transports;
+using OpenDeviceStudio.Abstractions.Transports;
 
-namespace UpperHost.Transport.VendorSdk;
+namespace OpenDeviceStudio.Transport.VendorSdk;
 
 public sealed record VendorSdkTransportOptions(
     string VendorName,

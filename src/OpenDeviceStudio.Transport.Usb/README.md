@@ -1,8 +1,8 @@
-# UpperHost.Transport.Usb
+# OpenDeviceStudio.Transport.Usb
 
 [简体中文](README.zh-CN.md) | English
 
-`UpperHost.Transport.Usb` adapts byte-oriented USB endpoints to UpperHost `ITransport` without coupling Core to WinUSB, libusb, FTDI or another native library.
+`OpenDeviceStudio.Transport.Usb` adapts byte-oriented USB endpoints to OpenDeviceStudio `ITransport` without coupling Core to WinUSB, libusb, FTDI or another native library.
 
 ## Integration
 

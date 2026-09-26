@@ -1,6 +1,6 @@
-using UpperHost.Abstractions.Workflows;
+using OpenDeviceStudio.Abstractions.Workflows;
 
-namespace UpperHost.Workflows;
+namespace OpenDeviceStudio.Workflows;
 
 public sealed record WorkflowDefinition(string Name, IReadOnlyList<IWorkflowStep> Steps)
 {

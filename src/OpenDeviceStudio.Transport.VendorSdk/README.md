@@ -1,8 +1,8 @@
-# UpperHost.Transport.VendorSdk
+# OpenDeviceStudio.Transport.VendorSdk
 
 [简体中文](README.zh-CN.md) | English
 
-`UpperHost.Transport.VendorSdk` is the reference adapter for vendor SDKs that expose an **ordered byte-oriented session** but do not fit Serial/TCP/USB directly.
+`OpenDeviceStudio.Transport.VendorSdk` is the reference adapter for vendor SDKs that expose an **ordered byte-oriented session** but do not fit Serial/TCP/USB directly.
 
 It intentionally does not reference any vendor DLL. Product code implements `IVendorByteSession`, keeping native handles, callbacks, thread-affinity rules and vendor exceptions outside Core.
 
@@ -23,7 +23,7 @@ ITransport transport = new VendorSdkTransport(session, options);
 
 Do **not** use this adapter merely because hardware ships with an SDK.
 
-| Vendor SDK shape | Correct UpperHost seam |
+| Vendor SDK shape | Correct OpenDeviceStudio seam |
 | --- | --- |
 | Ordered raw bytes | `IVendorByteSession` + `VendorSdkTransport` |
 | Discrete frames/messages | Provider-specific message type + `IMessageTransport<TMessage>` |
@@ -34,7 +34,7 @@ If the SDK already exposes domain operations, wrapping them into fake byte packe
 ## Provider implementation checklist
 
 1. Keep vendor/native references in the product provider package.
-2. Translate native callbacks into the selected UpperHost seam without blocking the callback thread.
+2. Translate native callbacks into the selected OpenDeviceStudio seam without blocking the callback thread.
 3. Define who owns native handles and release them deterministically in `DisposeAsync`.
 4. Map cancellation, timeout, disconnect and vendor error codes explicitly.
 5. Preserve frame/message identity when the SDK is not actually byte-oriented.

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Vendor SDK byte-session transport adapter template for OpenDeviceStudio.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
