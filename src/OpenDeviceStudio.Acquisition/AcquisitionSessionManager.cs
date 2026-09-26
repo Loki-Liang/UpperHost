@@ -12,9 +12,14 @@ public sealed class AcquisitionSessionManager : IAsyncDisposable
     private readonly IReadOnlyList<IAcquisitionSessionDefinitionEnricher> _enrichers;
     private int _disposed;
 
-    public AcquisitionSessionManager(
-        TimeProvider? timeProvider = null,
-        IEnumerable<IAcquisitionSessionDefinitionEnricher>? enrichers = null)
+    public AcquisitionSessionManager(TimeProvider? timeProvider = null)
+        : this(timeProvider, null)
+    {
+    }
+
+    internal AcquisitionSessionManager(
+        TimeProvider? timeProvider,
+        IEnumerable<IAcquisitionSessionDefinitionEnricher>? enrichers)
     {
         _timeProvider = timeProvider ?? TimeProvider.System;
         _enrichers = (enrichers ?? []).ToArray();
