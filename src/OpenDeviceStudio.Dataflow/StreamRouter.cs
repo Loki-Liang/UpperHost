@@ -902,7 +902,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
             var queueDepth = Math.Clamp(
                 Volatile.Read(ref _queueDepth),
                 0,
-                int.MaxValue);
+                Options.Capacity);
             var depth = (int)queueDepth;
 
             return new StreamBranchSnapshot(
@@ -915,7 +915,7 @@ public sealed class StreamRouter<T> : IAsyncDisposable
                 Options.Ordering,
                 Options.Capacity,
                 depth,
-                Volatile.Read(ref _highWatermark),
+                Math.Clamp(Volatile.Read(ref _highWatermark), 0, Options.Capacity),
                 Interlocked.Read(ref _accepted),
                 Interlocked.Read(ref _dequeued),
                 Interlocked.Read(ref _delivered),
@@ -1099,19 +1099,23 @@ public sealed class StreamRouter<T> : IAsyncDisposable
 
         private void IncrementQueueDepth()
         {
-            var depth = Interlocked.Increment(ref _queueDepth);
+            var observedDepth = Interlocked.Increment(ref _queueDepth);
+            var boundedDepth = Math.Min(observedDepth, Options.Capacity);
             var tags = StreamRouterTelemetry.BranchTags(Options);
             StreamRouterTelemetry.QueueDepth.Add(1, tags);
 
             while (true)
             {
                 var current = Volatile.Read(ref _highWatermark);
-                if (depth <= current)
+                if (boundedDepth <= current)
                     return;
 
-                if (Interlocked.CompareExchange(ref _highWatermark, (int)depth, current) == current)
+                if (Interlocked.CompareExchange(
+                        ref _highWatermark,
+                        (int)boundedDepth,
+                        current) == current)
                 {
-                    StreamRouterTelemetry.QueueHighWatermark.Record(depth, tags);
+                    StreamRouterTelemetry.QueueHighWatermark.Record(boundedDepth, tags);
                     return;
                 }
             }
