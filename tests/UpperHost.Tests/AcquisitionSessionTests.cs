@@ -84,6 +84,58 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
+    public async Task Startup_failure_rolls_back_registered_resources_in_lifo_order()
+    {
+        var rollbackOrder = new List<string>();
+        var processing = new RecordingComponent("processing", AcquisitionComponentKind.Processing)
+        {
+            StopHook = _ =>
+            {
+                rollbackOrder.Add("processing");
+                return ValueTask.CompletedTask;
+            }
+        };
+        var router = new RecordingComponent("router", AcquisitionComponentKind.Router)
+        {
+            StopHook = _ =>
+            {
+                rollbackOrder.Add("router");
+                return ValueTask.CompletedTask;
+            }
+        };
+        var raw = new RecordingComponent("raw", AcquisitionComponentKind.RawRecorder)
+        {
+            PrepareHook = _ => throw new InvalidOperationException("raw preflight failed"),
+            StopHook = _ =>
+            {
+                rollbackOrder.Add("raw");
+                return ValueTask.CompletedTask;
+            }
+        };
+        var source = new RecordingSource("source-a");
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live(
+            [source],
+            [
+                new AcquisitionRequiredComponentRegistration(processing),
+                new AcquisitionRequiredComponentRegistration(router),
+                new AcquisitionRequiredComponentRegistration(raw)
+            ]));
+
+        await session.StartAsync();
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
+        Assert.Equal(AcquisitionFaultCategory.Preparation, result.RootFault?.Category);
+        Assert.Equal(["raw", "router", "processing"], rollbackOrder);
+        Assert.Equal(0, source.StartCount);
+        Assert.Equal(1, raw.DisposeCount);
+        Assert.Equal(1, router.DisposeCount);
+        Assert.Equal(1, processing.DisposeCount);
+    }
+
+    [Fact]
     public async Task Partial_source_start_callback_is_preserved_then_late_callback_is_rejected()
     {
         var calls = new List<string>();
@@ -123,6 +175,42 @@ public sealed class AcquisitionSessionTests
         await Assert.ThrowsAsync<AcquisitionIngressClosedException>(
             async () => await ingress!.PublishAsync(2));
         Assert.Equal(["raw:1", "processing:1"], calls);
+    }
+
+    [Theory]
+    [InlineData(AcquisitionComponentKind.RawRecorder, AcquisitionFaultCategory.RawIntegrity)]
+    [InlineData(AcquisitionComponentKind.Processing, AcquisitionFaultCategory.Processing)]
+    [InlineData(AcquisitionComponentKind.Router, AcquisitionFaultCategory.RequiredBranch)]
+    public async Task Required_component_fault_matrix_converges_with_structured_root_fault(
+        AcquisitionComponentKind kind,
+        AcquisitionFaultCategory category)
+    {
+        var required = new RecordingComponent($"required-{kind}", kind);
+        var source = new RecordingSource("source-a");
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live(
+            [source],
+            [new AcquisitionRequiredComponentRegistration(required)]));
+
+        await session.StartAsync();
+
+        Assert.True(required.Context!.TryReportFault(
+            category,
+            new InvalidOperationException($"{kind} failed"),
+            $"{kind} failed"));
+
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
+        Assert.Equal(category, result.RootFault?.Category);
+        Assert.Equal(required.ComponentId, result.RootFault?.ComponentId);
+        Assert.Equal(1, source.StopCount);
+        Assert.Equal(1, required.StopCount);
+        Assert.Equal(1, required.FinalizeCount);
+        Assert.Contains(result.Components, item =>
+            item.ComponentId == required.ComponentId &&
+            item.State == AcquisitionComponentRuntimeState.Faulted);
     }
 
     [Fact]
@@ -198,6 +286,37 @@ public sealed class AcquisitionSessionTests
     }
 
     [Fact]
+    public async Task Optional_fault_can_escalate_only_when_frozen_definition_requests_it()
+    {
+        var source = new RecordingSource("source-a");
+        var optional = new RecordingOptional("critical-optional", AcquisitionComponentKind.OptionalAlgorithm);
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live(
+            [source],
+            optional:
+            [
+                new AcquisitionOptionalComponentRegistration(optional, EscalateFault: true)
+            ]));
+
+        await session.StartAsync();
+
+        Assert.True(optional.Context!.TryReportFault(
+            AcquisitionFaultCategory.OptionalComponent,
+            new InvalidOperationException("configured escalation"),
+            "configured escalation"));
+
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
+        Assert.Equal(AcquisitionFaultCategory.OptionalComponent, result.RootFault?.Category);
+        Assert.Equal(optional.ComponentId, result.RootFault?.ComponentId);
+        Assert.Contains(result.Components, item =>
+            item.ComponentId == optional.ComponentId &&
+            item.State == AcquisitionComponentRuntimeState.Faulted);
+    }
+
+    [Fact]
     public async Task Finalize_failure_prevents_completed_terminal_state()
     {
         var recorder = new RecordingComponent("raw", AcquisitionComponentKind.RawRecorder)
@@ -244,6 +363,45 @@ public sealed class AcquisitionSessionTests
         Assert.True(required.StopCount <= 1);
         Assert.True(required.FinalizeCount <= 1);
         Assert.True(required.AbortCount <= 1);
+    }
+
+    [Fact]
+    public async Task Concurrent_stop_required_fault_and_abort_share_one_convergence_and_preserve_root_fault()
+    {
+        var stopEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new RecordingSource("source-a")
+        {
+            StopHook = async token =>
+            {
+                stopEntered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            }
+        };
+        var processing = new RecordingComponent("processing", AcquisitionComponentKind.Processing);
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(Live(
+            [source],
+            [new AcquisitionRequiredComponentRegistration(processing)]));
+
+        await session.StartAsync();
+
+        var stopping = session.StopAsync();
+        await stopEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.True(processing.Context!.TryReportFault(
+            AcquisitionFaultCategory.Processing,
+            new InvalidOperationException("processing root"),
+            "processing root"));
+
+        var aborting = session.AbortAsync();
+        var results = await Task.WhenAll(stopping, aborting).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.All(results, result => Assert.Equal(AcquisitionSessionState.Aborted, result.TerminalState));
+        Assert.All(results, result => Assert.Equal("processing root", result.RootFault?.Message));
+        Assert.Equal(1, source.StopCount);
+        Assert.Equal(1, source.AbortCount);
+        Assert.True(processing.AbortCount <= 1);
     }
 
     [Fact]
@@ -311,6 +469,34 @@ public sealed class AcquisitionSessionTests
         Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
         Assert.Contains(result.Sources, item =>
             item.SourceId == "source-b" && item.State == AcquisitionComponentRuntimeState.Isolated);
+    }
+
+    [Fact]
+    public async Task Multi_source_fail_whole_policy_stops_every_source()
+    {
+        var sourceA = new RecordingSource("source-a");
+        var sourceB = new RecordingSource("source-b");
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(new AcquisitionSessionDefinition(
+            AcquisitionSessionMode.LiveAcquisition,
+            [sourceA, sourceB],
+            options: new AcquisitionSessionOptions(
+                MultiSourceFailurePolicy: AcquisitionMultiSourceFailurePolicy.FailWholeSession)));
+
+        await session.StartAsync();
+
+        Assert.True(sourceB.Context!.TryReportFault(
+            AcquisitionFaultCategory.Source,
+            new IOException("source-b failed"),
+            "source-b failed"));
+
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Faulted, result.TerminalState);
+        Assert.Equal("source-b", result.RootFault?.SourceId);
+        Assert.Equal(1, sourceA.StopCount);
+        Assert.Equal(1, sourceB.StopCount);
     }
 
     [Fact]
@@ -415,6 +601,65 @@ public sealed class AcquisitionSessionTests
         Assert.Equal(AcquisitionSessionState.Aborted, result.TerminalState);
         Assert.Equal(AcquisitionFaultCategory.ShutdownTimeout, result.RootFault?.Category);
         Assert.Equal(1, source.AbortCount);
+    }
+
+    [Fact]
+    public async Task Concurrent_dispose_calls_share_one_abort_and_dispose_sequence()
+    {
+        await using var manager = new AcquisitionSessionManager();
+        var source = new RecordingSource("source-a");
+        var session = manager.CreateSession(Live([source]));
+
+        await session.StartAsync();
+
+        var first = session.DisposeAsync().AsTask();
+        var second = session.DisposeAsync().AsTask();
+        await Task.WhenAll(first, second).WaitAsync(TimeSpan.FromSeconds(2));
+
+        var result = await session.Completion.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(AcquisitionSessionState.Aborted, result.TerminalState);
+        Assert.Equal(1, source.AbortCount);
+        Assert.Equal(1, source.DisposeCount);
+
+        await session.DisposeAsync();
+        Assert.Equal(1, source.DisposeCount);
+    }
+
+    [Fact]
+    public async Task Session_level_short_soak_reaches_quiescence_without_raw_processing_loss()
+    {
+        const int sessionCount = 12;
+        const int blocksPerSession = 64;
+
+        await using var manager = new AcquisitionSessionManager();
+
+        for (var cycle = 0; cycle < sessionCount; cycle++)
+        {
+            var raw = new CountingRawSink();
+            var processing = new CountingProcessingSink();
+            RecordingSource? source = null;
+
+            source = new RecordingSource($"source-{cycle}")
+            {
+                StartHook = async token =>
+                {
+                    var ingress = source.Context!.CreateRawFirstIngress(raw, processing);
+                    for (var block = 0; block < blocksPerSession; block++)
+                        await ingress.PublishAsync(block, token);
+                }
+            };
+
+            await using var session = manager.CreateSession(Live([source]));
+            await session.StartAsync();
+            var result = await session.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+
+            Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
+            Assert.Equal(blocksPerSession, raw.Count);
+            Assert.Equal(blocksPerSession, processing.Count);
+            Assert.Equal(0, result.RejectedLateIngress);
+            Assert.Equal(1, source.DisposeCount);
+            Assert.Equal(0, manager.ActiveSessionCount);
+        }
     }
 
     [Fact]
