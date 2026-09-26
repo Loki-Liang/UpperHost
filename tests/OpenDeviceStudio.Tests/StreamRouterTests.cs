@@ -1,4 +1,6 @@
 using System.Collections.Concurrent;
+using System.Diagnostics.Metrics;
+using OpenDeviceStudio.Abstractions.Observability;
 using OpenDeviceStudio.Dataflow;
 
 namespace OpenDeviceStudio.Tests;
@@ -418,6 +420,282 @@ public sealed class StreamRouterTests
         Assert.True(snapshot.MaxQueueLatency >= snapshot.LastQueueLatency);
     }
 
+
+    [Fact]
+    public async Task LatestRequiresSingleSlotAndDuplicateBranchIdsFailFast()
+    {
+        await using var router = new StreamRouter<int>();
+
+        Assert.Throws<ArgumentException>(() => router.RegisterBranch(
+            OptionalOptions("latest-invalid", capacity: 2, overflow: StreamOverflowPolicy.Latest),
+            static (_, _) => ValueTask.CompletedTask));
+
+        router.RegisterBranch(
+            RequiredOptions("stable-id", capacity: 2),
+            static (_, _) => ValueTask.CompletedTask);
+
+        Assert.Throws<InvalidOperationException>(() => router.RegisterBranch(
+            RequiredOptions("stable-id", capacity: 2),
+            static (_, _) => ValueTask.CompletedTask));
+    }
+
+    [Fact]
+    public async Task RequiredCancellationAfterEarlierRequiredAcceptanceFaultsRouter()
+    {
+        var firstValues = new ConcurrentQueue<int>();
+        var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        await using var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("a", capacity: 8),
+            (item, _) =>
+            {
+                firstValues.Enqueue(item.Value);
+                return ValueTask.CompletedTask;
+            });
+        router.RegisterBranch(
+            RequiredOptions("b", capacity: 1, overflow: StreamOverflowPolicy.Wait),
+            async (item, token) =>
+            {
+                if (item.Value == 1)
+                {
+                    secondEntered.TrySetResult();
+                    await secondRelease.Task.WaitAsync(token);
+                }
+            });
+
+        router.Start();
+
+        await router.PublishAsync(1);
+        await secondEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await router.PublishAsync(2);
+
+        using var cancellation = new CancellationTokenSource();
+        var thirdTask = router.PublishAsync(3, cancellation.Token).AsTask();
+        await Task.Delay(20);
+        Assert.False(thirdTask.IsCompleted);
+        cancellation.Cancel();
+
+        var result = await thirdTask.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.Equal(StreamRouterState.Faulted, result.RouterState);
+        Assert.True(result.IsPartialRequiredDelivery);
+        Assert.Equal(
+            StreamBranchPublishStatus.Accepted,
+            Assert.Single(result.Branches, static branch => branch.BranchId == "a").Status);
+        Assert.Equal(
+            StreamBranchPublishStatus.Cancelled,
+            Assert.Single(result.Branches, static branch => branch.BranchId == "b").Status);
+        Assert.Contains(3, firstValues);
+
+        secondRelease.TrySetResult();
+        var terminal = await router.CompleteAsync(StreamCompletionMode.Drain);
+        Assert.Equal(StreamRouterState.Faulted, terminal.State);
+    }
+
+    [Fact]
+    public async Task DropNewestEvictsNewestBufferedItemAndReleasesItsOwnership()
+    {
+        var received = new ConcurrentQueue<int>();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownership = new TrackingOwnership();
+
+        await using var router = new StreamRouter<TrackedItem>();
+        router.RegisterBranch(
+            OptionalOptions("ui", capacity: 2, overflow: StreamOverflowPolicy.DropNewest),
+            async (item, token) =>
+            {
+                received.Enqueue(item.Value.Id);
+                if (item.Value.Id == 1)
+                {
+                    entered.TrySetResult();
+                    await release.Task.WaitAsync(token);
+                }
+            },
+            ownership);
+
+        router.Start();
+
+        await router.PublishAsync(new TrackedItem(1));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await router.PublishAsync(new TrackedItem(2));
+        await router.PublishAsync(new TrackedItem(3));
+        var fourth = await router.PublishAsync(new TrackedItem(4));
+
+        var ui = Assert.Single(fourth.Branches);
+        Assert.Equal(StreamBranchPublishStatus.Accepted, ui.Status);
+        Assert.Equal(1, ui.DroppedCount);
+
+        release.TrySetResult();
+        await router.CompleteAsync(StreamCompletionMode.Drain);
+
+        Assert.Equal(new[] { 1, 2, 4 }, received.ToArray());
+        Assert.Contains(3, ownership.ReleasedIds);
+        Assert.Equal(ownership.Retained, ownership.Released);
+    }
+
+    [Fact]
+    public async Task PublishVsDisposeUnblocksRequiredWaitAndBalancesOwnership()
+    {
+        for (var iteration = 0; iteration < 20; iteration++)
+        {
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var ownership = new TrackingOwnership();
+            var router = new StreamRouter<TrackedItem>();
+
+            router.RegisterBranch(
+                RequiredOptions("required", capacity: 1, overflow: StreamOverflowPolicy.Wait),
+                async (item, token) =>
+                {
+                    if (item.Value.Id == 1)
+                    {
+                        entered.TrySetResult();
+                        await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                    }
+                },
+                ownership);
+
+            router.Start();
+            await router.PublishAsync(new TrackedItem(1));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+            await router.PublishAsync(new TrackedItem(2));
+
+            var blocked = router.PublishAsync(new TrackedItem(3)).AsTask();
+            await WaitUntilAsync(() => ownership.Retained >= 3);
+            Assert.False(blocked.IsCompleted);
+
+            var dispose = router.DisposeAsync().AsTask();
+
+            await Task.WhenAll(
+                blocked.WaitAsync(TimeSpan.FromSeconds(2)),
+                dispose.WaitAsync(TimeSpan.FromSeconds(2)));
+
+            var result = await blocked;
+            Assert.NotEqual(StreamBranchPublishStatus.Accepted, Assert.Single(result.Branches).Status);
+            Assert.Equal(StreamRouterState.Disposed, result.RouterState);
+            Assert.Equal(ownership.Retained, ownership.Released);
+        }
+    }
+
+    [Fact]
+    public async Task StreamRouterMetricsUseUnifiedMeterAndReturnQueueDepthToZero()
+    {
+        var measurements = new ConcurrentQueue<MetricMeasurement>();
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, meterListener) =>
+        {
+            if (instrument.Meter.Name == OpenDeviceStudioTelemetry.InstrumentationName &&
+                instrument.Name.StartsWith("opendevicestudio.streamrouter.", StringComparison.Ordinal))
+            {
+                meterListener.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((instrument, measurement, tags, _) =>
+        {
+            measurements.Enqueue(new MetricMeasurement(
+                instrument.Name,
+                measurement,
+                tags.ToArray()));
+        });
+        listener.Start();
+
+        var router = new StreamRouter<int>();
+        router.RegisterBranch(
+            RequiredOptions("metrics-required", capacity: 2),
+            static (_, _) => ValueTask.CompletedTask);
+        router.Start();
+
+        await router.PublishAsync(1);
+        await router.PublishAsync(2);
+        await router.CompleteAsync(StreamCompletionMode.Drain);
+        await router.DisposeAsync();
+
+        var branchMeasurements = measurements
+            .Where(static measurement =>
+                measurement.Tags.Any(tag =>
+                    tag.Key == "branch.id" &&
+                    string.Equals(tag.Value?.ToString(), "metrics-required", StringComparison.Ordinal)))
+            .ToArray();
+
+        Assert.NotEmpty(branchMeasurements);
+        Assert.Contains(
+            branchMeasurements,
+            measurement =>
+                measurement.Instrument == "opendevicestudio.streamrouter.branch.capacity" &&
+                measurement.Value == 2);
+
+        var queueDepthDelta = branchMeasurements
+            .Where(static measurement => measurement.Instrument == "opendevicestudio.streamrouter.branch.queue_depth")
+            .Sum(static measurement => measurement.Value);
+        Assert.Equal(0, queueDepthDelta);
+
+        var activeDelta = branchMeasurements
+            .Where(static measurement => measurement.Instrument == "opendevicestudio.streamrouter.active_branches")
+            .Sum(static measurement => measurement.Value);
+        Assert.Equal(0, activeDelta);
+
+        Assert.All(branchMeasurements.SelectMany(static measurement => measurement.Tags), tag =>
+        {
+            Assert.DoesNotContain("subscription", tag.Key, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("sequence", tag.Key, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("request", tag.Key, StringComparison.OrdinalIgnoreCase);
+        });
+    }
+
+    [Fact]
+    public async Task LongRunningRequiredAndLossyOptionalBranchesRemainBoundedAndLeakFree()
+    {
+        const int publishCount = 5000;
+        var requiredDelivered = 0;
+        var optionalEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var optionalRelease = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var ownership = new TrackingOwnership();
+
+        await using var router = new StreamRouter<TrackedItem>();
+        var required = router.RegisterBranch(
+            RequiredOptions("required", capacity: 32),
+            (_, _) =>
+            {
+                Interlocked.Increment(ref requiredDelivered);
+                return ValueTask.CompletedTask;
+            });
+        var optional = router.RegisterBranch(
+            OptionalOptions("optional", capacity: 4, overflow: StreamOverflowPolicy.DropOldest),
+            async (item, token) =>
+            {
+                if (item.Value.Id == 0)
+                {
+                    optionalEntered.TrySetResult();
+                    await optionalRelease.Task.WaitAsync(token);
+                }
+            },
+            ownership);
+
+        router.Start();
+
+        await router.PublishAsync(new TrackedItem(0));
+        await optionalEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        for (var value = 1; value < publishCount; value++)
+        {
+            var result = await router.PublishAsync(new TrackedItem(value));
+            Assert.False(result.HasRequiredFailure);
+            Assert.InRange(optional.GetSnapshot().QueueDepth, 0, 4);
+        }
+
+        optionalRelease.TrySetResult();
+        await router.CompleteAsync(StreamCompletionMode.Drain);
+
+        Assert.Equal(publishCount, Volatile.Read(ref requiredDelivered));
+        Assert.Equal(0, required.GetSnapshot().QueueDepth);
+        Assert.Equal(0, optional.GetSnapshot().QueueDepth);
+        Assert.InRange(optional.GetSnapshot().HighWatermark, 0, 4);
+        Assert.True(optional.GetSnapshot().Dropped > 0);
+        Assert.Equal(ownership.Retained, ownership.Released);
+        Assert.Equal(2, router.GetSnapshot().BranchCount);
+    }
+
     private static StreamBranchOptions RequiredOptions(
         string id,
         int capacity,
@@ -443,6 +721,41 @@ public sealed class StreamRouterTests
             overflow,
             StreamBranchFailurePolicy.Isolate,
             StreamOrderingPolicy.SerializedPublisherFifo);
+
+    private static async Task WaitUntilAsync(Func<bool> predicate)
+    {
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        while (!predicate())
+            await Task.Delay(1, timeout.Token);
+    }
+
+    private sealed record MetricMeasurement(
+        string Instrument,
+        long Value,
+        KeyValuePair<string, object?>[] Tags);
+
+    private sealed class TrackingOwnership : IStreamOwnershipAdapter<TrackedItem>
+    {
+        private int _retained;
+        private int _released;
+        private readonly ConcurrentQueue<int> _releasedIds = new();
+
+        public int Retained => Volatile.Read(ref _retained);
+        public int Released => Volatile.Read(ref _released);
+        public IReadOnlyCollection<int> ReleasedIds => _releasedIds.ToArray();
+
+        public TrackedItem Retain(TrackedItem item)
+        {
+            Interlocked.Increment(ref _retained);
+            return item;
+        }
+
+        public void Release(TrackedItem item)
+        {
+            _releasedIds.Enqueue(item.Id);
+            Interlocked.Increment(ref _released);
+        }
+    }
 
     private sealed record TrackedItem(int Id);
 }
