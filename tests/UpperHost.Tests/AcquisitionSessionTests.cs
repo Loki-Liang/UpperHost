@@ -927,6 +927,36 @@ public sealed class AcquisitionSessionTests
         }
     }
 
+    private sealed class CountingRawSink : IAcquisitionRawSink<int>
+    {
+        private int _count;
+        public int Count => Volatile.Read(ref _count);
+
+        public ValueTask<AcquisitionRawAcceptance> AcceptAsync(
+            int block,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _count);
+            return ValueTask.FromResult(AcquisitionRawAcceptance.Success);
+        }
+    }
+
+    private sealed class CountingProcessingSink : IAcquisitionProcessingSink<int>
+    {
+        private int _count;
+        public int Count => Volatile.Read(ref _count);
+
+        public ValueTask HandoffAsync(
+            int block,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _count);
+            return ValueTask.CompletedTask;
+        }
+    }
+
     private sealed class RecordingRawSink(List<string> calls) : IAcquisitionRawSink<int>
     {
         public bool Accept { get; set; } = true;
