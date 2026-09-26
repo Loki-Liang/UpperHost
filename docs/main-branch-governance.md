@@ -80,3 +80,32 @@ Before closing Issue #31, retain evidence that:
 - the documented check names match current workflow job IDs.
 
 Public API Compatibility is enforced inside the existing canonical `build-test-scaffold` job, so Issue #41 does not introduce a new required-check job ID. The active ruleset continues to require `build-test-scaffold`, which now contains the compatibility steps. Any future gate that introduces a new job ID (for example a separately modeled Source-Scaffold E2E gate) must be added to both the policy and the active GitHub ruleset.
+
+## Active ruleset drift verification
+
+Repository-side validation and GitHub-side enforcement are separate. The
+repository includes scripts/validate_main_ruleset.py to compare a JSON
+snapshot of the active GitHub ruleset with
+.github/governance/main-branch-policy.json.
+
+The validator is deliberately read-only and requires no repository
+administration permission. From an authorized administrator context:
+
+```bash
+gh api repos/Loki-Liang/UpperHost/rulesets/<ruleset-id> \
+  | python scripts/validate_main_ruleset.py --ruleset -
+```
+
+The contract currently allows no bypass actors. If an emergency bypass is ever
+approved, add its exact actor type, actor id and bypass mode to
+allowed_bypass_actors in the policy through a reviewed change before changing
+the GitHub ruleset.
+
+CI runs deliberate-break unit tests for the validator so missing checks,
+disabled strict freshness, unresolved-conversation enforcement being disabled,
+an unexpected bypass actor, or a ruleset that does not target the protected
+branch cannot silently become accepted behavior.
+
+The normal pull-request CI token must remain unable to mutate repository
+rulesets. Updating GitHub settings is an administrator action; validation is a
+read-only action.
