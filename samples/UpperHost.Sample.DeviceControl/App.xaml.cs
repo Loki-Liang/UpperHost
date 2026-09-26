@@ -3,8 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using UpperHost.Abstractions.Devices;
 using UpperHost.Abstractions.Protocols;
 using UpperHost.Abstractions.Transports;
+using UpperHost.Control.Scheduling;
 using UpperHost.Hosting;
 using UpperHost.Protocols;
+using UpperHost.Starters;
 using UpperHost.Sample.DeviceControl.Device;
 using UpperHost.Sample.DeviceControl.Domain;
 using UpperHost.Sample.DeviceControl.Protocol;
@@ -38,6 +40,10 @@ public partial class App : Application
 
         builder.Services.AddSingleton<TemperatureControllerDevice>();
         builder.Services.AddSingleton<IDevice>(sp => sp.GetRequiredService<TemperatureControllerDevice>());
+        builder.Services.AddSingleton<ICommandable<TemperatureControllerCommand, TemperatureControllerResponse>>(
+            sp => sp.GetRequiredService<TemperatureControllerDevice>());
+        builder.AddCommandDispatcher<TemperatureControllerCommand, TemperatureControllerResponse>(
+            new BoundedCommandDispatcherOptions(Capacity: 64, PerPriorityCapacity: 32, MaxConcurrency: 4));
         builder.Services.AddSingleton<TemperatureControllerSimulator>();
         builder.Services.AddSingleton<MainWindow>();
 

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Windows;
 using UpperHost.Abstractions.Devices;
+using UpperHost.Control.Commands;
+using UpperHost.Control.Scheduling;
 using UpperHost.Sample.DeviceControl.Device;
 using UpperHost.Sample.DeviceControl.Domain;
 
@@ -10,17 +12,25 @@ public partial class MainWindow : Window
 {
     private readonly TemperatureControllerDevice _device;
     private readonly IDeviceRegistry _registry;
+    private static readonly CommandResourceKey DeviceResource =
+        new("device", TemperatureControllerDevice.DeviceId);
+    private static readonly CommandSafetyMetadata ReadSafety =
+        new(ReadOnly: true, Idempotent: true, Motion: false, Hazardous: false, RetryAllowed: true);
+
     private readonly IDevicePackageCatalog _catalog;
+    private readonly BoundedCommandDispatcher<TemperatureControllerCommand, TemperatureControllerResponse> _dispatcher;
 
     public MainWindow(
         TemperatureControllerDevice device,
         IDeviceRegistry registry,
-        IDevicePackageCatalog catalog)
+        IDevicePackageCatalog catalog,
+        BoundedCommandDispatcher<TemperatureControllerCommand, TemperatureControllerResponse> dispatcher)
     {
         InitializeComponent();
         _device = device;
         _registry = registry;
         _catalog = catalog;
+        _dispatcher = dispatcher;
         RefreshDeviceState();
     }
 
@@ -53,13 +63,28 @@ public partial class MainWindow : Window
         });
 
     private async void Start_Click(object sender, RoutedEventArgs e) =>
-        await RunAsync(async () => Render(await _device.ExecuteAsync(new SetRunningCommand(true))));
+        await RunAsync(async () => Render(await DispatchAsync(new SetRunningCommand(true))));
 
     private async void Stop_Click(object sender, RoutedEventArgs e) =>
-        await RunAsync(async () => Render(await _device.ExecuteAsync(new SetRunningCommand(false))));
+        await RunAsync(async () => Render(await DispatchAsync(new SetRunningCommand(false))));
 
     private async Task ReadAndRenderAsync() =>
-        Render(await _device.ExecuteAsync(new ReadStatusCommand()));
+        Render(await DispatchAsync(new ReadStatusCommand()));
+
+    private async Task<TemperatureControllerResponse> DispatchAsync(TemperatureControllerCommand command)
+    {
+        var readOnly = command is ReadStatusCommand;
+        var result = await _dispatcher.EnqueueAsync(
+            command,
+            new CommandDispatchOptions(
+                Resources: [DeviceResource],
+                Safety: readOnly ? ReadSafety : CommandSafetyMetadata.MutatingNonIdempotent));
+
+        if (!result.IsSuccess || result.Value is null)
+            throw new InvalidOperationException(result.Message ?? result.Code ?? "Command dispatch failed.");
+
+        return result.Value;
+    }
 
     private void Render(TemperatureControllerResponse response)
     {
