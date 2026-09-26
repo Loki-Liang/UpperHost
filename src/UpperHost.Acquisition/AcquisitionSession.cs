@@ -58,8 +58,10 @@ public sealed class AcquisitionSession : IAsyncDisposable
     private readonly TaskCompletionSource<AcquisitionSessionResult> _completion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private readonly ConcurrentQueue<AcquisitionFault> _secondaryFaults = new();
-    private readonly ConcurrentQueue<AcquisitionFault> _optionalFaults = new();
-    private readonly ConcurrentQueue<AcquisitionFault> _sourceIsolationFaults = new();
+    private readonly ConcurrentDictionary<string, AcquisitionFault> _pendingOptionalFaults =
+        new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, AcquisitionFault> _pendingSourceIsolationFaults =
+        new(StringComparer.Ordinal);
     private readonly Dictionary<string, RequiredHandle> _required;
     private readonly Dictionary<string, SourceHandle> _sources;
     private readonly Dictionary<string, OptionalHandle> _optional;
@@ -511,10 +513,13 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
     private async Task DrainOptionalFaultsAsync()
     {
-        while (_optionalFaults.TryDequeue(out var fault))
+        foreach (var componentId in _pendingOptionalFaults.Keys.ToArray())
         {
-            if (!_optional.TryGetValue(fault.ComponentId, out var handle))
+            if (!_pendingOptionalFaults.TryRemove(componentId, out var fault) ||
+                !_optional.TryGetValue(fault.ComponentId, out var handle))
+            {
                 continue;
+            }
 
             await _optionalGate.WaitAsync().ConfigureAwait(false);
             try
@@ -530,10 +535,14 @@ public sealed class AcquisitionSession : IAsyncDisposable
 
     private async Task DrainSourceIsolationFaultsAsync()
     {
-        while (_sourceIsolationFaults.TryDequeue(out var fault))
+        foreach (var sourceId in _pendingSourceIsolationFaults.Keys.ToArray())
         {
-            if (fault.SourceId is null || !_sources.TryGetValue(fault.SourceId, out var handle))
+            if (!_pendingSourceIsolationFaults.TryRemove(sourceId, out var fault) ||
+                fault.SourceId is null ||
+                !_sources.TryGetValue(fault.SourceId, out var handle))
+            {
                 continue;
+            }
 
             if (handle.State is AcquisitionComponentRuntimeState.Isolated
                 or AcquisitionComponentRuntimeState.Completed
@@ -1199,7 +1208,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             NoteComponentFault(fault);
             AddSecondary(fault);
-            _sourceIsolationFaults.Enqueue(fault);
+            _pendingSourceIsolationFaults.TryAdd(sourceId, fault);
             AcquisitionTelemetry.Faults.Add(1, AcquisitionTelemetry.FaultTags(Mode, category, "source-isolated"));
             WakeSupervisor();
             return true;
@@ -1209,7 +1218,7 @@ public sealed class AcquisitionSession : IAsyncDisposable
         {
             NoteComponentFault(fault);
             AddSecondary(fault);
-            _optionalFaults.Enqueue(fault);
+            _pendingOptionalFaults.TryAdd(componentId, fault);
             AcquisitionTelemetry.Faults.Add(1, AcquisitionTelemetry.FaultTags(Mode, category, "optional"));
             WakeSupervisor();
             return true;
