@@ -1,0 +1,101 @@
+name: Acquisition Release Soak
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact release-candidate SHA; moving branch refs are not accepted
+        required: true
+        type: string
+      profile:
+        description: Capacity profile
+        required: true
+        default: stress
+        type: choice
+        options:
+          - typical-multichannel
+          - stress
+      seed:
+        description: Deterministic synthetic seed
+        required: true
+        default: "6201"
+        type: string
+      max_blocks_per_source:
+        description: 0 = full profile; non-zero is diagnostic only and is not release evidence
+        required: true
+        default: "0"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release-soak:
+    runs-on: windows-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify exact candidate SHA
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne "${{ inputs.expected_sha }}") { throw "Expected SHA ${{ inputs.expected_sha }}, got $actual" }
+
+      - name: Require production coverage and active stable baseline
+        run: python scripts/validate_acquisition_release_readiness.py --require-release-ready
+
+      - name: Restore exact candidate
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet restore tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj
+          dotnet restore tools/OpenDeviceStudio.Acquisition.Verification/OpenDeviceStudio.Acquisition.Verification.csproj
+
+      - name: Build verification runner
+        shell: pwsh
+        run: dotnet build tools/OpenDeviceStudio.Acquisition.Verification/OpenDeviceStudio.Acquisition.Verification.csproj -c Release --no-restore
+
+      - name: Run release fault and integrity contracts
+        shell: pwsh
+        run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-restore --filter "FullyQualifiedName~AcquisitionVerificationTests|FullyQualifiedName~RawRecorderTests|FullyQualifiedName~FaultProfileTests" --blame-hang-timeout 2m --blame-hang-dump-type mini
+
+      - name: Capture release-soak environment
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts/acquisition-release-soak | Out-Null
+          @{ exactSha = "${{ inputs.expected_sha }}"; profile = "${{ inputs.profile }}"; seed = "${{ inputs.seed }}"; runnerName = $env:RUNNER_NAME; os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); cpu = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); memoryBytes = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory } | ConvertTo-Json -Depth 5 | Set-Content artifacts/acquisition-release-soak/environment.json
+          dotnet --info | Set-Content artifacts/acquisition-release-soak/dotnet-info.txt
+          dotnet-counters --version | Set-Content artifacts/acquisition-release-soak/dotnet-counters-version.txt
+
+      - name: Run exact-candidate soak under pinned runtime counters
+        shell: pwsh
+        run: |
+          $profile = "eng/acquisition-verification/profiles/${{ inputs.profile }}.json"
+          $artifact = "artifacts/acquisition-release-soak/run"
+          $dll = "tools/OpenDeviceStudio.Acquisition.Verification/bin/Release/net10.0/OpenDeviceStudio.Acquisition.Verification.dll"
+          $runnerArgs = @("exec", $dll, "--profile", $profile, "--artifact-dir", $artifact, "--seed", "${{ inputs.seed }}", "--timeout-seconds", "9000")
+          if ("${{ inputs.max_blocks_per_source }}" -ne "0") { $runnerArgs += @("--max-blocks-per-source", "${{ inputs.max_blocks_per_source }}") }
+          dotnet-counters collect --format json --counters System.Runtime --output artifacts/acquisition-release-soak/runtime-counters.json -- dotnet @runnerArgs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Reject capped diagnostic run as release evidence
+        if: ${{ inputs.max_blocks_per_source != '0' }}
+        shell: pwsh
+        run: throw "Capped soak completed for diagnostics only; rerun with max_blocks_per_source=0 for release evidence."
+
+      - name: Upload release-soak evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acquisition-release-soak-${{ inputs.expected_sha }}-${{ inputs.profile }}
+          path: artifacts/acquisition-release-soak
+          if-no-files-found: warn
+          retention-days: 30
