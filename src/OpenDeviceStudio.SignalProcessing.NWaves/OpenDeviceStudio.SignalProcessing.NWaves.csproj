@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>NWaves-backed reference DSP stage adapters for OpenDeviceStudio SignalProcessing.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.SignalProcessing/OpenDeviceStudio.SignalProcessing.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NWaves" />
+  </ItemGroup>
+</Project>
