@@ -6,6 +6,16 @@ using OpenDeviceStudio.Abstractions.Storage;
 
 namespace OpenDeviceStudio.Storage.FileSystem;
 
+internal static class RawManifestJson
+{
+    public static JsonSerializerOptions Options { get; } = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true
+    };
+}
+
 public static class FileSystemRawArtifactReader
 {
     public static async Task<IReadOnlyList<CanonicalRawBlock>> ReadAllAsync(
@@ -17,8 +27,12 @@ public static class FileSystemRawArtifactReader
         await using var manifestStream = File.OpenRead(manifestPath);
         var manifest = await JsonSerializer.DeserializeAsync<FileSystemRawRecorder.RawSessionManifest>(
             manifestStream,
-            cancellationToken: cancellationToken).ConfigureAwait(false)
+            RawManifestJson.Options,
+            cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidDataException("Raw manifest is empty.");
+
+        if (manifest.Segments is null)
+            throw new InvalidDataException("Raw manifest segments collection is missing.");
 
         if (manifest.SchemaVersion != 1 ||
             !string.Equals(manifest.Format, "arrow-ipc-stream", StringComparison.Ordinal))
@@ -151,7 +165,8 @@ public static class FileSystemRawRecoveryScanner
             await using var manifestStream = File.OpenRead(manifestPath);
             manifest = await JsonSerializer.DeserializeAsync<FileSystemRawRecorder.RawSessionManifest>(
                 manifestStream,
-                cancellationToken: cancellationToken).ConfigureAwait(false);
+                RawManifestJson.Options,
+                cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is IOException or JsonException)
         {
@@ -164,6 +179,14 @@ public static class FileSystemRawRecoveryScanner
         if (manifest is not null)
         {
             sessionId = manifest.SessionId;
+
+            if (manifest.Segments is null)
+            {
+                issues.Add(new RawRecoveryIssue(
+                    RawRecoveryIssueKind.CorruptSegment,
+                    manifestPath,
+                    "Manifest segments collection is missing."));
+            }
             manifestState = manifest.State;
 
             if (manifest.SchemaVersion != 1 ||
@@ -216,7 +239,8 @@ public static class FileSystemRawRecoveryScanner
 
         if (manifest is not null)
         {
-            foreach (var segment in manifest.Segments.Where(static item => item.State == "Completed"))
+            foreach (var segment in (manifest.Segments ?? Array.Empty<FileSystemRawRecorder.RawSegmentManifest>())
+                         .Where(static item => item.State == "Completed"))
             {
                 var path = Path.Combine(sessionDirectory, segment.FileName);
                 if (!File.Exists(path))
