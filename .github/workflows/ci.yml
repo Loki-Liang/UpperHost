@@ -34,7 +34,10 @@ jobs:
       - name: Validate main branch governance contract
         run: python scripts/validate_main_governance.py
 
-      - name: Test governance validators
+      - name: Validate acquisition verification profiles
+        run: python scripts/validate_acquisition_verification.py
+
+      - name: Test governance and verification validators
         run: python -m unittest discover -s scripts/tests -p "test_*.py"
 
   architecture-governance:
@@ -50,15 +53,40 @@ jobs:
 
   linux-runtime-contract:
     runs-on: ubuntu-latest
+    env:
+      ACQ_EXACT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ACQ_EXACT_SHA }}
+          fetch-depth: 0
+
+      - name: Verify Tier A exact-head checkout
+        run: |
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$ACQ_EXACT_SHA" || {
+            echo "Tier A expected exact head $ACQ_EXACT_SHA, got $actual" >&2
+            exit 1
+          }
 
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
 
+      - name: Validate pinned diagnostic tools
+        run: dotnet tool restore
+
       - name: Restore Linux-safe runtime tests
         run: dotnet restore tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj
+
+      - name: Restore acquisition verification runner
+        run: dotnet restore tools/OpenDeviceStudio.Acquisition.Verification/OpenDeviceStudio.Acquisition.Verification.csproj
+
+      - name: Restore acquisition benchmark harness
+        run: dotnet restore benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj
+
+      - name: Build acquisition benchmark harness
+        run: dotnet build benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj -c Release --no-restore
 
       - name: Raw format decision spike
         run: dotnet run --project benchmarks/OpenDeviceStudio.RawFormatSpike/OpenDeviceStudio.RawFormatSpike.csproj -c Release
@@ -74,6 +102,28 @@ jobs:
 
       - name: Test Signal Processing Linux contract
         run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.SignalProcessingTests" --blame-hang-timeout 30s --blame-hang-dump-type mini
+
+      - name: Test Acquisition Verification Tier A
+        run: dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build --no-restore --filter "FullyQualifiedName~OpenDeviceStudio.Tests.AcquisitionVerificationTests" --blame-hang-timeout 45s --blame-hang-dump-type mini
+
+      - name: Run Acquisition Tier A short soak
+        run: >
+          dotnet run --project tools/OpenDeviceStudio.Acquisition.Verification/OpenDeviceStudio.Acquisition.Verification.csproj
+          -c Release --no-restore --
+          --profile eng/acquisition-verification/profiles/small-reference.json
+          --artifact-dir artifacts/acquisition-tier-a
+          --seed 6201
+          --max-blocks-per-source 300
+          --timeout-seconds 90
+
+      - name: Upload Acquisition Tier A evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acquisition-tier-a-${{ env.ACQ_EXACT_SHA }}
+          path: artifacts/acquisition-tier-a
+          if-no-files-found: warn
+          retention-days: 14
 
   build-test-scaffold:
     runs-on: windows-latest

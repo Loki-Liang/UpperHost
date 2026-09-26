@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>OpenDeviceStudio.Acquisition.Verification</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Storage.FileSystem/OpenDeviceStudio.Storage.FileSystem.csproj" />
+  </ItemGroup>
+</Project>

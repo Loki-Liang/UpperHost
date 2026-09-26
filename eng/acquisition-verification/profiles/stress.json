@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "stress-v1",
+  "evidenceKind": "Synthetic",
+  "mode": "MaxThroughput",
+  "sourceCount": 2,
+  "channelsPerSource": 64,
+  "numericType": "float32",
+  "bytesPerSample": 4,
+  "sampleRateHz": 10000,
+  "blockSizeSamples": 200,
+  "durationSeconds": 120,
+  "expectedRawBytesPerSecond": 5120000,
+  "rawRecorder": {
+    "queueCapacityBlocks": 128,
+    "durability": "FlushOnFinalize"
+  },
+  "routerBranches": [
+    {
+      "id": "processing",
+      "delivery": "Required",
+      "capacityBlocks": 128,
+      "overflow": "Wait"
+    },
+    {
+      "id": "presentation",
+      "delivery": "Optional",
+      "capacityBlocks": 1,
+      "overflow": "Latest"
+    }
+  ],
+  "pipelineStages": [
+    "dc-removal",
+    "bandpass",
+    "rms",
+    "fft"
+  ],
+  "presentation": {
+    "viewportSamples": 20000,
+    "targetFps": 60
+  },
+  "faultSchedule": [
+    {
+      "target": "RawRecorder",
+      "kind": "Delay",
+      "atSequence": 100,
+      "durationMs": 500
+    },
+    {
+      "target": "Processing",
+      "kind": "Delay",
+      "atSequence": 200,
+      "durationMs": 250
+    },
+    {
+      "target": "Presentation",
+      "kind": "Delay",
+      "atSequence": 300,
+      "durationMs": 500
+    },
+    {
+      "target": "RouterOptional",
+      "kind": "Throw",
+      "atSequence": 400
+    },
+    {
+      "target": "Provider",
+      "kind": "Disconnect",
+      "atSequence": 500
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Loki-Liang/OpenDeviceStudio/eng/acquisition-verification/profile.schema.json",
+  "title": "OpenDeviceStudio Acquisition Verification Profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion", "id", "evidenceKind", "mode", "sourceCount",
+    "channelsPerSource", "numericType", "bytesPerSample", "sampleRateHz",
+    "blockSizeSamples", "durationSeconds", "expectedRawBytesPerSecond",
+    "rawRecorder", "routerBranches", "pipelineStages", "presentation", "faultSchedule"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "minLength": 1 },
+    "evidenceKind": { "enum": ["Synthetic", "Loopback", "Hardware"] },
+    "mode": { "enum": ["VirtualTimeDeterministic", "WallClockPaced", "MaxThroughput"] },
+    "sourceCount": { "type": "integer", "minimum": 1 },
+    "channelsPerSource": { "type": "integer", "minimum": 1 },
+    "numericType": { "enum": ["int16", "int32", "float32", "float64"] },
+    "bytesPerSample": { "enum": [2, 4, 8] },
+    "sampleRateHz": { "type": "integer", "minimum": 1 },
+    "blockSizeSamples": { "type": "integer", "minimum": 1 },
+    "durationSeconds": { "type": "integer", "minimum": 1 },
+    "expectedRawBytesPerSecond": { "type": "integer", "minimum": 1 },
+    "rawRecorder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queueCapacityBlocks", "durability"],
+      "properties": {
+        "queueCapacityBlocks": { "type": "integer", "minimum": 1 },
+        "durability": { "enum": ["Buffered", "FlushOnFinalize", "FlushToDiskOnFinalize"] }
+      }
+    },
+    "routerBranches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "delivery", "capacityBlocks", "overflow"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "delivery": { "enum": ["Required", "Optional"] },
+          "capacityBlocks": { "type": "integer", "minimum": 1 },
+          "overflow": { "enum": ["Wait", "Reject", "DropOldest", "DropNewest", "Latest"] }
+        }
+      }
+    },
+    "pipelineStages": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["viewportSamples", "targetFps"],
+      "properties": {
+        "viewportSamples": { "type": "integer", "minimum": 1 },
+        "targetFps": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "faultSchedule": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "kind", "atSequence"],
+        "properties": {
+          "target": { "enum": ["RawRecorder", "Processing", "RouterRequired", "RouterOptional", "Presentation", "Provider", "Parser"] },
+          "kind": { "enum": ["Delay", "Throw", "DiskFull", "WriteFailure", "FlushFailure", "Disconnect", "Corrupt", "Cancel"] },
+          "atSequence": { "type": "integer", "minimum": 1 },
+          "durationMs": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

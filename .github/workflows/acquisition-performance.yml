@@ -1,0 +1,87 @@
+name: Acquisition Stable Performance
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact commit SHA to benchmark
+        required: true
+        type: string
+      environment_id:
+        description: Registered stable-runner environment ID
+        required: true
+        default: windows-x64-acquisition-stable-v1
+        type: string
+      confirm:
+        description: Run on the acquisition-stable self-hosted runner
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  stable-performance:
+    if: ${{ inputs.confirm }}
+    runs-on: [self-hosted, windows, x64, acquisition-stable]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.expected_sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify exact candidate SHA
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+        run: |
+          if ($env:EXPECTED_SHA -notmatch '^[0-9a-fA-F]{40}$') { throw "expected_sha must be a 40-character commit SHA" }
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $env:EXPECTED_SHA) { throw "Exact candidate SHA mismatch" }
+
+      - name: Restore pinned diagnostics and benchmark project
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet restore benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj
+
+      - name: Capture stable-runner fingerprint
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          STABLE_ENVIRONMENT_ID: ${{ inputs.environment_id }}
+        run: |
+          New-Item -ItemType Directory -Force artifacts/acquisition-performance | Out-Null
+          @{ environmentId = $env:STABLE_ENVIRONMENT_ID; runnerName = $env:RUNNER_NAME; os = (Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, BuildNumber); cpu = @(Get-CimInstance Win32_Processor | Select-Object Name, NumberOfCores, NumberOfLogicalProcessors); memoryBytes = (Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory; dotnetSdkVersion = (dotnet --version).Trim(); dotnetCountersVersion = (dotnet-counters --version).Trim() } | ConvertTo-Json -Depth 5 | Set-Content artifacts/acquisition-performance/environment.json
+          $env:EXPECTED_SHA | Set-Content artifacts/acquisition-performance/exact-sha.txt
+          dotnet --info | Set-Content artifacts/acquisition-performance/dotnet-info.txt
+
+      - name: Run BenchmarkDotNet
+        shell: pwsh
+        run: dotnet run --project benchmarks/OpenDeviceStudio.Benchmarks/OpenDeviceStudio.Benchmarks.csproj -c Release --no-restore -- --filter "*" --artifacts artifacts/acquisition-performance/BenchmarkDotNet.Artifacts --exporters json
+
+      - name: Normalize benchmark evidence
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          STABLE_ENVIRONMENT_ID: ${{ inputs.environment_id }}
+        run: python scripts/normalize_acquisition_benchmarks.py --artifacts artifacts/acquisition-performance/BenchmarkDotNet.Artifacts --environment-id $env:STABLE_ENVIRONMENT_ID --source-sha $env:EXPECTED_SHA --environment-fingerprint artifacts/acquisition-performance/environment.json --output artifacts/acquisition-performance/benchmark-summary.json
+
+      - name: Compare immutable reviewed baseline
+        shell: pwsh
+        run: python scripts/compare_acquisition_performance.py --baseline eng/acquisition-verification/performance-baseline.json --current artifacts/acquisition-performance/benchmark-summary.json
+
+      - name: Upload benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acquisition-performance-${{ github.run_id }}
+          path: artifacts/acquisition-performance
+          if-no-files-found: warn
+          retention-days: 30
