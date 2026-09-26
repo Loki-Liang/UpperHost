@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenDeviceStudio.Hosting/OpenDeviceStudio.Hosting.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Connections/OpenDeviceStudio.Connections.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Starters/OpenDeviceStudio.Starters.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Events/OpenDeviceStudio.Events.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Resilience/OpenDeviceStudio.Resilience.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Diagnostics/OpenDeviceStudio.Diagnostics.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Observability/OpenDeviceStudio.Observability.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Protocols/OpenDeviceStudio.Protocols.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Control/OpenDeviceStudio.Control.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Simulator/OpenDeviceStudio.Transport.Simulator.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Serial/OpenDeviceStudio.Transport.Serial.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Tcp/OpenDeviceStudio.Transport.Tcp.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Usb/OpenDeviceStudio.Transport.Usb.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Can/OpenDeviceStudio.Transport.Can.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Ble/OpenDeviceStudio.Transport.Ble.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.VendorSdk/OpenDeviceStudio.Transport.VendorSdk.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Workflows/OpenDeviceStudio.Workflows.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.StateMachines/OpenDeviceStudio.StateMachines.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Dataflow/OpenDeviceStudio.Dataflow.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Acquisition/OpenDeviceStudio.Acquisition.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Testing/OpenDeviceStudio.Testing.csproj" />
+  </ItemGroup>
+</Project>

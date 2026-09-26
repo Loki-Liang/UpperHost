@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>OpenDeviceStudio.Sample.DeviceControl</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Hosting/OpenDeviceStudio.Hosting.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Control/OpenDeviceStudio.Control.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Starters/OpenDeviceStudio.Starters.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Protocols/OpenDeviceStudio.Protocols.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Transport.Simulator/OpenDeviceStudio.Transport.Simulator.csproj" />
+  </ItemGroup>
+</Project>

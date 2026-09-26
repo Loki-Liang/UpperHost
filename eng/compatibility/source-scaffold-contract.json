@@ -1,33 +1,33 @@
 {
   "schemaVersion": 1,
-  "appProject": "app/UpperHost.App/UpperHost.App.csproj",
+  "appProject": "app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj",
   "targetFramework": "net10.0-windows",
   "outputType": "WinExe",
   "useWpf": true,
   "requiredProjectReferences": [
-    "../../src/UpperHost.Starters/UpperHost.Starters.csproj",
-    "../../src/UpperHost.Presentation.Wpf/UpperHost.Presentation.Wpf.csproj"
+    "../../src/OpenDeviceStudio.Starters/OpenDeviceStudio.Starters.csproj",
+    "../../src/OpenDeviceStudio.Presentation.Wpf/OpenDeviceStudio.Presentation.Wpf.csproj"
   ],
   "forbidPackageReferencesInApp": true,
-  "startupFile": "app/UpperHost.App/App.xaml.cs",
+  "startupFile": "app/OpenDeviceStudio.App/App.xaml.cs",
   "requiredStartupTokens": [
-    "UpperHostApplication.CreateBuilder",
-    "AddUpperHostApplication",
+    "OpenDeviceStudioApplication.CreateBuilder",
+    "AddOpenDeviceStudioApplication",
     "_host.StartAsync",
     "_host.DisposeAsync"
   ],
-  "configurationFile": "app/UpperHost.App/appsettings.json",
+  "configurationFile": "app/OpenDeviceStudio.App/appsettings.json",
   "defaultTransportType": "simulator",
   "requiredConfigurationPaths": [
-    "UpperHost:Transport:Type",
-    "UpperHost:Transport:Simulator:Name",
-    "UpperHost:Transport:Serial:PortName",
-    "UpperHost:Transport:Serial:BaudRate",
-    "UpperHost:Transport:Tcp:Host",
-    "UpperHost:Transport:Tcp:Port",
-    "UpperHost:Transport:Resilience:Enabled",
-    "UpperHost:Observability:ServiceName",
-    "UpperHost:Observability:Logging:File:Enabled",
-    "UpperHost:Observability:Otlp:Enabled"
+    "OpenDeviceStudio:Transport:Type",
+    "OpenDeviceStudio:Transport:Simulator:Name",
+    "OpenDeviceStudio:Transport:Serial:PortName",
+    "OpenDeviceStudio:Transport:Serial:BaudRate",
+    "OpenDeviceStudio:Transport:Tcp:Host",
+    "OpenDeviceStudio:Transport:Tcp:Port",
+    "OpenDeviceStudio:Transport:Resilience:Enabled",
+    "OpenDeviceStudio:Observability:ServiceName",
+    "OpenDeviceStudio:Observability:Logging:File:Enabled",
+    "OpenDeviceStudio:Observability:Otlp:Enabled"
   ]
 }

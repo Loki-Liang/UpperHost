@@ -1,8 +1,8 @@
-# UpperHost architecture
+# OpenDeviceStudio architecture
 
 English | [简体中文](architecture.zh-CN.md)
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and a runnable source application scaffold for building product-specific industrial upper-computer applications while keeping product semantics and UI in the consuming application.
+OpenDeviceStudio is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**. It provides reusable runtime modules, conventions, providers, testing seams and a runnable source application scaffold for building product-specific industrial upper-computer applications while keeping product semantics and UI in the consuming application.
 
 ## Stable platform boundary
 
@@ -29,7 +29,7 @@ Cross-cutting scaffold/runtime capabilities are Configuration, Hosting/DI, Obser
 
 ## Architecture style: modular monolith
 
-UpperHost is a modular monolith by default. Modules are independently understandable and testable, but they compose into one application/process unless a separately approved distributed boundary is required.
+OpenDeviceStudio is a modular monolith by default. Modules are independently understandable and testable, but they compose into one application/process unless a separately approved distributed boundary is required.
 
 Dependency direction is inward:
 
@@ -51,10 +51,10 @@ This diagram describes dependency intent, not a requirement that every module re
 
 Hard rules:
 
-- `UpperHost.Abstractions` is the stable dependency root and references no repository project.
+- `OpenDeviceStudio.Abstractions` is the stable dependency root and references no repository project.
 - Reusable production modules never reference the product App, Samples or Tests.
-- Non-presentation production modules never reference `UpperHost.Presentation.*`.
-- Production modules never depend back on `UpperHost.Starters`; Starters composes modules.
+- Non-presentation production modules never reference `OpenDeviceStudio.Presentation.*`.
+- Production modules never depend back on `OpenDeviceStudio.Starters`; Starters composes modules.
 - Project reference cycles are forbidden.
 - Cross-module behavior uses explicit public contracts/capabilities/events rather than shared mutable globals or another module's internal implementation.
 - Providers/adapters own vendor dependencies and infrastructure details.
@@ -88,7 +88,7 @@ Any `IDevice` registered in DI is automatically added to `IDeviceRegistry` when 
 
 ## Auto-configuration
 
-`AddUpperHostApplication()` installs the platform defaults and selects a baseline transport from `UpperHost:Transport:Type`. Invalid mandatory values fail during bootstrap with the exact configuration key. Custom transports remain explicit provider starters and never require changes to the core.
+`AddOpenDeviceStudioApplication()` installs the platform defaults and selects a baseline transport from `OpenDeviceStudio:Transport:Type`. Invalid mandatory values fail during bootstrap with the exact configuration key. Custom transports remain explicit provider starters and never require changes to the core.
 
 ## Connection ownership
 
@@ -130,7 +130,7 @@ Software command guards and interlocks are application safety constraints. They 
 
 ## Acquisition Session authority
 
-UpperHost.Acquisition provides the route-level lifecycle authority. AcquisitionSessionManager is host-owned; each running AcquisitionSession owns one bounded lifecycle supervisor. The coordinator freezes topology/configuration, prepares Required components before Sources, enforces the RequiredReady barrier before Source.StartAsync, converges the first Required fault, isolates Optional faults by default, and emits one terminal result.
+OpenDeviceStudio.Acquisition provides the route-level lifecycle authority. AcquisitionSessionManager is host-owned; each running AcquisitionSession owns one bounded lifecycle supervisor. The coordinator freezes topology/configuration, prepares Required components before Sources, enforces the RequiredReady barrier before Source.StartAsync, converges the first Required fault, isolates Optional faults by default, and emits one terminal result.
 
 The lifecycle supervisor is control-plane only. It does not carry Raw blocks. The hot path remains direct and bounded:
 
@@ -188,21 +188,21 @@ The typed `IEventBus` decouples modules without static global events. `IAlarmSer
 
 ## Providers and plugins
 
-USB, CAN, BLE, vendor SDK adapters, storage backends and industry protocols should be delivered as independent providers/starters/modules. Vendor dependencies must not leak into `UpperHost.Abstractions`.
+USB, CAN, BLE, vendor SDK adapters, storage backends and industry protocols should be delivered as independent providers/starters/modules. Vendor dependencies must not leak into `OpenDeviceStudio.Abstractions`.
 
-`UpperHost.Modules` loads trusted in-process modules implementing `IUpperHostModule`. Plugins are not a security sandbox. Only load assemblies from trusted deployment locations.
+`OpenDeviceStudio.Modules` loads trusted in-process modules implementing `IOpenDeviceStudioModule`. Plugins are not a security sandbox. Only load assemblies from trusted deployment locations.
 
 ## Presentation
 
-The core does not depend on WPF. `UpperHost.Presentation.Wpf` is an adapter and includes metadata-driven controls for device lists, parameters, commands and alarms. New presentation stacks can reuse the same device, protocol, workflow and diagnostics layers.
+The core does not depend on WPF. `OpenDeviceStudio.Presentation.Wpf` is an adapter and includes metadata-driven controls for device lists, parameters, commands and alarms. New presentation stacks can reuse the same device, protocol, workflow and diagnostics layers.
 
 ## Testing
 
-The simulator transport is a production-grade development seam, not a demo shortcut. `UpperHost.Testing` adds deterministic fault injection for latency, loss and failures so communication behavior can be exercised without physical hardware.
+The simulator transport is a production-grade development seam, not a demo shortcut. `OpenDeviceStudio.Testing` adds deterministic fault injection for latency, loss and failures so communication behavior can be exercised without physical hardware.
 
 ## Device package extensibility
 
-`DevicePackageDescriptor` is the stable discovery surface for reusable device integrations. The contract lives in `UpperHost.Abstractions`; `UpperHost.Hosting` owns the in-process `IDevicePackageCatalog` implementation and startup registration lifecycle. This preserves the modular-monolith dependency direction while allowing the product application, samples and product-specific tooling to discover installed capabilities without reaching into provider internals.
+`DevicePackageDescriptor` is the stable discovery surface for reusable device integrations. The contract lives in `OpenDeviceStudio.Abstractions`; `OpenDeviceStudio.Hosting` owns the in-process `IDevicePackageCatalog` implementation and startup registration lifecycle. This preserves the modular-monolith dependency direction while allowing the product application, samples and product-specific tooling to discover installed capabilities without reaching into provider internals.
 
 Typed package configuration is represented by `DeviceConfigurationSchema<TConfiguration>`. Schema metadata is inspectable, while validation remains strongly typed and supports required/range/allowed-value rules plus explicit cross-field validation. Secret-bearing fields use reference metadata only.
 

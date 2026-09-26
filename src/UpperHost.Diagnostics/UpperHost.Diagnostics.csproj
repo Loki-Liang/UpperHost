@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <Description>Health and transport diagnostics for UpperHost applications.</Description>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
-  </ItemGroup>
-</Project>

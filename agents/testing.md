@@ -1,4 +1,4 @@
-# UpperHost Testing and Evidence Agent
+# OpenDeviceStudio Testing and Evidence Agent
 
 ## Scope
 

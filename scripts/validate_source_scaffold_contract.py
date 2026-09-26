@@ -98,7 +98,7 @@ def main() -> None:
                 errors.append(f"required configuration path is missing: {key_path}")
 
         try:
-            transport_type = str(nested_value(config, "UpperHost:Transport:Type")).lower()
+            transport_type = str(nested_value(config, "OpenDeviceStudio:Transport:Type")).lower()
             expected_type = str(contract["defaultTransportType"]).lower()
             if transport_type != expected_type:
                 errors.append(

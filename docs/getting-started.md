@@ -1,12 +1,12 @@
-# Getting started with UpperHost
+# Getting started with OpenDeviceStudio
 
 [简体中文](getting-started.zh-CN.md) | English
 
-This guide is for developers who have never used UpperHost. The goal is to use the scaffold to go from an empty machine to a running simulator-backed upper-computer application without first understanding the runtime internals.
+This guide is for developers who have never used OpenDeviceStudio. The goal is to use the scaffold to go from an empty machine to a running simulator-backed upper-computer application without first understanding the runtime internals.
 
-## 1. What UpperHost is
+## 1. What OpenDeviceStudio is
 
-UpperHost is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition. It supplies a reusable runtime, a runnable source application scaffold and extension seams for three equal application styles:
+OpenDeviceStudio is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition. It supplies a reusable runtime, a runnable source application scaffold and extension seams for three equal application styles:
 
 - **Control**: commands, parameters, readback, state, interlocks and diagnostics.
 - **Automation**: multi-device orchestration, workflows, state machines and alarms.
@@ -32,23 +32,23 @@ git --version
 
 ## 3. Clone the scaffold and run it directly
 
-UpperHost uses a source-first secondary-development model. The repository itself is the product engineering scaffold; you do not have to build the framework, pack a template, or generate a second project before product work starts.
+OpenDeviceStudio uses a source-first secondary-development model. The repository itself is the product engineering scaffold; you do not have to build the framework, pack a template, or generate a second project before product work starts.
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+git clone https://github.com/Loki-Liang/OpenDeviceStudio.git MyDeviceApp
 cd MyDeviceApp
-dotnet run --project app/UpperHost.App/UpperHost.App.csproj
+dotnet run --project app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj
 ```
 
-The first run uses Simulator by default. When the UpperHost WPF window opens, Hosting, DI, Configuration, Observability, and the baseline transport starter are wired correctly.
+The first run uses Simulator by default. When the OpenDeviceStudio WPF window opens, Hosting, DI, Configuration, Observability, and the baseline transport starter are wired correctly.
 
 Use these ownership boundaries:
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
   product startup, composition root, product UI and product-specific code
 
-src/UpperHost.*/
+src/OpenDeviceStudio.*/
   reusable runtime, providers and cross-product infrastructure
 
 samples/
@@ -57,10 +57,10 @@ samples/
 
 ## 4. Start product development from the application entry
 
-Prefer product code under `app/UpperHost.App`:
+Prefer product code under `app/OpenDeviceStudio.App`:
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
 ├─ Devices/
 ├─ Protocols/
 ├─ Workflows/
@@ -70,7 +70,7 @@ app/UpperHost.App/
 └─ appsettings.json
 ```
 
-Move a capability into `src/UpperHost.*` only after it is genuinely reusable across products.
+Move a capability into `src/OpenDeviceStudio.*` only after it is genuinely reusable across products.
 
 ## 5. Learn the five concepts before adding code
 
@@ -167,7 +167,7 @@ Do not force low-rate command devices through a streaming pipeline, and do not d
 
 ## 8. Configuration
 
-The runnable source scaffold application reads `UpperHost:Transport` from `appsettings.json`. Start with `simulator`; change to `tcp` or `serial` only when you need a physical endpoint.
+The runnable source scaffold application reads `OpenDeviceStudio:Transport` from `appsettings.json`. Start with `simulator`; change to `tcp` or `serial` only when you need a physical endpoint.
 
 Invalid required configuration should fail at startup instead of failing after the operator starts a machine cycle.
 
@@ -187,13 +187,13 @@ A successful `SendAsync` call is never sufficient proof that a physical action f
 
 ## 10. Safety boundary
 
-UpperHost may provide software guards, interlocks and state validation. These mechanisms do **not** replace hardware emergency stops, safety relays, safety PLCs or certified safety circuits.
+OpenDeviceStudio may provide software guards, interlocks and state validation. These mechanisms do **not** replace hardware emergency stops, safety relays, safety PLCs or certified safety circuits.
 
 ## 11. Next reading
 
 - [Secondary-development foundation](secondary-development.md)
 - [Architecture](architecture.md)
-- [Extending UpperHost](extending.md)
+- [Extending OpenDeviceStudio](extending.md)
 - Device Control Sample (P0 roadmap)
 - AutomationStation Sample (P1 roadmap)
 - DataAcquisition Sample (P2 roadmap)

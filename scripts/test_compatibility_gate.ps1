@@ -12,7 +12,7 @@ if (-not (Test-Path $ApiCompatPath)) {
     throw "ApiCompat executable not found: $ApiCompatPath"
 }
 
-$root = Join-Path ([System.IO.Path]::GetTempPath()) ("upperhost-apicompat-" + [guid]::NewGuid().ToString("N"))
+$root = Join-Path ([System.IO.Path]::GetTempPath()) ("opendevicestudio-apicompat-" + [guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force $root | Out-Null
 
 function Build-Probe {

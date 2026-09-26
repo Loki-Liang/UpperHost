@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Reconnect and retry policies for OpenDeviceStudio transports.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

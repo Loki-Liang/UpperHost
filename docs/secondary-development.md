@@ -1,19 +1,19 @@
-# UpperHost secondary-development foundation
+# OpenDeviceStudio secondary-development foundation
 
 English | [简体中文](secondary-development.zh-CN.md)
 
 This guide answers two questions:
 
-1. **Which engineering and upper-computer capabilities does UpperHost already provide so a product does not rebuild them?**
+1. **Which engineering and upper-computer capabilities does OpenDeviceStudio already provide so a product does not rebuild them?**
 2. **Where should a secondary-development project use, replace, or extend those capabilities?**
 
-UpperHost is a source-first enterprise .NET upper-computer development scaffold. Product code belongs in `app/UpperHost.App` first; only capabilities proven reusable across products should move into `src/UpperHost.*`.
+OpenDeviceStudio is a source-first enterprise .NET upper-computer development scaffold. Product code belongs in `app/OpenDeviceStudio.App` first; only capabilities proven reusable across products should move into `src/OpenDeviceStudio.*`.
 
 ## 1. Built-in capability map
 
-| Capability | Current UpperHost baseline | Secondary-development entry |
+| Capability | Current OpenDeviceStudio baseline | Secondary-development entry |
 | --- | --- | --- |
-| Host / lifecycle | .NET Generic Host with unified Start / Stop / Dispose | `UpperHostApplication.CreateBuilder()`, `AddHostedService<T>()` |
+| Host / lifecycle | .NET Generic Host with unified Start / Stop / Dispose | `OpenDeviceStudioApplication.CreateBuilder()`, `AddHostedService<T>()` |
 | Dependency injection | Microsoft.Extensions.DependencyInjection | `builder.Services` |
 | Configuration | Generic Host configuration including appsettings, environment and command-line sources | `builder.Configuration`, Options Pattern |
 | Logging | `Microsoft.Extensions.Logging` contract; console; optional Serilog rolling JSON files | Inject `ILogger<T>`; configure Observability or standard logging providers |
@@ -22,7 +22,7 @@ UpperHost is a source-first enterprise .NET upper-computer development scaffold.
 | Device model | `IDevice` + capability composition; automatic `IDeviceRegistry` registration | Implement `IDevice`, `IConnectable`, `ICommandable<,>`, etc. |
 | Device discovery | Aggregated `IDeviceDiscoverer` providers | Implement/register `IDeviceDiscoverer` |
 | Connection lifecycle | `IConnectionManager` with shared/exclusive leases | Use managed connections instead of competing physical handles |
-| Transport | Serial, TCP and Simulator with common `ITransport` seam | Implement `ITransport`, register through `AddUpperHostTransport<T>()` |
+| Transport | Serial, TCP and Simulator with common `ITransport` seam | Implement `ITransport`, register through `AddOpenDeviceStudioTransport<T>()` |
 | Protocol | Command encoders, message decoders, request/response and streaming boundaries | Implement `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control runtime | Host-owned bounded command dispatcher, guards/interlocks, UnknownOutcome, resource arbitration, parameter/readback foundations | Register each typed command contract with `AddCommandDispatcher<TCommand,TResult>()`; define product safety/completion semantics |
 | Streaming / dataflow | Bounded fan-out, backpressure and loss-policy primitives | Connect device streams to bounded dataflow |
@@ -31,18 +31,18 @@ UpperHost is a source-first enterprise .NET upper-computer development scaffold.
 | Events | Typed `IEventBus` | Publish/subscribe product events instead of static globals |
 | Alarms | `IAlarmService` raise/acknowledge/clear lifecycle | Define product alarm rules |
 | Storage | `IKeyValueStore` + JSON file-system provider | `AddFileSystemStorage()` or implement another provider |
-| Modules / plugins | `IUpperHostModule` and trusted in-process loading | Register services in module `ConfigureServices` |
-| Presentation | WPF adapter and reusable device/parameter/command/alarm controls | Keep product UI in `app/UpperHost.App` |
+| Modules / plugins | `IOpenDeviceStudioModule` and trusted in-process loading | Register services in module `ConfigureServices` |
+| Presentation | WPF adapter and reusable device/parameter/command/alarm controls | Keep product UI in `app/OpenDeviceStudio.App` |
 | Testing | Simulator and fault-injection infrastructure | Cover simulator and fault paths before hardware-only validation |
 
 ## 2. Start from one composition root
 
-The canonical product entry is `app/UpperHost.App/App.xaml.cs`. Install platform defaults first, then register product services:
+The canonical product entry is `app/OpenDeviceStudio.App/App.xaml.cs`. Install platform defaults first, then register product services:
 
 ```csharp
-var builder = UpperHostApplication
+var builder = OpenDeviceStudioApplication
     .CreateBuilder(e.Args)
-    .AddUpperHostApplication();
+    .AddOpenDeviceStudioApplication();
 
 builder.Services.AddSingleton<MainWindow>();
 builder.Services.AddSingleton<IMyMachineService, MyMachineService>();
@@ -52,11 +52,11 @@ _host = builder.Build();
 await _host.StartAsync();
 ```
 
-Keep platform infrastructure in UpperHost and product composition in the application root. Avoid service locators and mutable global singletons.
+Keep platform infrastructure in OpenDeviceStudio and product composition in the application root. Avoid service locators and mutable global singletons.
 
 ## 3. Dependency injection
 
-UpperHost uses standard Microsoft DI:
+OpenDeviceStudio uses standard Microsoft DI:
 
 ```csharp
 builder.Services.AddSingleton<IMachineRuntime, MachineRuntime>();
@@ -84,11 +84,11 @@ Replace a platform implementation at the composition root while preserving the p
 
 ## 4. Configuration and options
 
-`UpperHostApplication.CreateBuilder()` is based on Generic Host. UpperHost baseline sections are:
+`OpenDeviceStudioApplication.CreateBuilder()` is based on Generic Host. OpenDeviceStudio baseline sections are:
 
 ```text
-UpperHost:Transport
-UpperHost:Observability
+OpenDeviceStudio:Transport
+OpenDeviceStudio:Observability
 ```
 
 Create product-owned sections for product settings and bind them through the standard Options Pattern:
@@ -133,16 +133,16 @@ Product code
       -> optional Serilog rolling JSON file
 ```
 
-File output is configured under `UpperHost:Observability:Logging:File`. A product may disable it and add another standard logging provider at the composition root while keeping business code on `ILogger<T>`.
+File output is configured under `OpenDeviceStudio:Observability:Logging:File`. A product may disable it and add another standard logging provider at the composition root while keeping business code on `ILogger<T>`.
 
 Never log passwords, tokens, device secrets, private keys or raw credentials.
 
 ## 6. Metrics, tracing and health
 
-UpperHost provides a common observability baseline:
+OpenDeviceStudio provides a common observability baseline:
 
-- Meter name: `UpperHost`.
-- ActivitySource name: `UpperHost`.
+- Meter name: `OpenDeviceStudio`.
+- ActivitySource name: `OpenDeviceStudio`.
 - Optional OpenTelemetry OTLP export.
 - `IHealthProbe` / `HealthService`.
 - Common observation points for transports, commands, reconnects, alarms and streams.
@@ -252,7 +252,7 @@ A successful byte write is not proof that a physical action completed. Product c
 
 ## 11. Acquisition
 
-AddUpperHostApplication() already registers the host-owned AcquisitionSessionManager. A product creates one frozen AcquisitionSessionDefinition per live/replay run and supplies its Source plus Required/Optional route adapters; it does not create another lifecycle coordinator.
+AddOpenDeviceStudioApplication() already registers the host-owned AcquisitionSessionManager. A product creates one frozen AcquisitionSessionDefinition per live/replay run and supplies its Source plus Required/Optional route adapters; it does not create another lifecycle coordinator.
 
 ```csharp
 var manager = services.GetRequiredService<AcquisitionSessionManager>();
@@ -290,11 +290,11 @@ Simple products can use:
 builder.AddFileSystemStorage("data");
 ```
 
-Reusable database backends should remain independent storage providers behind stable abstractions instead of leaking database SDKs into `UpperHost.Abstractions`.
+Reusable database backends should remain independent storage providers behind stable abstractions instead of leaking database SDKs into `OpenDeviceStudio.Abstractions`.
 
 ## 13. Modules and plugins
 
-Trusted in-process modules implement `IUpperHostModule` and register dependencies from `ConfigureServices`. This is an extension mechanism, not a security sandbox.
+Trusted in-process modules implement `IOpenDeviceStudioModule` and register dependencies from `ConfigureServices`. This is an extension mechanism, not a security sandbox.
 
 ## 14. Testing
 
@@ -316,7 +316,7 @@ Product-owned work includes device semantics, private protocols, commands/parame
 ## 16. Recommended product layout
 
 ```text
-app/UpperHost.App/
+app/OpenDeviceStudio.App/
 ├─ Devices/
 ├─ Protocols/
 ├─ Services/
@@ -328,7 +328,7 @@ app/UpperHost.App/
 ├─ App.xaml.cs
 └─ appsettings.json
 
-src/UpperHost.*/
+src/OpenDeviceStudio.*/
 └─ only cross-product reusable runtime/provider/infrastructure
 ```
 
@@ -336,7 +336,7 @@ src/UpperHost.*/
 
 - [Getting Started](getting-started.md)
 - [Architecture](architecture.md)
-- [Extending UpperHost](extending.md)
+- [Extending OpenDeviceStudio](extending.md)
 - [Control Runtime](control-runtime.md)
 - [Recipes and Scheduling](recipes-and-scheduling.md)
 - [Observability](observability.md)

@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Health and transport diagnostics for OpenDeviceStudio applications.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

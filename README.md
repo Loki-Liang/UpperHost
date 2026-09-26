@@ -1,10 +1,10 @@
-# UpperHost
+# OpenDeviceStudio
 
 English | [简体中文](README.zh-CN.md)
 
-**UpperHost is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition.** It gives developers a reusable engineering baseline for industrial device-facing applications without rebuilding the same runtime, communication, testing, diagnostics, and extension infrastructure for every product.
+**OpenDeviceStudio is an enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition.** It gives developers a reusable engineering baseline for industrial device-facing applications without rebuilding the same runtime, communication, testing, diagnostics, and extension infrastructure for every product.
 
-UpperHost treats three device-application styles as first-class peers:
+OpenDeviceStudio treats three device-application styles as first-class peers:
 
 1. **Control** — commands, parameters, readback, state, interlocks and diagnostics.
 2. **Automation** — multi-device orchestration, workflows, state machines, alarms and recovery.
@@ -12,18 +12,18 @@ UpperHost treats three device-application styles as first-class peers:
 
 Acquisition is one scaffold workload, not the center of the architecture.
 
-The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a runnable source application entry. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in `app/UpperHost.App`; UpperHost supplies the reusable runtime and engineering baseline.
+The scaffold applies the same idea that makes Spring Boot productive: a small stable runtime, strong conventions, starter packages, configuration-driven auto-configuration, explicit extension points, configuration/DI/logging by default, and a runnable source application entry. Product-specific device semantics, protocol details, control/interlock policy, workflow and UI stay in `app/OpenDeviceStudio.App`; OpenDeviceStudio supplies the reusable runtime and engineering baseline.
 
 ## Start here
 
 | Goal | Entry point |
 | --- | --- |
-| First time using UpperHost | [Getting Started](docs/getting-started.md) |
+| First time using OpenDeviceStudio | [Getting Started](docs/getting-started.md) |
 | Understand the scaffold positioning | [Scaffold positioning](docs/scaffold.md) |
 | Understand architecture boundaries | [Architecture](docs/architecture.md) |
 | Understand built-in DI, configuration, logging and secondary-development seams | [Secondary-development foundation](docs/secondary-development.md) |
 | Configure logging, metrics, tracing and health | [Observability](docs/observability.md) |
-| Add a device, transport, protocol, workflow or plugin | [Extending UpperHost](docs/extending.md) |
+| Add a device, transport, protocol, workflow or plugin | [Extending OpenDeviceStudio](docs/extending.md) |
 | Protect public APIs, configuration and source-scaffold compatibility | [Compatibility policy](docs/compatibility.md) |
 | Use OpenHands for repository development | [OpenHands integration](docs/openhands.md) |
 | AI development governance | [AGENTS.md](AGENTS.md) |
@@ -31,7 +31,7 @@ The scaffold applies the same idea that makes Spring Boot productive: a small st
 
 ## Built-in engineering foundation
 
-UpperHost is not only a device abstraction library. A product starts with a reusable application engineering baseline already wired into the scaffold:
+OpenDeviceStudio is not only a device abstraction library. A product starts with a reusable application engineering baseline already wired into the scaffold:
 
 | Foundation | Default | How product code extends it |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ UpperHost is not only a device abstraction library. A product starts with a reus
 | Background work | Generic Host hosted services | Put discovery/heartbeat/synchronization loops in hosted services, not UI timers |
 | Testing baseline | Simulator + fault-injection infrastructure | Verify protocol/control/fault paths before hardware-only validation |
 
-The product composition root is `app/UpperHost.App/App.xaml.cs`. Product code should use these defaults instead of creating another DI container, logging abstraction, lifecycle framework or configuration system. See [Secondary-development foundation](docs/secondary-development.md) for copyable examples and extension rules.
+The product composition root is `app/OpenDeviceStudio.App/App.xaml.cs`. Product code should use these defaults instead of creating another DI container, logging abstraction, lifecycle framework or configuration system. See [Secondary-development foundation](docs/secondary-development.md) for copyable examples and extension rules.
 
 ## Scaffold capabilities
 
@@ -67,13 +67,13 @@ The product composition root is `app/UpperHost.App/App.xaml.cs`. Product code sh
 - Metadata-driven reusable WPF DeviceList, ParameterEditor, CommandPanel and AlarmPanel controls.
 - Fault-injection testing helpers.
 - Starter package for one-call common registration.
-- Runnable `app/UpperHost.App` WPF product scaffold.
+- Runnable `app/OpenDeviceStudio.App` WPF product scaffold.
 - Windows CI that builds, tests, packs reusable NuGet modules, validates the source scaffold application, and enforces exact-base public API compatibility.
 
 ## Architecture
 
 ```text
-                    UpperHost Application
+                    OpenDeviceStudio Application
                             |
               Application / Workflow / State
                             |
@@ -147,41 +147,41 @@ Do not force low-rate request/response devices through a high-rate streaming pip
 
 ## Start secondary development in 5 minutes
 
-UpperHost itself is the runnable source scaffold. You do not need to build or install a project generator before starting a product. Windows and the .NET 10 SDK are required for the WPF starter application.
+OpenDeviceStudio itself is the runnable source scaffold. You do not need to build or install a project generator before starting a product. Windows and the .NET 10 SDK are required for the WPF starter application.
 
 ```powershell
-git clone https://github.com/Loki-Liang/UpperHost.git MyDeviceApp
+git clone https://github.com/Loki-Liang/OpenDeviceStudio.git MyDeviceApp
 cd MyDeviceApp
-dotnet run --project app/UpperHost.App/UpperHost.App.csproj
+dotnet run --project app/OpenDeviceStudio.App/OpenDeviceStudio.App.csproj
 ```
 
-The starter application uses Simulator by default. Continue developing the current repository as your product: add product Device capabilities, Protocol/Provider integrations, Workflows, Acquisition logic, and product UI under the application boundary while reusable runtime infrastructure remains under `src/UpperHost.*`.
+The starter application uses Simulator by default. Continue developing the current repository as your product: add product Device capabilities, Protocol/Provider integrations, Workflows, Acquisition logic, and product UI under the application boundary while reusable runtime infrastructure remains under `src/OpenDeviceStudio.*`.
 
 ```text
 MyDeviceApp/
-├─ app/UpperHost.App/          # product entry point and UI; start product work here
-├─ src/UpperHost.*/            # reusable runtime / providers / infrastructure
+├─ app/OpenDeviceStudio.App/          # product entry point and UI; start product work here
+├─ src/OpenDeviceStudio.*/            # reusable runtime / providers / infrastructure
 ├─ samples/                    # reference implementations, not the product entry point
 ├─ tests/                      # runtime and infrastructure tests
-└─ UpperHost.slnx
+└─ OpenDeviceStudio.slnx
 ```
 
 Continue with the [zero-to-first-device guide](docs/getting-started.md).
 
-If you are contributing to the UpperHost runtime itself rather than building a product, then use the repository-level restore/build/test and contribution workflow.
+If you are contributing to the OpenDeviceStudio runtime itself rather than building a product, then use the repository-level restore/build/test and contribution workflow.
 
 ## Minimal bootstrap
 
 ```csharp
-var builder = UpperHostApplication
+var builder = OpenDeviceStudioApplication
     .CreateBuilder(args)
-    .AddUpperHostApplication();
+    .AddOpenDeviceStudioApplication();
 
 await using var app = builder.Build();
 await app.StartAsync();
 ```
 
-Register a device in DI and UpperHost automatically exposes it through `IDeviceRegistry` after host startup:
+Register a device in DI and OpenDeviceStudio automatically exposes it through `IDeviceRegistry` after host startup:
 
 ```csharp
 builder.Services.AddSingleton<IDevice, MyDevice>();
@@ -194,14 +194,14 @@ A device implements only the capabilities it actually supports (`IConnectable`, 
 Add new hardware without modifying the core:
 
 ```text
-UpperHost.Transport.Usb
-UpperHost.Transport.Can
-UpperHost.Transport.Ble
-UpperHost.Transport.VendorSdk
-UpperHost.Protocol.Modbus
-UpperHost.Protocol.OpcUa
-UpperHost.Storage.Sqlite
-UpperHost.Presentation.Avalonia
+OpenDeviceStudio.Transport.Usb
+OpenDeviceStudio.Transport.Can
+OpenDeviceStudio.Transport.Ble
+OpenDeviceStudio.Transport.VendorSdk
+OpenDeviceStudio.Protocol.Modbus
+OpenDeviceStudio.Protocol.OpcUa
+OpenDeviceStudio.Storage.Sqlite
+OpenDeviceStudio.Presentation.Avalonia
 Company.Device.Robot
 Company.Device.Camera
 Company.Transport.VendorSdk
@@ -220,7 +220,7 @@ Each provider is a package/module that plugs into stable contracts.
 7. Backpressure and loss policy must be explicit.
 8. Simulator and fault injection are first-class platform features.
 9. Plugins are trusted extension modules, not a sandbox.
-10. Product-specific dependencies belong in starters/providers, not `UpperHost.Abstractions`.
+10. Product-specific dependencies belong in starters/providers, not `OpenDeviceStudio.Abstractions`.
 11. Missing or invalid platform configuration fails early and explains the exact key.
 12. Software interlocks never claim to replace certified hardware safety mechanisms.
 

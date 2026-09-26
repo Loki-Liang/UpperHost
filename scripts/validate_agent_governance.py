@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate UpperHost layered AI/OpenHands governance.
+"""Validate OpenDeviceStudio layered AI/OpenHands governance.
 
 The validator intentionally uses only the Python standard library so the same
 contract runs in OpenHands and GitHub Actions.

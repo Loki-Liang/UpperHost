@@ -2,7 +2,7 @@
 
 [简体中文](openhands.zh-CN.md) | English
 
-UpperHost includes repository-native configuration for OpenHands V1 / Agent Canvas. OpenHands is a development tool only; it is not an UpperHost runtime dependency.
+OpenDeviceStudio includes repository-native configuration for OpenHands V1 / Agent Canvas. OpenHands is a development tool only; it is not an OpenDeviceStudio runtime dependency.
 
 ## Layered governance
 
@@ -63,11 +63,11 @@ The review is backed by reusable method skills rather than one giant prompt.
 
 ## Platform validation boundary
 
-OpenHands commonly runs in Linux while UpperHost contains Windows/WPF projects. Linux pre-PR validation uses:
+OpenHands commonly runs in Linux while OpenDeviceStudio contains Windows/WPF projects. Linux pre-PR validation uses:
 
-    dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
-    dotnet build UpperHost.slnx -c Release -p:EnableWindowsTargeting=true
-    dotnet test tests/UpperHost.Tests/UpperHost.Tests.csproj -c Release --no-build
+    dotnet restore OpenDeviceStudio.slnx -p:EnableWindowsTargeting=true
+    dotnet build OpenDeviceStudio.slnx -c Release -p:EnableWindowsTargeting=true
+    dotnet test tests/OpenDeviceStudio.Tests/OpenDeviceStudio.Tests.csproj -c Release --no-build
 
 Final Windows build, full tests, package compatibility, and source-scaffold validation remain GitHub Actions responsibilities.
 

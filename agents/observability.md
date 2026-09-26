@@ -1,4 +1,4 @@
-# UpperHost Observability Agent
+# OpenDeviceStudio Observability Agent
 
 ## Scope
 

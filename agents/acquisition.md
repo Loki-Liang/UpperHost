@@ -1,4 +1,4 @@
-# UpperHost Acquisition Agent
+# OpenDeviceStudio Acquisition Agent
 
 ## Scope
 

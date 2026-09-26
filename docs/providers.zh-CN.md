@@ -2,17 +2,17 @@
 
 简体中文 | [English](providers.md)
 
-UpperHost 不把所有通信方式强行伪装成 byte stream。Provider 必须保留底层通信技术本来的消息边界和语义形态。
+OpenDeviceStudio 不把所有通信方式强行伪装成 byte stream。Provider 必须保留底层通信技术本来的消息边界和语义形态。
 
 ## 先选择正确的抽象
 
-| 通信形态 | UpperHost seam | 示例 |
+| 通信形态 | OpenDeviceStudio seam | 示例 |
 | --- | --- | --- |
 | 有序字节流 | `ITransport` | Serial、TCP、USB Bulk Endpoint、字节型厂商 SDK |
 | 离散 Frame / Message | `IMessageTransport<TMessage>` | CAN Frame、BLE GATT 操作/通知、Datagram |
 | 厂商 SDK 已经直接提供领域动作 | 直接实现 Device Capability | 相机 `Capture`、机器人 `Move`、仪器 `Measure` |
 
-`IMessageTransport<TMessage>` 与 `ITransport` 共享 Open/Close/State 生命周期，但保留 Message 边界。具体 `TMessage` 定义必须放在 Provider 包中，不能把 CAN/BLE 类型塞进 `UpperHost.Abstractions`。
+`IMessageTransport<TMessage>` 与 `ITransport` 共享 Open/Close/State 生命周期，但保留 Message 边界。具体 `TMessage` 定义必须放在 Provider 包中，不能把 CAN/BLE 类型塞进 `OpenDeviceStudio.Abstractions`。
 
 ## Provider 硬约束
 
@@ -26,10 +26,10 @@ UpperHost 不把所有通信方式强行伪装成 byte stream。Provider 必须�
 
 ## P3 Provider
 
-- `UpperHost.Transport.Usb`：USB 字节型 Provider，由可注入 USB Channel Backend 承载具体 libusb/WinUSB/厂商实现。
-- `UpperHost.Transport.Can`：实现 `IMessageTransport<CanFrame>`，保留 Arbitration ID、Extended ID、RTR 和 Data 边界。
-- `UpperHost.Transport.Ble`：实现 `IMessageTransport<BleMessage>`，保留 Service/Characteristic 与 Notification/Write 等 GATT 边界。
-- `UpperHost.Transport.VendorSdk`：提供字节型 Vendor SDK Adapter，同时明确“SDK 已经是领域 API”时应直接实现 Device Capability，而不是伪装 Transport。
+- `OpenDeviceStudio.Transport.Usb`：USB 字节型 Provider，由可注入 USB Channel Backend 承载具体 libusb/WinUSB/厂商实现。
+- `OpenDeviceStudio.Transport.Can`：实现 `IMessageTransport<CanFrame>`，保留 Arbitration ID、Extended ID、RTR 和 Data 边界。
+- `OpenDeviceStudio.Transport.Ble`：实现 `IMessageTransport<BleMessage>`，保留 Service/Characteristic 与 Notification/Write 等 GATT 边界。
+- `OpenDeviceStudio.Transport.VendorSdk`：提供字节型 Vendor SDK Adapter，同时明确“SDK 已经是领域 API”时应直接实现 Device Capability，而不是伪装 Transport。
 
 ## Vendor SDK 统一决策模板
 
@@ -39,6 +39,6 @@ UpperHost 不把所有通信方式强行伪装成 byte stream。Provider 必须�
 2. **离散 Frame / Message API** → Provider 自己定义消息类型，实现 `IMessageTransport<TMessage>`。
 3. **领域 API** → 直接实现 Device Capability，禁止制造虚假的 Transport byte[]。
 
-厂商 Provider 包负责 Native DLL 引用、Handle 生命周期、Callback/线程亲和性规则以及厂商错误码映射；Core 始终保持厂商无关。可复制模板与检查表见 [UpperHost.Transport.VendorSdk](../src/UpperHost.Transport.VendorSdk/README.zh-CN.md)。
+厂商 Provider 包负责 Native DLL 引用、Handle 生命周期、Callback/线程亲和性规则以及厂商错误码映射；Core 始终保持厂商无关。可复制模板与检查表见 [OpenDeviceStudio.Transport.VendorSdk](../src/OpenDeviceStudio.Transport.VendorSdk/README.zh-CN.md)。
 
 每个 Provider 都按独立 GitHub Flow PR 交付，并以 Build/Test 证据闭环。

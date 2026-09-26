@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <Description>TCP transport provider for UpperHost.</Description>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
-  </ItemGroup>
-</Project>

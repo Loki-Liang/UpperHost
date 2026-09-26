@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Trusted in-process plugin loader for OpenDeviceStudio modules.</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../OpenDeviceStudio.Hosting/OpenDeviceStudio.Hosting.csproj" />
+  </ItemGroup>
+</Project>

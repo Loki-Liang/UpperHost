@@ -17,6 +17,18 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 
 New-Item -ItemType Directory -Force $OutputDirectory | Out-Null
 
+$artifactNames = New-Object System.Collections.Generic.List[string]
+$artifactNames.Add("opendevicestudio-packages")
+$renameManifestPath = "eng/compatibility/package-renames.json"
+if (Test-Path $renameManifestPath) {
+    $renameManifest = Get-Content -Raw $renameManifestPath | ConvertFrom-Json
+    $legacyArtifactName = [string]$renameManifest.migration.legacyArtifactName
+    if (-not [string]::IsNullOrWhiteSpace($legacyArtifactName)) {
+        $artifactNames.Add($legacyArtifactName)
+    }
+}
+$artifactNames = @($artifactNames | Select-Object -Unique)
+
 # ApiCompat needs an artifact produced from the exact base SHA by the authoritative
 # build/test/pack job. Requiring the entire workflow run to be successful creates a
 # repair deadlock when an unrelated job fails on main: a hotfix PR cannot compare
@@ -48,26 +60,33 @@ foreach ($candidate in $candidates) {
 
     # Download into an isolated probe directory first so a candidate without the
     # expected artifact cannot contaminate the final baseline directory.
-    $probeDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("upperhost-baseline-" + [Guid]::NewGuid().ToString("N"))
+    $probeDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("opendevicestudio-baseline-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Force $probeDirectory | Out-Null
 
     try {
-        gh run download $candidate.databaseId --repo $Repository --name upperhost-packages --dir $probeDirectory 2>$null
-        if ($LASTEXITCODE -ne 0) {
-            continue
+        foreach ($artifactName in $artifactNames) {
+            gh run download $candidate.databaseId --repo $Repository --name $artifactName --dir $probeDirectory 2>$null
+            if ($LASTEXITCODE -ne 0) {
+                continue
+            }
+
+            $packages = @(Get-ChildItem -Path $probeDirectory -Filter *.nupkg -File -Recurse)
+            if ($packages.Count -eq 0) {
+                continue
+            }
+
+            foreach ($package in $packages) {
+                Copy-Item -LiteralPath $package.FullName -Destination $OutputDirectory -Force
+            }
+
+            Write-Host "Using compatibility baseline artifact '$artifactName' from run $($candidate.databaseId)."
+            $run = $candidate
+            break
         }
 
-        $packages = @(Get-ChildItem -Path $probeDirectory -Filter *.nupkg -File -Recurse)
-        if ($packages.Count -eq 0) {
-            continue
+        if ($null -ne $run) {
+            break
         }
-
-        foreach ($package in $packages) {
-            Copy-Item -LiteralPath $package.FullName -Destination $OutputDirectory -Force
-        }
-
-        $run = $candidate
-        break
     }
     finally {
         Remove-Item -LiteralPath $probeDirectory -Recurse -Force -ErrorAction SilentlyContinue

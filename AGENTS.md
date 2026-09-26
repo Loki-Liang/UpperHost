@@ -1,4 +1,4 @@
-# UpperHost AI Development Governance
+# OpenDeviceStudio AI Development Governance
 
 [简体中文](AGENTS.zh-CN.md) | English
 
@@ -18,7 +18,7 @@ A lower layer may make a rule stricter but must not weaken a higher layer. If tw
 
 ## Default development executor
 
-For normal feature, fix, refactor, test, documentation, and architecture implementation work, **OpenHands is the default implementation executor for UpperHost**.
+For normal feature, fix, refactor, test, documentation, and architecture implementation work, **OpenHands is the default implementation executor for OpenDeviceStudio**.
 
 Other assistants or orchestration tools may inspect issues, plan work, review diffs, inspect CI, and coordinate delivery. Production implementation should be handed to OpenHands unless one of these exceptions applies:
 
@@ -30,7 +30,7 @@ A fallback executor must follow the same rules and record the reason in the PR.
 
 ## Product positioning
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**.
+OpenDeviceStudio is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**.
 
 It is source-first and modular-monolith by default. Repository work must strengthen reusable Runtime, Provider, Application Scaffold, Testing, Presentation, Control, Automation, or Acquisition capabilities rather than introduce product-specific shortcuts into shared modules. See docs/scaffold.md.
 
@@ -121,4 +121,4 @@ A production task may be called complete only when all applicable items are sati
 
 OpenHands usually runs in a Linux sandbox and uses .openhands/setup.sh plus .openhands/pre-commit.sh for pre-PR validation.
 
-UpperHost contains Windows/WPF targets. GitHub Actions on Windows remains the authoritative integration/release gate for Windows runtime, WPF, package, and source-scaffold behavior. Linux success must not be reported as Windows runtime/UI validation.
+OpenDeviceStudio contains Windows/WPF targets. GitHub Actions on Windows remains the authoritative integration/release gate for Windows runtime, WPF, package, and source-scaffold behavior. Linux success must not be reported as Windows runtime/UI validation.

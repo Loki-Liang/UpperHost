@@ -1,4 +1,4 @@
-# UpperHost Architecture Agent
+# OpenDeviceStudio Architecture Agent
 
 ## Scope
 
@@ -28,15 +28,15 @@ Every architecture proposal must answer:
 
 If any answer is unclear, the architecture is not ready for implementation.
 
-## UpperHost baseline
+## OpenDeviceStudio baseline
 
-UpperHost is a modular monolith by default.
+OpenDeviceStudio is a modular monolith by default.
 
-- UpperHost.Abstractions is the stable dependency root and must not reference another repository project.
+- OpenDeviceStudio.Abstractions is the stable dependency root and must not reference another repository project.
 - Platform modules expose narrow contracts and must not depend on Presentation, app, samples, or tests.
-- UpperHost.Transport.* and storage/provider packages are infrastructure adapters and keep vendor/native concepts out of Core.
-- UpperHost.Presentation.* is an outer adapter. Production modules do not depend back on Presentation.
-- UpperHost.Starters is a composition/convenience module. Other production modules do not depend back on it.
+- OpenDeviceStudio.Transport.* and storage/provider packages are infrastructure adapters and keep vendor/native concepts out of Core.
+- OpenDeviceStudio.Presentation.* is an outer adapter. Production modules do not depend back on Presentation.
+- OpenDeviceStudio.Starters is a composition/convenience module. Other production modules do not depend back on it.
 - app/, samples/, and tests/ may compose production modules; production modules do not reference them.
 - ProjectReference cycles are forbidden.
 - Cross-module behavior uses public capabilities/contracts/events. Reflection or static coupling must not bypass boundaries.
@@ -53,7 +53,7 @@ scripts/validate_architecture.py is an executable architecture guard and must re
 - Transport owns transfer mechanics; Protocol owns framing and semantic decoding.
 - Ordered bytes use ITransport; discrete messages/frames use IMessageTransport<TMessage>; vendor SDK domain APIs map to Device Capabilities.
 - Request/response, message/frame, and streaming remain explicit boundaries.
-- Vendor/native dependencies stay in provider packages, never UpperHost.Abstractions.
+- Vendor/native dependencies stay in provider packages, never OpenDeviceStudio.Abstractions.
 - UI and Workflow call application/device capabilities rather than sockets/native SDKs directly.
 - Backpressure and loss policy are explicit for streaming.
 - WPF is an adapter, not Core.

@@ -1,4 +1,4 @@
-# UpperHost Implementation Agent
+# OpenDeviceStudio Implementation Agent
 
 ## Scope
 

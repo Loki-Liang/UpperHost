@@ -1,4 +1,4 @@
-# UpperHost Release Agent
+# OpenDeviceStudio Release Agent
 
 ## Scope
 

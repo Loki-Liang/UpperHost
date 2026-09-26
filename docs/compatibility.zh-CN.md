@@ -2,21 +2,21 @@
 
 简体中文 | [English](compatibility.md)
 
-UpperHost 采用源码直接二开，但可复用 Runtime 与 canonical 产品脚手架仍然属于版本化契约。兼容性校验直接放进现有 required `build-test-scaffold`，不是一个可有可无的旁路 Workflow。
+OpenDeviceStudio 采用源码直接二开，但可复用 Runtime 与 canonical 产品脚手架仍然属于版本化契约。兼容性校验直接放进现有 required `build-test-scaffold`，不是一个可有可无的旁路 Workflow。
 
 ## 保护表面
 
 门禁保护三类接口：
 
-1. **Source Scaffold**：`app/UpperHost.App`、源码 `ProjectReference` 拓扑、启动组合、WPF Target 与必要配置路径。
-2. **Runtime Package API**：CI 产出的所有可复用 `src/UpperHost.*` 包，包括 Abstractions、Hosting、Control、Dataflow、Workflows、StateMachines、Provider/Starter 与对外 Presentation 契约。
+1. **Source Scaffold**：`app/OpenDeviceStudio.App`、源码 `ProjectReference` 拓扑、启动组合、WPF Target 与必要配置路径。
+2. **Runtime Package API**：CI 产出的所有可复用 `src/OpenDeviceStudio.*` 包，包括 Abstractions、Hosting、Control、Dataflow、Workflows、StateMachines、Provider/Starter 与对外 Presentation 契约。
 3. **可选 NuGet 分发**：这些 Runtime 包真正发布时继续遵守同一 Package/API 兼容规则。NuGet 只用于可选的跨仓库复用，不是 clone/fork 源码脚手架的运行前置。
 
 Source Scaffold Contract 定义在 `eng/compatibility/source-scaffold-contract.json`，由 `scripts/validate_source_scaffold_contract.py` 执行。
 
 ## exact-base API 对比
 
-PR CI 先 Pack 当前 Runtime，再下载 **head SHA 与 PR base SHA 完全一致** 的成功 main CI 所产生的 `upperhost-packages`。如果 exact base 没有成功 Artifact，门禁直接失败，禁止退回更旧的成功 main 作为 Baseline。
+PR CI 先 Pack 当前 Runtime，再下载 **head SHA 与 PR base SHA 完全一致** 的成功 main CI 所产生的 `opendevicestudio-packages`。如果 exact base 没有成功 Artifact，门禁直接失败，禁止退回更旧的成功 main 作为 Baseline。
 
 API 比较使用微软 `Microsoft.DotNet.ApiCompat.Tool`：
 
@@ -59,7 +59,7 @@ Surface: 新增的类型/成员
 
 ## Configuration 与 Source Scaffold 变化
 
-`app/UpperHost.App` 继续是 clone/fork 后唯一 canonical 产品入口。Contract 会检查 WPF Target、源码 `ProjectReference`、启动组合和稳定配置路径。修改这些接口时，必须显式更新 Contract，并同时给出 Migration/文档与匹配测试。
+`app/OpenDeviceStudio.App` 继续是 clone/fork 后唯一 canonical 产品入口。Contract 会检查 WPF Target、源码 `ProjectReference`、启动组合和稳定配置路径。修改这些接口时，必须显式更新 Contract，并同时给出 Migration/文档与匹配测试。
 
 pre-commit 会在本地先运行 Source-Scaffold Contract；Package Compatibility 因为依赖经过验证的 exact-base Package Artifact，权威结果继续来自 PR Windows CI。
 
@@ -72,6 +72,6 @@ pre-commit 会在本地先运行 Source-Scaffold Contract；Package Compatibilit
 
 ## Source-level API Analyzer 策略
 
-UpperHost 在 0.1 alpha 阶段不会给全部 `src/UpperHost.*` 项目机械启用 Roslyn PublicApiAnalyzers。C# 类型是 `public` 不等于它已经成为稳定支持的二开扩展面。当前仓库级 API 权威门禁是普通/Strict ApiCompat + .NET SDK Package Validation。
+OpenDeviceStudio 在 0.1 alpha 阶段不会给全部 `src/OpenDeviceStudio.*` 项目机械启用 Roslyn PublicApiAnalyzers。C# 类型是 `public` 不等于它已经成为稳定支持的二开扩展面。当前仓库级 API 权威门禁是普通/Strict ApiCompat + .NET SDK Package Validation。
 
 等稳定 supported contract 边界明确后，可以只对选定的稳定契约项目/接口引入 PublicApiAnalyzers。禁止为全部 implementation project 一次性生成 `PublicAPI.*` baseline 并由此制造无意的兼容债。

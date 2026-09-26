@@ -1,0 +1,112 @@
+{
+  "schemaVersion": 1,
+  "migration": {
+    "issue": "#80",
+    "reason": "Repository-wide product, namespace and package identity rename from UpperHost to OpenDeviceStudio.",
+    "migration": "docs/migrations/0.2.0-opendevicestudio-rename.md",
+    "version": "0.2.0-alpha.1",
+    "legacyArtifactName": "upperhost-packages"
+  },
+  "renames": [
+    {
+      "from": "UpperHost.Abstractions",
+      "to": "OpenDeviceStudio.Abstractions"
+    },
+    {
+      "from": "UpperHost.Hosting",
+      "to": "OpenDeviceStudio.Hosting"
+    },
+    {
+      "from": "UpperHost.Connections",
+      "to": "OpenDeviceStudio.Connections"
+    },
+    {
+      "from": "UpperHost.Events",
+      "to": "OpenDeviceStudio.Events"
+    },
+    {
+      "from": "UpperHost.Resilience",
+      "to": "OpenDeviceStudio.Resilience"
+    },
+    {
+      "from": "UpperHost.Protocols",
+      "to": "OpenDeviceStudio.Protocols"
+    },
+    {
+      "from": "UpperHost.Control",
+      "to": "OpenDeviceStudio.Control"
+    },
+    {
+      "from": "UpperHost.Dataflow",
+      "to": "OpenDeviceStudio.Dataflow"
+    },
+    {
+      "from": "UpperHost.Acquisition",
+      "to": "OpenDeviceStudio.Acquisition"
+    },
+    {
+      "from": "UpperHost.Workflows",
+      "to": "OpenDeviceStudio.Workflows"
+    },
+    {
+      "from": "UpperHost.StateMachines",
+      "to": "OpenDeviceStudio.StateMachines"
+    },
+    {
+      "from": "UpperHost.Diagnostics",
+      "to": "OpenDeviceStudio.Diagnostics"
+    },
+    {
+      "from": "UpperHost.Observability",
+      "to": "OpenDeviceStudio.Observability"
+    },
+    {
+      "from": "UpperHost.Modules",
+      "to": "OpenDeviceStudio.Modules"
+    },
+    {
+      "from": "UpperHost.Transport.Serial",
+      "to": "OpenDeviceStudio.Transport.Serial"
+    },
+    {
+      "from": "UpperHost.Transport.Tcp",
+      "to": "OpenDeviceStudio.Transport.Tcp"
+    },
+    {
+      "from": "UpperHost.Transport.Simulator",
+      "to": "OpenDeviceStudio.Transport.Simulator"
+    },
+    {
+      "from": "UpperHost.Transport.Usb",
+      "to": "OpenDeviceStudio.Transport.Usb"
+    },
+    {
+      "from": "UpperHost.Transport.Can",
+      "to": "OpenDeviceStudio.Transport.Can"
+    },
+    {
+      "from": "UpperHost.Transport.Ble",
+      "to": "OpenDeviceStudio.Transport.Ble"
+    },
+    {
+      "from": "UpperHost.Transport.VendorSdk",
+      "to": "OpenDeviceStudio.Transport.VendorSdk"
+    },
+    {
+      "from": "UpperHost.Storage.FileSystem",
+      "to": "OpenDeviceStudio.Storage.FileSystem"
+    },
+    {
+      "from": "UpperHost.Starters",
+      "to": "OpenDeviceStudio.Starters"
+    },
+    {
+      "from": "UpperHost.Presentation.Wpf",
+      "to": "OpenDeviceStudio.Presentation.Wpf"
+    },
+    {
+      "from": "UpperHost.Testing",
+      "to": "OpenDeviceStudio.Testing"
+    }
+  ]
+}

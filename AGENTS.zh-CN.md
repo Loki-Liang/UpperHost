@@ -1,8 +1,8 @@
-# UpperHost AI 开发总控规则
+# OpenDeviceStudio AI 开发总控规则
 
 [English](AGENTS.md) | 简体中文
 
-本文件是 UpperHost AI 辅助开发的仓库级最高规则。它必须保持“薄”：只负责全局开发流程、规则优先级、规则路由和完成门禁。领域长期规则统一放入执行器无关的 agents/ 目录；OpenHands 可复用分析方法放入 .openhands/skills/。
+本文件是 OpenDeviceStudio AI 辅助开发的仓库级最高规则。它必须保持“薄”：只负责全局开发流程、规则优先级、规则路由和完成门禁。领域长期规则统一放入执行器无关的 agents/ 目录；OpenHands 可复用分析方法放入 .openhands/skills/。
 
 ## 权威与规则优先级
 
@@ -18,7 +18,7 @@
 
 ## 默认开发执行器
 
-对于常规功能、缺陷、重构、测试、文档和架构实现，**OpenHands 是 UpperHost 默认实际开发执行器**。
+对于常规功能、缺陷、重构、测试、文档和架构实现，**OpenHands 是 OpenDeviceStudio 默认实际开发执行器**。
 
 其他助手或调度工具可以检查 Issue、规划、Review、排查 CI 和协调交付。只有以下情况允许使用备用执行器：
 
@@ -30,7 +30,7 @@
 
 ## 产品定位
 
-UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。
+OpenDeviceStudio 是**面向工业设备控制、自动化与数据采集的企业级 .NET 上位机开发脚手架**。
 
 项目默认源码直接二开、模块化单体。仓库级工作必须增强可复用 Runtime、Provider、Application Scaffold、Testing、Presentation、Control、Automation 或 Acquisition 能力，禁止把某个具体产品的临时方案塞入共享层。详见 docs/scaffold.zh-CN.md。
 
@@ -121,4 +121,4 @@ UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .
 
 OpenHands 通常运行在 Linux Sandbox，提交 PR 前运行 .openhands/setup.sh 和 .openhands/pre-commit.sh。
 
-UpperHost 包含 Windows/WPF Target，因此 Windows GitHub Actions 仍是 Windows Runtime、WPF、Package 和 Source Scaffold 的权威集成/发布门禁。禁止把 Linux-only 通过描述成 Windows Runtime/UI 已验证。
+OpenDeviceStudio 包含 Windows/WPF Target，因此 Windows GitHub Actions 仍是 Windows Runtime、WPF、Package 和 Source Scaffold 的权威集成/发布门禁。禁止把 Linux-only 通过描述成 Windows Runtime/UI 已验证。

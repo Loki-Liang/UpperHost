@@ -22,4 +22,4 @@ if ! command -v dotnet >/dev/null 2>&1 || [[ "$(dotnet --version 2>/dev/null || 
 fi
 
 dotnet --info
-dotnet restore UpperHost.slnx -p:EnableWindowsTargeting=true
+dotnet restore OpenDeviceStudio.slnx -p:EnableWindowsTargeting=true

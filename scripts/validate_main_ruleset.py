@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Validate an active GitHub branch ruleset against UpperHost's repository policy.
+"""Validate an active GitHub branch ruleset against OpenDeviceStudio's repository policy.
 
 The validator is intentionally read-only and uses only the Python standard library.
 It validates a ruleset JSON document previously fetched from GitHub, for example:
 
-    gh api repos/Loki-Liang/UpperHost/rulesets/<id> \
+    gh api repos/Loki-Liang/OpenDeviceStudio/rulesets/<id> \
       | python scripts/validate_main_ruleset.py --ruleset -
 
 The script never mutates GitHub settings.

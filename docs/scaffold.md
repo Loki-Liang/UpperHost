@@ -1,14 +1,14 @@
-# UpperHost scaffold positioning
+# OpenDeviceStudio scaffold positioning
 
 [简体中文](scaffold.zh-CN.md) | English
 
-UpperHost is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**.
+OpenDeviceStudio is an **enterprise-grade .NET upper-computer development scaffold for industrial device control, automation, and data acquisition**.
 
 Its job is to give developers a reusable engineering baseline for building device-facing desktop applications without rebuilding the same communication, lifecycle, testing, diagnostics and extension infrastructure for every product.
 
 ## What the scaffold provides
 
-UpperHost provides reusable building blocks and conventions for three peer application paths:
+OpenDeviceStudio provides reusable building blocks and conventions for three peer application paths:
 
 - **Control** — commands, parameters, readback, state, interlocks and diagnostics.
 - **Automation** — multi-device coordination, state machines, workflows, scheduling, alarms and recovery.
@@ -28,22 +28,22 @@ The scaffold includes:
 - deterministic Simulator/fault-injection support;
 - automated tests and architecture governance;
 - NuGet-ready modules;
-- runnable `app/UpperHost.App` product scaffold;
+- runnable `app/OpenDeviceStudio.App` product scaffold;
 - runnable reference samples.
 
 ## Product ownership boundary
 
-A product created with UpperHost owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. UpperHost owns the reusable engineering baseline: runtime contracts, providers, starter-application conventions, testing seams, diagnostics and presentation adapters shared across products.
+A product created with OpenDeviceStudio owns its device semantics, protocol details, command/interlock policy, application workflow and product-specific UI. OpenDeviceStudio owns the reusable engineering baseline: runtime contracts, providers, starter-application conventions, testing seams, diagnostics and presentation adapters shared across products.
 
 ## Primary developer experience
 
-UpperHost uses a **source-first secondary-development** model. Developers clone the repository and continue developing it directly as their upper-computer product:
+OpenDeviceStudio uses a **source-first secondary-development** model. Developers clone the repository and continue developing it directly as their upper-computer product:
 
 ```text
-git clone UpperHost
+git clone OpenDeviceStudio
         |
         v
-run app/UpperHost.App
+run app/OpenDeviceStudio.App
         |
         +-- product Device capabilities
         +-- product Protocol / Provider
@@ -55,21 +55,21 @@ run app/UpperHost.App
 build / test / package the product
 ```
 
-`app/UpperHost.App` is the canonical product entry point, `src/UpperHost.*` contains reusable infrastructure, and `samples/` contains reference implementations only.
+`app/OpenDeviceStudio.App` is the canonical product entry point, `src/OpenDeviceStudio.*` contains reusable infrastructure, and `samples/` contains reference implementations only.
 
 Product developers start from the runnable source scaffold directly. Repository-level framework build/test work belongs to contributors changing the reusable runtime.
 
 ## Architecture baseline
 
-UpperHost remains a **modular monolith by default**. Modules have explicit responsibilities and dependency direction, while the generated product normally runs as one application/process.
+OpenDeviceStudio remains a **modular monolith by default**. Modules have explicit responsibilities and dependency direction, while the generated product normally runs as one application/process.
 
 The scaffold must not introduce microservices, remote RPC, or distributed consistency without an explicit product/operational requirement.
 
 ## Presentation boundary
 
-WPF is the current default presentation adapter and starter-application UI stack, not the definition of UpperHost itself. Other presentation stacks may be added through the same runtime contracts.
+WPF is the current default presentation adapter and starter-application UI stack, not the definition of OpenDeviceStudio itself. Other presentation stacks may be added through the same runtime contracts.
 
-Reference presentation applications may demonstrate the scaffold, but they consume the same UpperHost runtime contracts and remain examples of how a product composes the reusable modules.
+Reference presentation applications may demonstrate the scaffold, but they consume the same OpenDeviceStudio runtime contracts and remain examples of how a product composes the reusable modules.
 
 ## Delivery rule
 

@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>Core contracts for the OpenDeviceStudio device application platform.</Description>
+  </PropertyGroup>
+</Project>

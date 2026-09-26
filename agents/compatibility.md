@@ -1,4 +1,4 @@
-# UpperHost Compatibility Agent
+# OpenDeviceStudio Compatibility Agent
 
 ## Scope
 

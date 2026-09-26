@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OpenDeviceStudio.Abstractions/OpenDeviceStudio.Abstractions.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Hosting/OpenDeviceStudio.Hosting.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Starters/OpenDeviceStudio.Starters.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Control/OpenDeviceStudio.Control.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.StateMachines/OpenDeviceStudio.StateMachines.csproj" />
+    <ProjectReference Include="../../src/OpenDeviceStudio.Workflows/OpenDeviceStudio.Workflows.csproj" />
+  </ItemGroup>
+</Project>

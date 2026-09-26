@@ -2,7 +2,7 @@
 
 简体中文 | [English](main-branch-governance.md)
 
-本文档是 Issue #31 的仓库侧治理合同。UpperHost 除 CI 与 AGENTS 规则外，还必须依赖 GitHub 侧真实启用的 branch protection/ruleset。仓库工作流通过不等于 main 已受到保护。
+本文档是 Issue #31 的仓库侧治理合同。OpenDeviceStudio 除 CI 与 AGENTS 规则外，还必须依赖 GitHub 侧真实启用的 branch protection/ruleset。仓库工作流通过不等于 main 已受到保护。
 
 ## Canonical required checks
 
@@ -74,7 +74,7 @@ scripts/validate_main_ruleset.py，用于把 GitHub active ruleset 的 JSON
 该脚本只读，不要求仓库管理写权限。使用有权限的管理员上下文执行：
 
 ```bash
-gh api repos/Loki-Liang/UpperHost/rulesets/<ruleset-id> \
+gh api repos/Loki-Liang/OpenDeviceStudio/rulesets/<ruleset-id> \
   | python scripts/validate_main_ruleset.py --ruleset -
 ```
 

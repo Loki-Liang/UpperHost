@@ -2,7 +2,7 @@
 
 [简体中文](main-branch-governance.zh-CN.md) | English
 
-This document is the repository-side contract for Issue #31. UpperHost requires
+This document is the repository-side contract for Issue #31. OpenDeviceStudio requires
 GitHub-side branch protection/ruleset enforcement in addition to CI and AGENTS
 rules. A passing repository workflow is not a substitute for an active GitHub
 ruleset.
@@ -92,7 +92,7 @@ The validator is deliberately read-only and requires no repository
 administration permission. From an authorized administrator context:
 
 ```bash
-gh api repos/Loki-Liang/UpperHost/rulesets/<ruleset-id> \
+gh api repos/Loki-Liang/OpenDeviceStudio/rulesets/<ruleset-id> \
   | python scripts/validate_main_ruleset.py --ruleset -
 ```
 
