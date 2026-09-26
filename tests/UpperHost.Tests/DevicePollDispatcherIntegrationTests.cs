@@ -101,11 +101,34 @@ public sealed class DevicePollDispatcherIntegrationTests
         await target.WriteStarted.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         await using var store = new DeviceSnapshotStore<string>();
-        var operation = DevicePollOperations.FromCommandDispatcher<TestCommand, string, string>(
+        var pollCapturedOldEpoch = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var staleRejected = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var baseOperation = DevicePollOperations.FromCommandDispatcher<TestCommand, string, string>(
             dispatcher,
-            _ => new TestCommand("read"),
+            context =>
+            {
+                pollCapturedOldEpoch.TrySetResult();
+                return new TestCommand("read");
+            },
             result => new DevicePollSample<string>(result.Value!),
             [new CommandResourceClaim(resource, CommandResourceAccess.SharedRead)]);
+
+        DevicePollOperation<string> operation = async (context, cancellationToken) =>
+        {
+            try
+            {
+                return await baseOperation(context, cancellationToken);
+            }
+            catch (DevicePollDispatchException ex)
+                when (ex.Code == "connection_epoch_stale")
+            {
+                staleRejected.TrySetResult();
+                throw;
+            }
+        };
 
         var group = new DevicePollGroup<string>(
             "status",
@@ -123,13 +146,13 @@ public sealed class DevicePollDispatcherIntegrationTests
             new DevicePollRuntimeOptions(WorkCapacity: 4, MaxConcurrency: 1));
 
         await poller.StartAsync();
-        await WaitUntilAsync(() => poller.IsRunning);
+        await pollCapturedOldEpoch.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         epoch.CurrentEpoch = 2;
         target.ReleaseWrite.TrySetResult();
 
         Assert.True((await exclusive).IsSuccess);
-        await Task.Delay(50);
+        await staleRejected.Task.WaitAsync(TimeSpan.FromSeconds(2));
 
         Assert.Equal(1, target.CallCount);
         Assert.Null(store.Get("device-1", new DeviceStatePartitionKey("status")));
