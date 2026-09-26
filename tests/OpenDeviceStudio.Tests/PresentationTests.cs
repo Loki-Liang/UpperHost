@@ -358,7 +358,7 @@ public sealed class PresentationTests
         await using (var raw = runtime.AttachOptionalTap(
                          SignalProcessingStageIds.RawInput,
                          "visible",
-                         4,
+                         1,
                          StreamOverflowPolicy.Latest,
                          (_, _) =>
                          {
