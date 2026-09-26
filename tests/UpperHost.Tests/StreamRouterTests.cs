@@ -306,6 +306,8 @@ public sealed class StreamRouterTests
         var cancelled = await router.PublishAsync(3, cancellation.Token);
         Assert.Equal(StreamBranchPublishStatus.Cancelled, cancelled.Branches.Single().Status);
         Assert.Equal(StreamRouterState.Running, cancelled.RouterState);
+        Assert.False(cancelled.IsSuccess);
+        Assert.False(cancelled.RequiresStop);
 
         release.TrySetResult();
         await router.CompleteAsync();
