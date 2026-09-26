@@ -9,7 +9,7 @@ UpperHost includes repository-native configuration for OpenHands V1 / Agent Canv
 OpenHands is the default implementation executor. Governance is split by responsibility:
 
     AGENTS.md
-      -> applicable agents.*.md
+      -> applicable agents/*.md
       -> reusable .openhands/skills/*.md methods
       -> ADR + Issue acceptance/evidence
       -> implementation/tests
@@ -18,7 +18,7 @@ OpenHands is the default implementation executor. Governance is split by respons
 
 - AGENTS.md is the thin repository constitution and rule router.
 - .github/governance/agent-governance.json is the machine-readable routing manifest.
-- agents.*.md files define long-lived specialty process/rules.
+- agents/*.md files define long-lived, executor-neutral specialty process/rules. They stay outside .openhands so repository governance is not coupled to one executor.
 - .openhands/skills/*.md files define reusable methods such as adversarial review, pre-mortem, invariant analysis, state-machine audit, dataflow trace, capacity/backpressure audit, fault injection, contract attack, and upgrade/rollback audit.
 - .openhands/skills/repo.md is the OpenHands execution profile. It loads rules; it does not duplicate them.
 
@@ -44,7 +44,7 @@ OpenHands must not stop after only reporting findings. Review blockers are fixed
 
 ## Five-Gate Review
 
-agents.review.md defines the common production quality gate:
+agents/review.md defines the common production quality gate:
 
 1. architecture attack;
 2. failure attack;

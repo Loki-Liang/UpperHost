@@ -2,14 +2,14 @@
 
 [English](AGENTS.md) | 简体中文
 
-本文件是 UpperHost AI 辅助开发的仓库级最高规则。它必须保持“薄”：只负责全局开发流程、规则优先级、规则路由和完成门禁。领域长期规则放入 agents.*.md；可复用分析方法放入 .openhands/skills/。
+本文件是 UpperHost AI 辅助开发的仓库级最高规则。它必须保持“薄”：只负责全局开发流程、规则优先级、规则路由和完成门禁。领域长期规则统一放入执行器无关的 agents/ 目录；OpenHands 可复用分析方法放入 .openhands/skills/。
 
 ## 权威与规则优先级
 
 规则按以下顺序生效：
 
 1. AGENTS.md：仓库宪法与强制交付流程。
-2. 适用的 agents.*.md：领域长期工程规则。
+2. 适用的 agents/*.md：执行器无关的领域长期工程规则。
 3. 已批准 ADR / 架构决策：项目已经确定的技术决策。
 4. 当前 Issue / PR 验收条件：本次交付范围和可量化要求。
 5. .openhands/skills/repo.md 等工具执行画像：只能补充执行细节。
@@ -69,19 +69,19 @@ UpperHost 是**面向工业设备控制、自动化与数据采集的企业级 .
 
 ## 适用规则路由
 
-所有生产代码变更必须读取 agents.implementation.md、agents.testing.md、agents.review.md、agents.git.md。
+所有生产代码变更必须读取 agents/implementation.md、agents/testing.md、agents/review.md、agents/git.md。
 
 涉及以下范围时继续读取：
 
 | 范围 | 强制规则 |
 | --- | --- |
-| 模块边界、架构、新框架、公共边界 | agents.architecture.md |
-| TCP/Serial/USB/BLE、连接与重连 | agents.transport.md |
-| 实时采集、DAQ、EMG、Raw、处理、Fan-out | agents.acquisition.md |
-| Logging/Metrics/Tracing/Health | agents.observability.md |
-| 信任边界、凭据、授权、外部输入 | agents.security.md |
-| 打包、部署、Release、Rollback | agents.release.md |
-| Public API、配置、源码脚手架兼容 | agents.compatibility.md |
+| 模块边界、架构、新框架、公共边界 | agents/architecture.md |
+| TCP/Serial/USB/BLE、连接与重连 | agents/transport.md |
+| 实时采集、DAQ、EMG、Raw、处理、Fan-out | agents/acquisition.md |
+| Logging/Metrics/Tracing/Health | agents/observability.md |
+| 信任边界、凭据、授权、外部输入 | agents/security.md |
+| 打包、部署、Release、Rollback | agents/release.md |
+| Public API、配置、源码脚手架兼容 | agents/compatibility.md |
 
 机器可校验的治理清单位于 .github/governance/agent-governance.json。
 
