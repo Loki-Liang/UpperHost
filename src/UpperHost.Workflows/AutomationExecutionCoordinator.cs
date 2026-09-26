@@ -360,21 +360,49 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
             reconciliation.Detail);
     }
 
+    internal void SignalHostStopping()
+    {
+        ActiveExecution? active;
+        TaskCompletionSource<bool>? resume = null;
+
+        lock (_gate)
+            active = _active;
+
+        if (active is null)
+            return;
+
+        lock (active.Gate)
+        {
+            if (IsTerminal(active.State))
+                return;
+
+            active.Request = ControlRequest.Abort;
+            active.State = AutomationExecutionState.AbortRequested;
+            resume = active.ResumeSignal;
+        }
+
+        SafeCancel(active.AbortCts);
+        resume?.TrySetResult(true);
+    }
+
+    internal async Task WaitForHostStopAsync(CancellationToken cancellationToken)
+    {
+        SignalHostStopping();
+
+        Task? runTask;
+        lock (_gate)
+            runTask = _active?.RunTask;
+
+        if (runTask is not null)
+            await runTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
     public async ValueTask DisposeAsync()
     {
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        ActiveExecution? active;
-        lock (_gate)
-            active = _active;
-
-        if (active is not null)
-        {
-            await RequestAbortAsync(active, CancellationToken.None).ConfigureAwait(false);
-            if (active.RunTask is not null)
-                await active.RunTask.ConfigureAwait(false);
-        }
+        await WaitForHostStopAsync(CancellationToken.None).ConfigureAwait(false);
     }
 
     internal async Task<AutomationControlResult> RequestPauseAsync(
@@ -934,8 +962,51 @@ public sealed class AutomationExecutionCoordinator : IAsyncDisposable
             if (!retry.ShouldRetry(attempt.Status) || attempts >= retry.MaxAttempts)
                 break;
 
+            var control = await ObserveControlAtBoundaryAsync(
+                active,
+                safePauseBoundary: false,
+                cancellationToken).ConfigureAwait(false);
+            if (control is not null)
+            {
+                final = control;
+                break;
+            }
+
             if (retry.Delay > TimeSpan.Zero)
-                await Task.Delay(retry.Delay, _timeProvider, cancellationToken).ConfigureAwait(false);
+            {
+                using var retryDelayCts = CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    active.AbortCts.Token);
+                var retryRegistration = RegisterCurrentCancellation(
+                    active,
+                    retryDelayCts,
+                    cancelOnStop: true);
+                try
+                {
+                    await Task.Delay(retry.Delay, _timeProvider, retryDelayCts.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex)
+                {
+                    ControlRequest request;
+                    lock (active.Gate)
+                        request = active.Request;
+
+                    final = request == ControlRequest.Stop
+                        ? new AutomationStepResult(
+                            AutomationStepStatus.Stopped,
+                            "Orderly stop cancelled retry backoff.",
+                            ex)
+                        : new AutomationStepResult(
+                            AutomationStepStatus.CancelledBeforeSideEffect,
+                            "Retry backoff was cancelled.",
+                            ex);
+                    break;
+                }
+                finally
+                {
+                    UnregisterCurrentCancellation(active, retryRegistration);
+                }
+            }
         }
 
         await CompleteStepAsync(
