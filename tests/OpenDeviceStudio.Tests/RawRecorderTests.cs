@@ -365,6 +365,35 @@ public sealed class RawRecorderTests
     }
 
     [Fact]
+    public async Task Faulted_dispose_waits_for_inflight_writer_before_releasing_segment()
+    {
+        using var temp = new TemporaryDirectory();
+        var streamFactory = new GatedSegmentStreamFactory();
+        var recorder = new FileSystemRawRecorder(
+            Options(temp.Path, queueCapacity: 2, maxSessionBytes: 2),
+            TimeProvider.System,
+            streamFactory);
+
+        await recorder.PrepareAsync(Descriptor("faulted-dispose"));
+        Assert.True(recorder.TryAccept(Block(1, [1, 0])).Accepted);
+        await streamFactory.WriteEntered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+        var quotaFault = recorder.TryAccept(Block(2, [2, 0]));
+        Assert.Equal(RawRecorderAcceptStatus.Faulted, quotaFault.Status);
+        Assert.Equal(RawRecorderState.Faulted, recorder.Snapshot.State);
+
+        var disposing = recorder.DisposeAsync().AsTask();
+        await Task.Yield();
+        Assert.False(disposing.IsCompleted);
+
+        streamFactory.ReleaseWrites.TrySetResult();
+        await disposing.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(RawRecorderState.Disposed, recorder.Snapshot.State);
+        await recorder.DisposeAsync();
+    }
+
+    [Fact]
     public async Task Sequence_gap_duplicate_and_out_of_order_are_recorded_and_recoverable()
     {
         using var temp = new TemporaryDirectory();
