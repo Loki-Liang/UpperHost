@@ -6,14 +6,9 @@ namespace OpenDeviceStudio.Sample.DataAcquisition.Consumers;
 
 public sealed class SampleDataflowRuntime : IAcquisitionSessionComponent
 {
-    private readonly FanOutHub<SampleFrame> _hub = new(new FanOutOptions(
-        Capacity: 16,
-        BackpressureMode: FanOutBackpressureMode.DropOldest));
+    private readonly StreamRouter<SampleFrame> _router = new();
     private readonly ConsoleDisplayConsumer _display;
     private readonly JsonLinesStorageConsumer _storage;
-
-    private Task<DisplayStatistics>? _displayTask;
-    private Task<int>? _storageTask;
     private int _stopped;
     private int _disposed;
 
@@ -23,54 +18,95 @@ public sealed class SampleDataflowRuntime : IAcquisitionSessionComponent
             artificialRenderDelay: TimeSpan.FromMilliseconds(8),
             renderEvery: 25);
         _storage = new JsonLinesStorageConsumer(storagePath);
+
+        _router.RegisterBranch(
+            new StreamBranchOptions(
+                "sample.processed-storage",
+                "Processed JSONL storage",
+                Capacity: 64,
+                Delivery: StreamBranchDelivery.Required,
+                Overflow: StreamOverflowPolicy.Wait,
+                FailurePolicy: StreamBranchFailurePolicy.Propagate,
+                Ordering: StreamOrderingPolicy.SerializedPublisherFifo),
+            (item, token) => _storage.ConsumeAsync(item.Value, token));
+
+        _router.RegisterBranch(
+            new StreamBranchOptions(
+                "sample.presentation",
+                "Console presentation",
+                Capacity: 16,
+                Delivery: StreamBranchDelivery.Optional,
+                Overflow: StreamOverflowPolicy.DropOldest,
+                FailurePolicy: StreamBranchFailurePolicy.Isolate,
+                Ordering: StreamOrderingPolicy.SerializedPublisherFifo),
+            (item, token) => _display.ConsumeAsync(item.Value, token));
     }
 
-    public string ComponentId => "sample:legacy-dataflow-artifact";
+    public string ComponentId => "sample:processed-dataflow-artifact";
     public AcquisitionComponentKind Kind => AcquisitionComponentKind.RequiredArtifact;
     public string StoragePath => _storage.Path;
     public DisplayStatistics? DisplayStatistics { get; private set; }
     public int StoredFrames { get; private set; }
 
-    public ValueTask PrepareAsync(
+    public async ValueTask PrepareAsync(
         AcquisitionComponentContext context,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        _displayTask = _display.RunAsync(
-            _hub.Subscribe(context.AbortToken),
-            context.AbortToken);
-        _storageTask = _storage.RunAsync(
-            _hub.Subscribe(context.AbortToken),
-            context.AbortToken);
-        return ValueTask.CompletedTask;
+        await _storage.PrepareAsync(cancellationToken).ConfigureAwait(false);
+        _router.Start();
     }
 
-    public ValueTask PublishAsync(
+    public async ValueTask PublishAsync(
         SampleFrame frame,
-        CancellationToken cancellationToken = default) =>
-        _hub.PublishAsync(frame, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _router.PublishAsync(frame, cancellationToken).ConfigureAwait(false);
+
+        if (result.RouterState == StreamRouterState.Faulted)
+        {
+            throw new InvalidOperationException(
+                $"Sample dataflow faulted during publish sequence {result.PublishSequence}: {result.RouterFault}");
+        }
+
+        if (result.HasRequiredFailure)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            throw new InvalidOperationException(
+                $"Sample dataflow publish sequence {result.PublishSequence} was not accepted by every Required route.");
+        }
+    }
 
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (Interlocked.Exchange(ref _stopped, 1) == 0)
-            await _hub.DisposeAsync().ConfigureAwait(false);
+        if (Interlocked.Exchange(ref _stopped, 1) != 0)
+            return;
+
+        var terminal = await _router
+            .CompleteAsync(StreamCompletionMode.Drain, cancellationToken)
+            .ConfigureAwait(false);
+        await _storage.CompleteAsync(cancellationToken).ConfigureAwait(false);
+
+        if (terminal.State == StreamRouterState.Faulted)
+        {
+            throw new InvalidOperationException(
+                $"Sample dataflow stopped in Faulted state: {terminal.FaultMessage}");
+        }
     }
 
-    public async ValueTask FinalizeAsync(CancellationToken cancellationToken = default)
+    public ValueTask FinalizeAsync(CancellationToken cancellationToken = default)
     {
-        if (_displayTask is null || _storageTask is null)
-            throw new InvalidOperationException("Sample dataflow runtime was not prepared.");
-
-        DisplayStatistics = await _displayTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-        StoredFrames = await _storageTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+        cancellationToken.ThrowIfCancellationRequested();
+        DisplayStatistics = _display.Statistics;
+        StoredFrames = _storage.Count;
+        return ValueTask.CompletedTask;
     }
 
     public async ValueTask AbortAsync(CancellationToken cancellationToken = default)
     {
         if (Interlocked.Exchange(ref _stopped, 1) == 0)
-            await _hub.DisposeAsync().ConfigureAwait(false);
+            await _router.DisposeAsync().ConfigureAwait(false);
     }
 
     public async ValueTask DisposeAsync()
@@ -78,7 +114,7 @@ public sealed class SampleDataflowRuntime : IAcquisitionSessionComponent
         if (Interlocked.Exchange(ref _disposed, 1) != 0)
             return;
 
-        if (Interlocked.Exchange(ref _stopped, 1) == 0)
-            await _hub.DisposeAsync().ConfigureAwait(false);
+        await _router.DisposeAsync().ConfigureAwait(false);
+        await _storage.DisposeAsync().ConfigureAwait(false);
     }
 }
