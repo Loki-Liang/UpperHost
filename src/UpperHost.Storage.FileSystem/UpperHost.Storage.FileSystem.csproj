@@ -1,8 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>Safe JSON file-system key/value storage provider for UpperHost.</Description>
+    <Description>Safe JSON key/value and Apache Arrow Canonical RawData file-system storage providers for UpperHost.</Description>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Apache.Arrow" />
   </ItemGroup>
 </Project>
