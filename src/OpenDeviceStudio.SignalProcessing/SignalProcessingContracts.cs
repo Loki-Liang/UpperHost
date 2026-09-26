@@ -541,7 +541,7 @@ public static class SignalConfigurationHash
     }
 }
 
-public sealed class SignalProcessingException(string message, Exception? inner = null)
+public class SignalProcessingException(string message, Exception? inner = null)
     : InvalidOperationException(message, inner);
 
 public sealed class SignalContinuityException(string message)
