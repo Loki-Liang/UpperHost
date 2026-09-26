@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Threading.Channels;
 using UpperHost.Control.Commands;
 
@@ -29,6 +28,7 @@ public sealed record CommandResourceKey(string Category, string Value) : ICompar
 public sealed record CommandDispatchOptions(
     CommandPriority Priority = CommandPriority.Normal,
     IReadOnlyList<CommandResourceKey>? Resources = null,
+    IReadOnlyList<CommandResourceClaim>? ResourceClaims = null,
     CommandAdmissionMode AdmissionMode = CommandAdmissionMode.Wait,
     CommandExecutionOptions? Execution = null,
     CommandSafetyMetadata? Safety = null,
@@ -37,7 +37,9 @@ public sealed record CommandDispatchOptions(
 public sealed record BoundedCommandDispatcherOptions(
     int Capacity = 256,
     int PerPriorityCapacity = 128,
-    int MaxConcurrency = 4)
+    int MaxConcurrency = 4,
+    int PerResourcePendingCapacity = 64,
+    int MaxSharedReadersPerResource = 4)
 {
     internal void Validate()
     {
@@ -47,6 +49,10 @@ public sealed record BoundedCommandDispatcherOptions(
             throw new ArgumentOutOfRangeException(nameof(PerPriorityCapacity));
         if (MaxConcurrency <= 0)
             throw new ArgumentOutOfRangeException(nameof(MaxConcurrency));
+        if (PerResourcePendingCapacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(PerResourcePendingCapacity));
+        if (MaxSharedReadersPerResource <= 0)
+            throw new ArgumentOutOfRangeException(nameof(MaxSharedReadersPerResource));
     }
 }
 
@@ -64,6 +70,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private sealed record Envelope(
         TCommand Command,
         CommandDispatchOptions Options,
+        IReadOnlyList<CommandResourceClaim> ResourceClaims,
+        IDisposable ResourcePendingReservation,
         CancellationToken CancellationToken,
         TaskCompletionSource<CommandExecutionResult<TResult>> Completion);
 
@@ -93,7 +101,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
     private readonly SemaphoreSlim _available = new(0);
     private readonly SemaphoreSlim _executionSlots;
     private readonly CancellationTokenSource _shutdown = new();
-    private readonly ResourceCoordinator _resources = new();
+    private readonly CommandResourceCoordinator _resources;
+    private readonly CommandResourcePendingLimiter _resourcePending;
     private readonly ICommandConnectionEpochValidator? _epochValidator;
     private readonly object _activeGate = new();
     private readonly HashSet<Task> _active = [];
@@ -114,6 +123,8 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
         _pendingSlots = new SemaphoreSlim(_options.Capacity, _options.Capacity);
         _executionSlots = new SemaphoreSlim(_options.MaxConcurrency, _options.MaxConcurrency);
+        _resources = new CommandResourceCoordinator(_options.MaxSharedReadersPerResource);
+        _resourcePending = new CommandResourcePendingLimiter(_options.PerResourcePendingCapacity);
         _lanes = Enum.GetValues<CommandPriority>().ToDictionary(
             priority => priority,
             _ => Channel.CreateBounded<Envelope>(
@@ -163,16 +174,37 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         if (!slotAcquired)
             return Rejected("dispatcher_capacity", "Command dispatcher capacity is full.");
 
-        var completion = new TaskCompletionSource<CommandExecutionResult<TResult>>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        var envelope = new Envelope(command, options, cancellationToken, completion);
-
+        var resourceClaims = NormalizeResourceClaims(options);
+        IDisposable? resourcePendingReservation = null;
         try
         {
+            resourcePendingReservation = options.AdmissionMode == CommandAdmissionMode.Reject
+                ? _resourcePending.TryReserve(resourceClaims)
+                : await _resourcePending.ReserveAsync(resourceClaims, cancellationToken).ConfigureAwait(false);
+
+            if (resourcePendingReservation is null)
+            {
+                _pendingSlots.Release();
+                return Rejected(
+                    "resource_pending_capacity",
+                    "At least one command resource has reached its pending capacity.");
+            }
+
+            var completion = new TaskCompletionSource<CommandExecutionResult<TResult>>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var envelope = new Envelope(
+                command,
+                options,
+                resourceClaims,
+                resourcePendingReservation,
+                cancellationToken,
+                completion);
+
             if (options.AdmissionMode == CommandAdmissionMode.Reject)
             {
                 if (!lane.Writer.TryWrite(envelope))
                 {
+                    resourcePendingReservation.Dispose();
                     _pendingSlots.Release();
                     return Rejected("priority_capacity", $"Priority lane '{options.Priority}' is full.");
                 }
@@ -181,21 +213,31 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             {
                 await lane.Writer.WriteAsync(envelope, cancellationToken).ConfigureAwait(false);
             }
+
+            resourcePendingReservation = null;
+            Interlocked.Increment(ref _pending);
+            _available.Release();
+            return await completion.Task.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            resourcePendingReservation?.Dispose();
+            _pendingSlots.Release();
+            return Cancelled();
         }
         catch (ChannelClosedException)
         {
+            resourcePendingReservation?.Dispose();
             _pendingSlots.Release();
             return Rejected("dispatcher_stopping", "Command dispatcher is stopping.");
         }
         catch
         {
+            resourcePendingReservation?.Dispose();
             _pendingSlots.Release();
             throw;
         }
 
-        Interlocked.Increment(ref _pending);
-        _available.Release();
-        return await completion.Task.ConfigureAwait(false);
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -315,6 +357,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             if (!_lanes[priority].Reader.TryRead(out envelope!))
                 continue;
 
+            envelope.ResourcePendingReservation.Dispose();
             Interlocked.Decrement(ref _pending);
             _pendingSlots.Release();
             return true;
@@ -333,7 +376,7 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         try
         {
             await using var lease = await _resources
-                .AcquireAsync(envelope.Options.Resources, linked.Token)
+                .AcquireAsync(envelope.ResourceClaims, linked.Token)
                 .ConfigureAwait(false);
 
             if (envelope.CancellationToken.IsCancellationRequested)
@@ -344,7 +387,9 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
 
             if (envelope.Options.ConnectionEpoch is long connectionEpoch &&
                 _epochValidator is not null &&
-                !_epochValidator.IsCurrent(connectionEpoch, envelope.Options.Resources))
+                !_epochValidator.IsCurrent(
+                    connectionEpoch,
+                    envelope.ResourceClaims.Select(static claim => claim.Resource).ToArray()))
             {
                 envelope.Completion.TrySetResult(
                     Rejected(
@@ -409,11 +454,40 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
         {
             while (lane.Reader.TryRead(out var envelope))
             {
+                envelope.ResourcePendingReservation.Dispose();
                 Interlocked.Decrement(ref _pending);
                 _pendingSlots.Release();
                 envelope.Completion.TrySetResult(Cancelled());
             }
         }
+    }
+
+    private static IReadOnlyList<CommandResourceClaim> NormalizeResourceClaims(CommandDispatchOptions options)
+    {
+        var claims = new Dictionary<CommandResourceKey, CommandResourceAccess>();
+
+        if (options.Resources is not null)
+        {
+            foreach (var resource in options.Resources)
+                claims[resource] = CommandResourceAccess.Exclusive;
+        }
+
+        if (options.ResourceClaims is not null)
+        {
+            foreach (var claim in options.ResourceClaims)
+            {
+                if (claims.TryGetValue(claim.Resource, out var existing) &&
+                    existing == CommandResourceAccess.Exclusive)
+                    continue;
+
+                claims[claim.Resource] = claim.Access;
+            }
+        }
+
+        return claims
+            .OrderBy(static pair => pair.Key)
+            .Select(static pair => new CommandResourceClaim(pair.Key, pair.Value))
+            .ToArray();
     }
 
     private static CommandExecutionResult<TResult> Rejected(string code, string message) =>
@@ -436,135 +510,4 @@ public sealed class BoundedCommandDispatcher<TCommand, TResult> : IAsyncDisposab
             null,
             TimeSpan.Zero);
 
-    private sealed class ResourceCoordinator
-    {
-        private readonly ConcurrentDictionary<CommandResourceKey, Entry> _entries = new();
-
-        public async ValueTask<IAsyncDisposable> AcquireAsync(
-            IReadOnlyList<CommandResourceKey>? resources,
-            CancellationToken cancellationToken)
-        {
-            if (resources is null || resources.Count == 0)
-                return EmptyLease.Instance;
-
-            var keys = resources
-                .Distinct()
-                .Order()
-                .ToArray();
-
-            var acquired = new List<(CommandResourceKey Key, Entry Entry)>(keys.Length);
-            try
-            {
-                foreach (var key in keys)
-                {
-                    var entry = AcquireReference(key);
-                    try
-                    {
-                        await entry.Semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-                        acquired.Add((key, entry));
-                    }
-                    catch
-                    {
-                        ReleaseReference(key, entry);
-                        throw;
-                    }
-                }
-
-                return new ResourceLease(this, acquired);
-            }
-            catch
-            {
-                for (var i = acquired.Count - 1; i >= 0; i--)
-                {
-                    acquired[i].Entry.Semaphore.Release();
-                    ReleaseReference(acquired[i].Key, acquired[i].Entry);
-                }
-
-                throw;
-            }
-        }
-
-        private Entry AcquireReference(CommandResourceKey key)
-        {
-            while (true)
-            {
-                var entry = _entries.GetOrAdd(key, static _ => new Entry());
-                if (entry.TryAddReference())
-                    return entry;
-
-                ((ICollection<KeyValuePair<CommandResourceKey, Entry>>)_entries)
-                    .Remove(new KeyValuePair<CommandResourceKey, Entry>(key, entry));
-            }
-        }
-
-        private void ReleaseReference(CommandResourceKey key, Entry entry)
-        {
-            if (!entry.ReleaseReference())
-                return;
-
-            ((ICollection<KeyValuePair<CommandResourceKey, Entry>>)_entries)
-                .Remove(new KeyValuePair<CommandResourceKey, Entry>(key, entry));
-            entry.Semaphore.Dispose();
-        }
-
-        private sealed class Entry
-        {
-            private readonly object _gate = new();
-            private int _references;
-            private bool _retired;
-
-            public SemaphoreSlim Semaphore { get; } = new(1, 1);
-
-            public bool TryAddReference()
-            {
-                lock (_gate)
-                {
-                    if (_retired)
-                        return false;
-                    _references++;
-                    return true;
-                }
-            }
-
-            public bool ReleaseReference()
-            {
-                lock (_gate)
-                {
-                    _references--;
-                    if (_references != 0)
-                        return false;
-
-                    _retired = true;
-                    return true;
-                }
-            }
-        }
-
-        private sealed class ResourceLease(
-            ResourceCoordinator owner,
-            List<(CommandResourceKey Key, Entry Entry)> acquired) : IAsyncDisposable
-        {
-            private int _disposed;
-
-            public ValueTask DisposeAsync()
-            {
-                if (Interlocked.Exchange(ref _disposed, 1) != 0)
-                    return ValueTask.CompletedTask;
-
-                for (var i = acquired.Count - 1; i >= 0; i--)
-                {
-                    acquired[i].Entry.Semaphore.Release();
-                    owner.ReleaseReference(acquired[i].Key, acquired[i].Entry);
-                }
-
-                return ValueTask.CompletedTask;
-            }
-        }
-
-        private sealed class EmptyLease : IAsyncDisposable
-        {
-            public static EmptyLease Instance { get; } = new();
-            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
-        }
-    }
 }
