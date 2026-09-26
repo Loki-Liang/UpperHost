@@ -12,20 +12,20 @@ Start with AGENTS.md, then read .github/governance/agent-governance.json.
 
 All production-code work loads:
 
-- agents.implementation.md
-- agents.testing.md
-- agents.review.md
-- agents.git.md
+- agents/implementation.md
+- agents/testing.md
+- agents/review.md
+- agents/git.md
 
 Load additional rules by scope:
 
-- architecture/module/public boundary -> agents.architecture.md
-- TCP/Serial/USB/BLE/reconnect -> agents.transport.md
-- DAQ/EMG/raw/processing/fan-out -> agents.acquisition.md
-- logs/metrics/traces/health -> agents.observability.md
-- trust/credentials/external input -> agents.security.md
-- package/release/rollback -> agents.release.md
-- API/config/source-scaffold compatibility -> agents.compatibility.md
+- architecture/module/public boundary -> agents/architecture.md
+- TCP/Serial/USB/BLE/reconnect -> agents/transport.md
+- DAQ/EMG/raw/processing/fan-out -> agents/acquisition.md
+- logs/metrics/traces/health -> agents/observability.md
+- trust/credentials/external input -> agents/security.md
+- package/release/rollback -> agents/release.md
+- API/config/source-scaffold compatibility -> agents/compatibility.md
 
 Do not blindly copy every rule into task context. Load the root policy, base production rules, and only additional specialty rules that apply.
 
@@ -43,7 +43,7 @@ Specialty agents invoke reusable method skills as needed:
 - .openhands/skills/contract-attack.md
 - .openhands/skills/upgrade-rollback-audit.md
 
-Skills are methods, not policy. They explain how to perform an analysis; AGENTS.md and agents.*.md define when it is mandatory.
+Skills are OpenHands methods, not repository policy. They explain how to perform an analysis; AGENTS.md and executor-neutral agents/*.md define when it is mandatory.
 
 ## Required execution order
 
@@ -53,7 +53,7 @@ Skills are methods, not policy. They explain how to perform an analysis; AGENTS.
 4. Confirm measurable acceptance criteria and build the Evidence Matrix.
 5. Implement production behavior and matching tests.
 6. Run focused validation.
-7. Run agents.review.md Five-Gate Review and apply relevant method skills.
+7. Run agents/review.md Five-Gate Review and apply relevant method skills.
 8. Fix findings; never stop at a findings-only report.
 9. Run .openhands/pre-commit.sh.
 10. Push/open PR and use exact-head GitHub Actions as the authoritative integration gate.

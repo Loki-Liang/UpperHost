@@ -2,14 +2,14 @@
 
 [简体中文](AGENTS.zh-CN.md) | English
 
-This file is the repository-level authority for AI-assisted development. It is intentionally a thin constitution: it defines mandatory process, rule precedence, routing, and completion gates. Domain-specific rules live in the applicable agents.*.md files, and reusable analysis methods live under .openhands/skills/.
+This file is the repository-level authority for AI-assisted development. It is intentionally a thin constitution: it defines mandatory process, rule precedence, routing, and completion gates. Domain-specific rules live under the executor-neutral agents/ directory, and reusable OpenHands analysis methods live under .openhands/skills/.
 
 ## Authority and rule hierarchy
 
 Apply rules in this order:
 
 1. AGENTS.md — repository constitution and mandatory delivery flow.
-2. Applicable agents.*.md files — long-lived domain engineering rules.
+2. Applicable agents/*.md files — long-lived, executor-neutral domain engineering rules.
 3. Approved ADRs and architecture decisions — project-specific technical decisions.
 4. Current Issue/PR acceptance criteria — delivery-specific scope and measurable requirements.
 5. Tool-specific execution profiles such as .openhands/skills/repo.md — execution detail only.
@@ -69,19 +69,19 @@ Do not continue from stale CI conclusions or an old branch assumption.
 
 ## Applicable rule routing
 
-All production-code changes read agents.implementation.md, agents.testing.md, agents.review.md, and agents.git.md.
+All production-code changes read agents/implementation.md, agents/testing.md, agents/review.md, and agents/git.md.
 
 Read additional rules when the task touches the corresponding scope:
 
 | Scope | Required rule |
 | --- | --- |
-| module boundaries, architecture, new framework, public boundary | agents.architecture.md |
-| transport, TCP, Serial, USB, BLE, connection/reconnection | agents.transport.md |
-| streaming acquisition, DAQ, EMG, raw data, processing, fan-out | agents.acquisition.md |
-| logging, metrics, tracing, health | agents.observability.md |
-| trust boundary, credentials, authorization, external input | agents.security.md |
-| packaging, deployment, release readiness, rollback | agents.release.md |
-| public API, configuration, source-scaffold compatibility | agents.compatibility.md |
+| module boundaries, architecture, new framework, public boundary | agents/architecture.md |
+| transport, TCP, Serial, USB, BLE, connection/reconnection | agents/transport.md |
+| streaming acquisition, DAQ, EMG, raw data, processing, fan-out | agents/acquisition.md |
+| logging, metrics, tracing, health | agents/observability.md |
+| trust boundary, credentials, authorization, external input | agents/security.md |
+| packaging, deployment, release readiness, rollback | agents/release.md |
+| public API, configuration, source-scaffold compatibility | agents/compatibility.md |
 
 The machine-readable routing contract is .github/governance/agent-governance.json.
 

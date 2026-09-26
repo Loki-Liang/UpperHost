@@ -4,17 +4,17 @@
   "localized_root_policy": "AGENTS.zh-CN.md",
   "openhands_profile": ".openhands/skills/repo.md",
   "specialty_agents": [
-    "agents.architecture.md",
-    "agents.implementation.md",
-    "agents.review.md",
-    "agents.testing.md",
-    "agents.transport.md",
-    "agents.acquisition.md",
-    "agents.observability.md",
-    "agents.security.md",
-    "agents.release.md",
-    "agents.git.md",
-    "agents.compatibility.md"
+    "agents/architecture.md",
+    "agents/implementation.md",
+    "agents/review.md",
+    "agents/testing.md",
+    "agents/transport.md",
+    "agents/acquisition.md",
+    "agents/observability.md",
+    "agents/security.md",
+    "agents/release.md",
+    "agents/git.md",
+    "agents/compatibility.md"
   ],
   "method_skills": [
     ".openhands/skills/adversarial-review.md",

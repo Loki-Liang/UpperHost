@@ -9,7 +9,7 @@ UpperHost 已加入 OpenHands V1 / Agent Canvas 仓库级配置。OpenHands 只�
 OpenHands 是默认实际开发执行器。治理按职责拆分：
 
     AGENTS.md
-      -> 适用 agents.*.md
+      -> 适用 agents/*.md
       -> .openhands/skills/*.md 可复用方法
       -> ADR + Issue 验收/证据
       -> 实现/测试
@@ -18,7 +18,7 @@ OpenHands 是默认实际开发执行器。治理按职责拆分：
 
 - AGENTS.md：薄的仓库宪法和规则路由。
 - .github/governance/agent-governance.json：机器可校验的路由清单。
-- agents.*.md：各专项长期固定流程和规则。
+- agents/*.md：各专项长期固定流程和规则，保持执行器无关；不放入 .openhands，避免仓库治理绑定单一执行器。
 - .openhands/skills/*.md：反方 Review、Pre-mortem、不变量、状态机、数据全链路、容量/背压、故障注入、契约攻击、升级回滚等方法。
 - .openhands/skills/repo.md：OpenHands 执行画像，只负责加载和执行规则，不重复复制专项规则正文。
 
@@ -44,7 +44,7 @@ OpenHands 禁止只汇报 Review 发现后停止；Blocker 必须整改并重新
 
 ## 五审
 
-agents.review.md 固化统一生产质量门禁：
+agents/review.md 固化统一生产质量门禁：
 
 1. 架构审；
 2. 故障审；

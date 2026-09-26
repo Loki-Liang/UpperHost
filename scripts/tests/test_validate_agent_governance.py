@@ -19,13 +19,14 @@ class ValidateAgentGovernanceTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         (self.root / ".github/governance").mkdir(parents=True)
         (self.root / ".openhands/skills").mkdir(parents=True)
+        (self.root / "agents").mkdir(parents=True)
 
         self.manifest = {
             "version": 1,
             "root_policy": "AGENTS.md",
             "localized_root_policy": "AGENTS.zh-CN.md",
             "openhands_profile": ".openhands/skills/repo.md",
-            "specialty_agents": ["agents.review.md", "agents.testing.md"],
+            "specialty_agents": ["agents/review.md", "agents/testing.md"],
             "method_skills": [
                 ".openhands/skills/adversarial-review.md",
                 ".openhands/skills/fault-injection.md",
@@ -40,26 +41,26 @@ class ValidateAgentGovernanceTests(unittest.TestCase):
         (self.root / "AGENTS.md").write_text(
             "## Mandatory delivery flow\n"
             ".github/governance/agent-governance.json\n"
-            "agents.review.md\nagents.testing.md\n",
+            "agents/review.md\nagents/testing.md\n",
             encoding="utf-8",
         )
         (self.root / "AGENTS.zh-CN.md").write_text(
             "## 强制交付流程\n"
-            "agents.review.md\nagents.testing.md\n",
+            "agents/review.md\nagents/testing.md\n",
             encoding="utf-8",
         )
         (self.root / ".openhands/skills/repo.md").write_text(
             "## Rule loading\n"
             ".github/governance/agent-governance.json\n"
-            "agents.review.md\nagents.testing.md\n"
+            "agents/review.md\nagents/testing.md\n"
             ".openhands/skills/adversarial-review.md\n",
             encoding="utf-8",
         )
-        (self.root / "agents.review.md").write_text(
+        (self.root / "agents/review.md").write_text(
             "Five-Gate Review\n.openhands/skills/adversarial-review.md\n",
             encoding="utf-8",
         )
-        (self.root / "agents.testing.md").write_text(
+        (self.root / "agents/testing.md").write_text(
             "Evidence Matrix\n.openhands/skills/fault-injection.md\n",
             encoding="utf-8",
         )
@@ -76,20 +77,20 @@ class ValidateAgentGovernanceTests(unittest.TestCase):
         self.assertEqual([], self.errors())
 
     def test_missing_specialty_agent_is_rejected(self) -> None:
-        (self.root / "agents.testing.md").unlink()
+        (self.root / "agents/testing.md").unlink()
         self.assertTrue(
-            any("missing governance file: agents.testing.md" in error for error in self.errors())
+            any("missing governance file: agents/testing.md" in error for error in self.errors())
         )
 
     def test_root_must_route_every_specialty_agent(self) -> None:
         (self.root / "AGENTS.md").write_text(
             "## Mandatory delivery flow\n"
             ".github/governance/agent-governance.json\n"
-            "agents.review.md\n",
+            "agents/review.md\n",
             encoding="utf-8",
         )
         self.assertIn(
-            "root policy does not route specialty agent: agents.testing.md",
+            "root policy does not route specialty agent: agents/testing.md",
             self.errors(),
         )
 
@@ -98,13 +99,30 @@ class ValidateAgentGovernanceTests(unittest.TestCase):
         profile.write_text(
             "## Rule loading\n"
             ".github/governance/agent-governance.json\n"
-            "agents.review.md\nagents.testing.md\n",
+            "agents/review.md\nagents/testing.md\n",
             encoding="utf-8",
         )
-        (self.root / "agents.testing.md").write_text("Evidence Matrix\n", encoding="utf-8")
+        (self.root / "agents/testing.md").write_text("Evidence Matrix\n", encoding="utf-8")
         self.assertIn(
             "method skill is not referenced by any agent/profile: "
             ".openhands/skills/fault-injection.md",
+            self.errors(),
+        )
+
+
+    def test_specialty_agent_must_live_under_agents_directory(self) -> None:
+        self.manifest["specialty_agents"] = ["agents.review.md", "agents/testing.md"]
+        (self.root / ".github/governance/agent-governance.json").write_text(
+            json.dumps(self.manifest), encoding="utf-8"
+        )
+        self.assertTrue(
+            any("must live directly under agents/" in error for error in self.errors())
+        )
+
+    def test_legacy_root_level_agent_file_is_rejected(self) -> None:
+        (self.root / "agents.legacy.md").write_text("# legacy\n", encoding="utf-8")
+        self.assertIn(
+            "legacy root-level specialty agent is forbidden: agents.legacy.md",
             self.errors(),
         )
 

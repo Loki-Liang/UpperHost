@@ -67,6 +67,14 @@ def validate_governance(root: Path = ROOT) -> list[str]:
     if len(skills) != len(set(skills)):
         errors.append("method_skills contains duplicate paths")
 
+    for relative in agents:
+        if not relative.startswith("agents/") or Path(relative).parent != Path("agents"):
+            errors.append(f"specialty agent must live directly under agents/: {relative}")
+
+    root_level_specialty = sorted(root.glob("agents.*.md"))
+    for path in root_level_specialty:
+        errors.append(f"legacy root-level specialty agent is forbidden: {path.name}")
+
     root_text = _read(root, root_policy, errors)
     localized_text = _read(root, localized_root, errors)
     profile_text = _read(root, profile, errors)
@@ -102,10 +110,10 @@ def validate_governance(root: Path = ROOT) -> list[str]:
         errors.append("root policy must reference the governance manifest")
     if MANIFEST.as_posix() not in profile_text:
         errors.append("OpenHands profile must reference the governance manifest")
-    if "agents.review.md" in agents and "Five-Gate Review" not in agent_texts.get("agents.review.md", ""):
-        errors.append("agents.review.md must define the Five-Gate Review")
-    if "agents.testing.md" in agents and "Evidence Matrix" not in agent_texts.get("agents.testing.md", ""):
-        errors.append("agents.testing.md must define the Evidence Matrix")
+    if "agents/review.md" in agents and "Five-Gate Review" not in agent_texts.get("agents/review.md", ""):
+        errors.append("agents/review.md must define the Five-Gate Review")
+    if "agents/testing.md" in agents and "Evidence Matrix" not in agent_texts.get("agents/testing.md", ""):
+        errors.append("agents/testing.md must define the Evidence Matrix")
 
     return errors
 
