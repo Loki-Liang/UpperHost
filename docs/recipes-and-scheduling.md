@@ -17,15 +17,24 @@ var result = await applier.ApplyAsync(recipe);
 
 Readback is enabled per item by default. Recipe application is **not a distributed transaction** across physical equipment. If a later device fails, already-applied hardware values are not magically rolled back; products that require compensation must model it explicitly.
 
-## Command scheduler
+## Command dispatching
 
-`CommandScheduler<TCommand,TResult>` owns one worker and serializes commands sent through one scheduler instance. Pending commands are ordered by `Critical`, `High`, `Normal`, then `Low`, with FIFO ordering inside the same priority.
+New product code uses the host-owned `BoundedCommandDispatcher<TCommand,TResult>`, registered from the product composition root. The dispatcher keeps all queues bounded and performs priority scheduling plus resource arbitration before a device capability is invoked.
 
 ```csharp
-await using var scheduler = new CommandScheduler<AxisCommand, AxisResult>(runtime);
-var result = await scheduler.EnqueueAsync(command, CommandPriority.High);
+builder.AddCommandDispatcher<AxisCommand, AxisResult>();
+
+var result = await dispatcher.EnqueueAsync(
+    command,
+    new CommandDispatchOptions(
+        Priority: CommandPriority.High,
+        Resources: [new CommandResourceKey("axis", "x")],
+        Safety: CommandSafetyMetadata.MutatingNonIdempotent,
+        QueueTimeout: TimeSpan.FromSeconds(2)));
 ```
 
-Priority only affects **pending** commands. The scheduler does not and cannot safely preempt a physical command already executing on hardware.
+Priority affects pending work only and never preempts a physical command already executing. `Critical` is therefore not an emergency-stop mechanism.
 
-Therefore `Critical` is not an emergency-stop mechanism. Certified hardware emergency-stop and safety paths must remain independent and authoritative.
+`CommandScheduler<TCommand,TResult>` is retained only as the source-compatibility facade for older applications. Its implementation delegates to `BoundedCommandDispatcher`; it is not a second unbounded scheduler runtime.
+
+Certified hardware emergency-stop and safety paths remain independent and authoritative.

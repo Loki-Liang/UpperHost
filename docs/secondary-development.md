@@ -24,7 +24,7 @@ UpperHost is a source-first enterprise .NET upper-computer development scaffold.
 | Connection lifecycle | `IConnectionManager` with shared/exclusive leases | Use managed connections instead of competing physical handles |
 | Transport | Serial, TCP and Simulator with common `ITransport` seam | Implement `ITransport`, register through `AddUpperHostTransport<T>()` |
 | Protocol | Command encoders, message decoders, request/response and streaming boundaries | Implement `ICommandEncoder<T>` / `IMessageDecoder<T>` |
-| Control runtime | Command runtime, guards/interlocks, timeout/cancellation, parameter readback, recipe/scheduling foundations | Define product commands, guards, interlocks and completion semantics |
+| Control runtime | Host-owned bounded command dispatcher, guards/interlocks, UnknownOutcome, resource arbitration, parameter/readback foundations | Register each typed command contract with `AddCommandDispatcher<TCommand,TResult>()`; define product safety/completion semantics |
 | Streaming / dataflow | Bounded fan-out, backpressure and loss-policy primitives | Connect device streams to bounded dataflow |
 | Workflow | `WorkflowRunner` | Define product `WorkflowDefinition` / `IWorkflowStep` |
 | State machine | Generic `StateMachine<TState,TTrigger>` | Define product states and triggers |
@@ -225,10 +225,11 @@ Protocol owns domain-command encoding, framing, decoding and recovery. Implement
 
 Reuse existing runtime pieces instead of rebuilding them in button handlers:
 
-- `CommandRuntime<TCommand,TResult>`
-- guards/interlocks
-- `IParameterProvider` plus readback
-- recipe/scheduler runtime
+- `BoundedCommandDispatcher<TCommand,TResult>` registered by the composition root
+- `CommandRuntime<TCommand,TResult>` as the execution/guard/completion layer under the dispatcher
+- guards/interlocks and explicit command safety metadata
+- `IParameterProvider` plus readback (coordinated through #63 resource arbitration)
+- recipe integration through the same dispatcher
 - `WorkflowRunner`
 - `StateMachine<TState,TTrigger>`
 - `IEventBus`

@@ -5,6 +5,7 @@ using UpperHost.Abstractions.Events;
 using UpperHost.Abstractions.Storage;
 using UpperHost.Abstractions.Transports;
 using UpperHost.Connections;
+using UpperHost.Control.Scheduling;
 using UpperHost.Diagnostics;
 using UpperHost.Events;
 using UpperHost.Hosting;
@@ -28,6 +29,15 @@ public static class UpperHostStarterExtensions
         builder.Services.TryAddSingleton<IAlarmService, AlarmService>();
         builder.Services.TryAddSingleton<HealthService>();
         builder.AddConfiguredUpperHostObservability();
+        return builder;
+    }
+
+    public static UpperHostApplicationBuilder AddCommandDispatcher<TCommand, TResult>(
+        this UpperHostApplicationBuilder builder,
+        BoundedCommandDispatcherOptions? options = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        builder.Services.AddUpperHostCommandDispatcher<TCommand, TResult>(options);
         return builder;
     }
 

@@ -24,7 +24,7 @@ UpperHost 的定位是源码直接二开的企业级 .NET 上位机开发脚手�
 | 连接生命周期 | `IConnectionManager`；Shared / Exclusive Lease | 业务层获取托管连接，不自行争抢物理 Handle |
 | Transport | Serial、TCP、Simulator；统一 `ITransport` 扩展边界 | 实现 `ITransport`，通过 `AddUpperHostTransport<T>()` 注册 |
 | Protocol | Command Encoder、Message Decoder、Request/Response / Streaming 边界 | 实现 `ICommandEncoder<T>` / `IMessageDecoder<T>` |
-| Control Runtime | Command Runtime、Guard / Interlock、Timeout / Cancellation、参数读写与 Readback、Recipe / Scheduler 基础能力 | 产品定义 Command、Guard、Interlock 与设备完成语义 |
+| Control Runtime | Host-owned bounded Command Dispatcher、Guard / Interlock、UnknownOutcome、资源仲裁、参数/Readback 基础能力 | 每个强类型命令合同通过 `AddCommandDispatcher<TCommand,TResult>()` 注册；产品定义安全和完成语义 |
 | Streaming / Dataflow | 有界 Fan-out、背压与丢弃策略基础能力 | 将设备 Stream 接入 Dataflow，明确容量和 loss policy |
 | Workflow | `WorkflowRunner` | 产品定义 `WorkflowDefinition` / `IWorkflowStep` |
 | State Machine | 通用 `StateMachine<TState,TTrigger>` | 产品定义状态与触发器 |
@@ -292,10 +292,11 @@ Decoder 必须处理分片、粘包、多帧、非法帧以及校验/长度失�
 
 产品控制逻辑优先复用现有 Runtime，而不是在按钮事件里重新实现：
 
-- Command：`CommandRuntime<TCommand,TResult>`
-- Guard / Interlock：产品定义安全前置条件
-- Parameter：`IParameterProvider` + Readback
-- Recipe / Scheduler：复用通用调度/配方 Runtime
+- Command：Composition Root 注册 `BoundedCommandDispatcher<TCommand,TResult>`
+- Execution：Dispatcher 下层复用 `CommandRuntime<TCommand,TResult>` 的 Guard/完成语义
+- Guard / Interlock：产品定义安全前置条件和 Command Safety Metadata
+- Parameter：`IParameterProvider` + Readback，后续由 #63 复用同一资源仲裁
+- Recipe：通过同一个 Dispatcher 下发设备修改，不再创建第二套 Scheduler
 - Workflow：`WorkflowRunner`
 - State：`StateMachine<TState,TTrigger>`
 - Event：`IEventBus`
