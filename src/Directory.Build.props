@@ -1,7 +1,0 @@
-<Project>
-  <Import Project="$(MSBuildThisFileDirectory)../Directory.Build.props" />
-
-  <ItemGroup Condition="'$(EnableUpperHostPublicApiAnalysis)' == 'true'">
-    <PackageReference Include="Microsoft.CodeAnalysis.PublicApiAnalyzers" PrivateAssets="all" />
-  </ItemGroup>
-</Project>
