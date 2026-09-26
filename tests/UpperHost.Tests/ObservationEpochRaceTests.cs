@@ -11,6 +11,7 @@ public sealed class ObservationEpochRaceTests
         var epoch = new MutableEpochSource { CurrentEpoch = 1 };
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         var group = new DevicePollGroup<int>(
             "state",
@@ -23,6 +24,7 @@ public sealed class ObservationEpochRaceTests
             {
                 started.TrySetResult();
                 await release.Task.WaitAsync(cancellationToken);
+                completed.TrySetResult();
                 return new DevicePollSample<int>(42);
             });
 
@@ -38,7 +40,8 @@ public sealed class ObservationEpochRaceTests
         epoch.CurrentEpoch = 2;
         release.TrySetResult();
 
-        await WaitUntilAsync(() => poller.IsRunning);
+        await completed.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await Task.Yield();
         Assert.Null(store.Get("device-1", new DeviceStatePartitionKey("state")));
     }
 
