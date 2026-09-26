@@ -1,8 +1,8 @@
-# UpperHost Device Control Sample
+# OpenDeviceStudio Device Control Sample
 
 English | [简体中文](README.zh-CN.md)
 
-This runnable WPF sample demonstrates the **control** path of UpperHost with a simulated temperature controller. It intentionally does not use streaming or waveform concepts.
+This runnable WPF sample demonstrates the **control** path of OpenDeviceStudio with a simulated temperature controller. It intentionally does not use streaming or waveform concepts.
 
 ## What it proves
 
@@ -22,7 +22,7 @@ The simulator represents hardware, not the device domain object. Replacing it wi
 
 ## Features
 
-- DI-provided `IDevice` is registered in `IDeviceRegistry` by the UpperHost host lifecycle.
+- DI-provided `IDevice` is registered in `IDeviceRegistry` by the OpenDeviceStudio host lifecycle.
 - Connect / disconnect state.
 - Typed read/start/stop commands through the host-owned bounded dispatcher.
 - Device resource arbitration and explicit read-vs-mutation safety metadata.
@@ -36,7 +36,7 @@ The simulator represents hardware, not the device domain object. Replacing it wi
 Windows and .NET 10 SDK are required.
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.DeviceControl.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.DeviceControl/OpenDeviceStudio.Sample.DeviceControl.csproj
 ```
 
 Then:

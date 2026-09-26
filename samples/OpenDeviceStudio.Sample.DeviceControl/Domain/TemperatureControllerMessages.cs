@@ -1,4 +1,4 @@
-namespace UpperHost.Sample.DeviceControl.Domain;
+namespace OpenDeviceStudio.Sample.DeviceControl.Domain;
 
 public abstract record TemperatureControllerCommand;
 

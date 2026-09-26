@@ -1,8 +1,8 @@
-using UpperHost.Abstractions.Devices;
-using UpperHost.Sample.DeviceControl.Protocol;
-using UpperHost.Sample.DeviceControl.Simulator;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Sample.DeviceControl.Protocol;
+using OpenDeviceStudio.Sample.DeviceControl.Simulator;
 
-namespace UpperHost.Sample.DeviceControl.Device;
+namespace OpenDeviceStudio.Sample.DeviceControl.Device;
 
 public sealed class TemperatureControllerPackageOptions
 {
@@ -15,7 +15,7 @@ public sealed class TemperatureControllerPackageOptions
 
 public static class TemperatureControllerPackage
 {
-    public const string PackageId = "upperhost.sample.temperature-controller";
+    public const string PackageId = "opendevicestudio.sample.temperature-controller";
     public const string ConfigurationRoot = "DevicePackages:TemperatureController";
 
     public static DeviceConfigurationSchema<TemperatureControllerPackageOptions> ConfigurationSchema { get; } =
@@ -73,7 +73,7 @@ public static class TemperatureControllerPackage
             new Version(1, 0, 0),
             TemperatureControllerDevice.DeviceId,
             "Simulated Temperature Controller",
-            "UpperHost",
+            "OpenDeviceStudio",
             "TC-SIM-1",
             ["connect", "command", "parameters", "readback"],
             ["Simulator"],
@@ -129,7 +129,7 @@ public static class TemperatureControllerPackage
                     typeof(TemperatureControllerProtocol).FullName!,
                     DeviceDependencyKind.Protocol),
                 new DeviceDependencyDescriptor(
-                    "UpperHost.Transport.Simulator",
+                    "OpenDeviceStudio.Transport.Simulator",
                     DeviceDependencyKind.Transport)
             ]);
 

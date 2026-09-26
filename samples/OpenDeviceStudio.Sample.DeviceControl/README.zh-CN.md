@@ -1,8 +1,8 @@
-# UpperHost 设备控制示例
+# OpenDeviceStudio 设备控制示例
 
 [English](README.md) | 简体中文
 
-这个可运行的 WPF 示例使用“模拟温控器”展示 UpperHost 的 **Control 控制路线**。它刻意不引入 Streaming 或波形概念，用来证明 UpperHost 不是采集框架。
+这个可运行的 WPF 示例使用“模拟温控器”展示 OpenDeviceStudio 的 **Control 控制路线**。它刻意不引入 Streaming 或波形概念，用来证明 OpenDeviceStudio 不是采集框架。
 
 ## 完整链路
 
@@ -22,7 +22,7 @@ Simulator 表示模拟硬件，而不是 Device 领域对象。未来把 Simulat
 
 ## 示例包含
 
-- DI 注册的 `IDevice` 随 UpperHost Host 生命周期自动进入 `IDeviceRegistry`。
+- DI 注册的 `IDevice` 随 OpenDeviceStudio Host 生命周期自动进入 `IDeviceRegistry`。
 - Connect / Disconnect 状态。
 - Read / Start / Stop 强类型命令统一经过 Host-owned bounded dispatcher。
 - 设备 Resource 仲裁和显式 Read/Mutation Safety Metadata。
@@ -36,7 +36,7 @@ Simulator 表示模拟硬件，而不是 Device 领域对象。未来把 Simulat
 需要 Windows 和 .NET 10 SDK。
 
 ```powershell
-dotnet run --project samples/UpperHost.Sample.DeviceControl/UpperHost.Sample.DeviceControl.csproj
+dotnet run --project samples/OpenDeviceStudio.Sample.DeviceControl/OpenDeviceStudio.Sample.DeviceControl.csproj
 ```
 
 操作：

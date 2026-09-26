@@ -1,14 +1,14 @@
 using System.Globalization;
 using System.Windows;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Control.Commands;
-using UpperHost.Control.Parameters;
-using UpperHost.Control.Scheduling;
-using UpperHost.Control.State;
-using UpperHost.Sample.DeviceControl.Device;
-using UpperHost.Sample.DeviceControl.Domain;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Control.Commands;
+using OpenDeviceStudio.Control.Parameters;
+using OpenDeviceStudio.Control.Scheduling;
+using OpenDeviceStudio.Control.State;
+using OpenDeviceStudio.Sample.DeviceControl.Device;
+using OpenDeviceStudio.Sample.DeviceControl.Domain;
 
-namespace UpperHost.Sample.DeviceControl;
+namespace OpenDeviceStudio.Sample.DeviceControl;
 
 public partial class MainWindow : Window
 {

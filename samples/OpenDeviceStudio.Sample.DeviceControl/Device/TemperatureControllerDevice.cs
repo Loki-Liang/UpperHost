@@ -1,10 +1,10 @@
 using System.Globalization;
-using UpperHost.Abstractions.Devices;
-using UpperHost.Abstractions.Transports;
-using UpperHost.Protocols;
-using UpperHost.Sample.DeviceControl.Domain;
+using OpenDeviceStudio.Abstractions.Devices;
+using OpenDeviceStudio.Abstractions.Transports;
+using OpenDeviceStudio.Protocols;
+using OpenDeviceStudio.Sample.DeviceControl.Domain;
 
-namespace UpperHost.Sample.DeviceControl.Device;
+namespace OpenDeviceStudio.Sample.DeviceControl.Device;
 
 public sealed class TemperatureControllerDevice :
     IDevice,
@@ -30,7 +30,7 @@ public sealed class TemperatureControllerDevice :
     public DeviceDescriptor Descriptor { get; } = new(
         DeviceId,
         "Simulated Temperature Controller",
-        "UpperHost",
+        "OpenDeviceStudio",
         "TC-SIM-1",
         "SIM-0001");
 

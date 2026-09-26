@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
-using UpperHost.Abstractions.Protocols;
-using UpperHost.Sample.DeviceControl.Domain;
+using OpenDeviceStudio.Abstractions.Protocols;
+using OpenDeviceStudio.Sample.DeviceControl.Domain;
 
-namespace UpperHost.Sample.DeviceControl.Protocol;
+namespace OpenDeviceStudio.Sample.DeviceControl.Protocol;
 
 public sealed class TemperatureControllerProtocol :
     IProtocolCodec<TemperatureControllerCommand, TemperatureControllerResponse>

@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Text;
-using UpperHost.Transport.Simulator;
+using OpenDeviceStudio.Transport.Simulator;
 
-namespace UpperHost.Sample.DeviceControl.Simulator;
+namespace OpenDeviceStudio.Sample.DeviceControl.Simulator;
 
 public sealed class TemperatureControllerSimulator : IDisposable
 {
