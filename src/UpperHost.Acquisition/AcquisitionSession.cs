@@ -1369,9 +1369,12 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     .ToArray());
         }
 
-        _completion.TrySetResult(result);
+        // Publish manager/owner terminal bookkeeping before releasing Completion
+        // awaiters. Callers that observe a terminal result must also observe that the
+        // owning registry no longer contains this session.
         _wake.Writer.TryComplete();
         _onTerminal?.Invoke(this);
+        _completion.TrySetResult(result);
     }
 
     private void Transition(AcquisitionSessionState next, AcquisitionStartupPhase phase)
