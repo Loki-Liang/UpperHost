@@ -250,6 +250,78 @@ public sealed class RawRecorderTests
 
 
     [Fact]
+    public async Task Recovery_preserves_complete_prefix_before_truncated_tail()
+    {
+        using var temp = new TemporaryDirectory();
+        await using var recorder = new FileSystemRawRecorder(Options(temp.Path));
+
+        await recorder.PrepareAsync(Descriptor("truncated-prefix"));
+        for (var sequence = 1; sequence <= 4; sequence++)
+        {
+            var payload = Enumerable.Repeat((byte)sequence, 4096).ToArray();
+            Assert.True((await recorder.AcceptAsync(Block(sequence, payload))).Accepted);
+        }
+
+        await recorder.StopAsync();
+        await recorder.FinalizeAsync();
+
+        var directory = Assert.IsType<string>(recorder.Snapshot.SessionDirectory);
+        var segment = Assert.Single(Directory.GetFiles(directory, "*.arrow", SearchOption.TopDirectoryOnly));
+
+        await using (var stream = new FileStream(
+                         segment,
+                         FileMode.Open,
+                         FileAccess.ReadWrite,
+                         FileShare.Read))
+        {
+            Assert.True(stream.Length > 4096);
+            var remove = Math.Min(2048, Math.Max(256, stream.Length / 8));
+            stream.SetLength(stream.Length - remove);
+            await stream.FlushAsync();
+        }
+
+        var report = await FileSystemRawRecoveryScanner.ScanAsync(directory);
+
+        Assert.InRange(report.VerifiedBlocks, 1, 3);
+        Assert.Contains(
+            report.Issues,
+            static issue =>
+                issue.Kind is RawRecoveryIssueKind.CorruptSegment
+                    or RawRecoveryIssueKind.TruncatedTail
+                    or RawRecoveryIssueKind.ChecksumMismatch);
+    }
+
+    [Fact]
+    public async Task CannotBackpressure_source_uses_try_raw_accept_path()
+    {
+        var raw = new DualRawSink();
+        var processing = new CountingIntProcessingSink();
+        RecordingSource? source = null;
+
+        source = new RecordingSource(
+            "source-callback",
+            async cancellationToken =>
+            {
+                var ingress = source!.Context!.CreateRawFirstIngress<int>(raw, processing);
+                await ingress.PublishAsync(42, cancellationToken);
+            },
+            RawSourceFlowControl.CannotBackpressure);
+
+        await using var manager = new AcquisitionSessionManager();
+        await using var session = manager.CreateSession(new AcquisitionSessionDefinition(
+            AcquisitionSessionMode.LiveAcquisition,
+            [source]));
+
+        await session.StartAsync();
+        var result = await session.StopAsync().WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(AcquisitionSessionState.Completed, result.TerminalState);
+        Assert.Equal(0, raw.AsyncAcceptCount);
+        Assert.Equal(1, raw.TryAcceptCount);
+        Assert.Equal(1, processing.Count);
+    }
+
+    [Fact]
     public async Task Preflight_open_failure_prevents_recorder_ready()
     {
         using var temp = new TemporaryDirectory();
@@ -500,13 +572,15 @@ public sealed class RawRecorderTests
 
     private sealed class RecordingSource(
         string sourceId,
-        Func<CancellationToken, ValueTask> startHook) : IAcquisitionSource
+        Func<CancellationToken, ValueTask> startHook,
+        RawSourceFlowControl rawFlowControl = RawSourceFlowControl.SupportsBackpressure) : IAcquisitionSource
     {
         public string ComponentId { get; } = $"source:{sourceId}";
         public string SourceId { get; } = sourceId;
         public long ConnectionEpoch => 1;
         public bool IsReplay => false;
         public bool IsReadOnly => false;
+        public RawSourceFlowControl RawFlowControl => rawFlowControl;
         public AcquisitionComponentKind Kind => AcquisitionComponentKind.Source;
         public AcquisitionComponentContext? Context { get; private set; }
 
@@ -538,6 +612,47 @@ public sealed class RawRecorderTests
             ValueTask.CompletedTask;
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+    }
+
+    private sealed class DualRawSink :
+        IAcquisitionRawSink<int>,
+        IAcquisitionTryRawSink<int>
+    {
+        private int _asyncAcceptCount;
+        private int _tryAcceptCount;
+
+        public int AsyncAcceptCount => Volatile.Read(ref _asyncAcceptCount);
+        public int TryAcceptCount => Volatile.Read(ref _tryAcceptCount);
+
+        public ValueTask<AcquisitionRawAcceptance> AcceptAsync(
+            int block,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _asyncAcceptCount);
+            return ValueTask.FromResult(AcquisitionRawAcceptance.Success);
+        }
+
+        public AcquisitionRawAcceptance TryAccept(int block)
+        {
+            Interlocked.Increment(ref _tryAcceptCount);
+            return AcquisitionRawAcceptance.Success;
+        }
+    }
+
+    private sealed class CountingIntProcessingSink : IAcquisitionProcessingSink<int>
+    {
+        private int _count;
+        public int Count => Volatile.Read(ref _count);
+
+        public ValueTask HandoffAsync(
+            int block,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Interlocked.Increment(ref _count);
+            return ValueTask.CompletedTask;
+        }
     }
 
     private sealed class GatedSegmentStreamFactory : IRawSegmentStreamFactory
