@@ -34,6 +34,9 @@ jobs:
       - name: Validate main branch governance contract
         run: python scripts/validate_main_governance.py
 
+      - name: Test GitHub ruleset drift validator
+        run: python -m unittest discover -s scripts/tests -p "test_*.py"
+
   architecture-governance:
     runs-on: ubuntu-latest
     steps:
