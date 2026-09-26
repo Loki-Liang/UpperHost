@@ -54,7 +54,7 @@ public sealed class StreamRouterTests
             static (_, _) => ValueTask.CompletedTask));
 
         var optional = router.RegisterBranch(
-            OptionalOptions("presentation", capacity: 1, StreamOverflowPolicy.Latest),
+            OptionalOptions("presentation", capacity: 1, overflow: StreamOverflowPolicy.Latest),
             (item, _) =>
             {
                 if (item.Value == 7)
@@ -103,7 +103,7 @@ public sealed class StreamRouterTests
             });
 
         var optional = router.RegisterBranch(
-            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropOldest),
+            OptionalOptions("ui", capacity: 1, overflow: StreamOverflowPolicy.DropOldest),
             async (item, cancellationToken) =>
             {
                 optionalValues.Enqueue(item.Value);
@@ -158,7 +158,7 @@ public sealed class StreamRouterTests
             });
 
         var b = router.RegisterBranch(
-            RequiredOptions("b", capacity: 1, StreamOverflowPolicy.Reject),
+            RequiredOptions("b", capacity: 1, overflow: StreamOverflowPolicy.Reject),
             async (item, cancellationToken) =>
             {
                 if (item.Value == 1)
@@ -208,7 +208,9 @@ public sealed class StreamRouterTests
 
         Assert.Equal(StreamRouterState.Faulted, router.State);
         Assert.True(required.GetSnapshot().IsFaulted);
-        Assert.Contains("algorithm failed", required.GetSnapshot().FaultMessage);
+        var faultMessage = required.GetSnapshot().FaultMessage;
+        Assert.NotNull(faultMessage);
+        Assert.Contains("algorithm failed", faultMessage);
 
         var terminal = await router.CompleteAsync(StreamCompletionMode.Drain);
         Assert.Equal(StreamRouterState.Faulted, terminal.State);
@@ -232,7 +234,7 @@ public sealed class StreamRouterTests
             });
 
         var optional = router.RegisterBranch(
-            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropNewest),
+            OptionalOptions("ui", capacity: 1, overflow: StreamOverflowPolicy.DropNewest),
             static (_, _) => throw new InvalidOperationException("render failed"));
 
         router.Start();
@@ -264,7 +266,7 @@ public sealed class StreamRouterTests
 
         await using var router = new StreamRouter<int>();
         router.RegisterBranch(
-            RequiredOptions("required", capacity: 1, StreamOverflowPolicy.Wait),
+            RequiredOptions("required", capacity: 1, overflow: StreamOverflowPolicy.Wait),
             async (item, cancellationToken) =>
             {
                 values.Enqueue(item.Value);
@@ -314,7 +316,7 @@ public sealed class StreamRouterTests
 
         await using var router = new StreamRouter<TrackedItem>();
         var optional = router.RegisterBranch(
-            OptionalOptions("ui", capacity: 1, StreamOverflowPolicy.DropOldest),
+            OptionalOptions("ui", capacity: 1, overflow: StreamOverflowPolicy.DropOldest),
             async (item, cancellationToken) =>
             {
                 if (item.Value.Id == 1)
@@ -413,7 +415,7 @@ public sealed class StreamRouterTests
         Assert.Equal(0, snapshot.QueueDepth);
         Assert.InRange(snapshot.HighWatermark, 0, snapshot.Capacity);
         Assert.True(snapshot.LastQueueLatency >= TimeSpan.Zero);
-        Assert.True(snapshot.MaxQueueLatency >= snapshot.LastQueueLatency || snapshot.MaxQueueLatency >= TimeSpan.Zero);
+        Assert.True(snapshot.MaxQueueLatency >= snapshot.LastQueueLatency);
     }
 
     private static StreamBranchOptions RequiredOptions(
