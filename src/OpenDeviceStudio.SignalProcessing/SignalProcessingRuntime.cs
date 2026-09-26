@@ -137,6 +137,10 @@ public sealed class SignalProcessingRuntime<T> : IAsyncDisposable
                         .CompleteAsync(StreamCompletionMode.Drain, cancellationToken)
                         .ConfigureAwait(false);
                 }
+
+                await Task.WhenAll(_edgeMonitors)
+                    .WaitAsync(cancellationToken)
+                    .ConfigureAwait(false);
             }
 
             if (State != SignalProcessingRuntimeState.Faulted)
