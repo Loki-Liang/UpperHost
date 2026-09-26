@@ -5,4 +5,7 @@
   <ItemGroup>
     <ProjectReference Include="../UpperHost.Abstractions/UpperHost.Abstractions.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.IO.Pipelines" />
+  </ItemGroup>
 </Project>
