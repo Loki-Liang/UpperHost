@@ -45,6 +45,9 @@ jobs:
       - name: Validate modular-monolith project graph
         run: python scripts/validate_architecture.py
 
+      - name: Validate OpenDeviceStudio brand migration closure
+        run: python scripts/validate_brand_migration.py
+
   linux-runtime-contract:
     runs-on: ubuntu-latest
     steps:
