@@ -217,16 +217,30 @@ public sealed class AcquisitionSession : IAsyncDisposable
                     .StartAsync(startupCts.Token)
                     .ConfigureAwait(false);
 
+                // A Source may report a Required fault and still return normally from StartAsync.
+                // Observe the linked startup cancellation before committing the Source/Session to Running.
+                startupCts.Token.ThrowIfCancellationRequested();
                 SetSourceState(handle, AcquisitionComponentRuntimeState.Running);
             }
 
-            _supervisor = RunSupervisorAsync();
+            startupCts.Token.ThrowIfCancellationRequested();
             Transition(AcquisitionSessionState.Running, AcquisitionStartupPhase.AttachingOptionalComponents);
+            _supervisor = RunSupervisorAsync();
 
             foreach (var optional in _definition.OptionalComponents)
+            {
                 await AttachOptionalAsync(optional.Component.ComponentId, CancellationToken.None).ConfigureAwait(false);
 
-            SetPhase(AcquisitionStartupPhase.Running);
+                if (_rootFault is not null ||
+                    Volatile.Read(ref _stopRequested) != 0 ||
+                    Volatile.Read(ref _abortRequested) != 0 ||
+                    State != AcquisitionSessionState.Running)
+                {
+                    break;
+                }
+            }
+
+            SetPhaseIfState(AcquisitionSessionState.Running, AcquisitionStartupPhase.Running);
         }
         catch (OperationCanceledException ex)
         {
@@ -1336,6 +1350,17 @@ public sealed class AcquisitionSession : IAsyncDisposable
     {
         lock (_stateGate)
             _phase = phase;
+    }
+
+    private void SetPhaseIfState(
+        AcquisitionSessionState expectedState,
+        AcquisitionStartupPhase phase)
+    {
+        lock (_stateGate)
+        {
+            if (_state == expectedState)
+                _phase = phase;
+        }
     }
 
     private void SetRequiredState(
