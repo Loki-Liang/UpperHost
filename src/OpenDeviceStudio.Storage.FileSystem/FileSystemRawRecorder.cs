@@ -241,19 +241,33 @@ public sealed class FileSystemRawRecorder : IRawRecorder
     public async ValueTask StopAsync(CancellationToken cancellationToken = default)
     {
         RawRecorderState state;
+        string? faultReason;
         lock (_gate)
         {
             state = _state;
+            faultReason = _faultReason;
             if (state is RawRecorderState.Completed or RawRecorderState.Aborted or RawRecorderState.Disposed)
                 return;
-            if (state == RawRecorderState.Faulted)
-            {
-                await _faultManifestTask.WaitAsync(cancellationToken).ConfigureAwait(false);
-                throw new IOException(_faultReason ?? "Raw recorder faulted.");
-            }
             if (state is RawRecorderState.Created or RawRecorderState.Preparing)
                 throw new InvalidOperationException($"Raw recorder cannot stop from state {state}.");
-            _state = RawRecorderState.Stopping;
+            if (state != RawRecorderState.Faulted)
+                _state = RawRecorderState.Stopping;
+        }
+
+        if (state == RawRecorderState.Faulted)
+        {
+            Exception? writerFailure = null;
+            try
+            {
+                await _writerTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                writerFailure = ex;
+            }
+
+            await _faultManifestTask.WaitAsync(cancellationToken).ConfigureAwait(false);
+            throw new IOException(faultReason ?? "Raw recorder faulted.", writerFailure);
         }
 
         _queue!.Writer.TryComplete();
@@ -366,6 +380,15 @@ public sealed class FileSystemRawRecorder : IRawRecorder
         {
             foreach (var segment in _activeSegments.Values)
                 await segment.DisposeAsync().ConfigureAwait(false);
+
+            try
+            {
+                await _writerTask.ConfigureAwait(false);
+            }
+            catch
+            {
+                // Writer failure is already captured in recorder state/fault diagnostics.
+            }
 
             await _faultManifestTask.ConfigureAwait(false);
             _slots?.Dispose();
