@@ -18,7 +18,8 @@ class ValidateAgentGovernanceTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         (self.root / ".github/governance").mkdir(parents=True)
-        (self.root / ".openhands/skills").mkdir(parents=True)\n        (self.root / "agents").mkdir(parents=True)
+        (self.root / ".openhands/skills").mkdir(parents=True)
+        (self.root / "agents").mkdir(parents=True)
 
         self.manifest = {
             "version": 1,
