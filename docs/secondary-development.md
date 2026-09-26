@@ -25,7 +25,7 @@ UpperHost is a source-first enterprise .NET upper-computer development scaffold.
 | Transport | Serial, TCP and Simulator with common `ITransport` seam | Implement `ITransport`, register through `AddUpperHostTransport<T>()` |
 | Protocol | Command encoders, message decoders, request/response and streaming boundaries | Implement `ICommandEncoder<T>` / `IMessageDecoder<T>` |
 | Control runtime | Host-owned bounded command dispatcher, guards/interlocks, UnknownOutcome, resource arbitration, parameter/readback foundations | Register each typed command contract with `AddCommandDispatcher<TCommand,TResult>()`; define product safety/completion semantics |
-| Streaming / dataflow | Bounded fan-out, backpressure and loss-policy primitives | Connect device streams to bounded dataflow |
+| Streaming / dataflow | `StreamRouter<T>` with sealed topology, per-branch bounded QoS, Required/Optional failure semantics, ownership and metrics; legacy `FanOutHub<T>` remains compatibility-only | Register the full processing topology before `StartAsync()` and choose capacity/overflow/failure policy per branch |
 | Workflow | `WorkflowRunner` | Define product `WorkflowDefinition` / `IWorkflowStep` |
 | State machine | Generic `StateMachine<TState,TTrigger>` | Define product states and triggers |
 | Events | Typed `IEventBus` | Publish/subscribe product events instead of static globals |
@@ -279,6 +279,28 @@ Hardware
 ```
 
 Required readiness is complete before Source start. Required faults terminate/converge through the Session; Optional presentation/algorithm faults are isolated unless the frozen definition explicitly escalates them. Replay sources are read-only by default and reuse processing implementations under a new ProcessingEpoch.
+
+Post-processing fan-out uses one production Router contract instead of creating a queue per feature:
+
+```csharp
+var router = new StreamRouter<ProcessedBlock>(ownership);
+router.RegisterBranch(
+    StreamBranchOptions.Required(
+        "algorithm-a", "Algorithm A", capacity: 256, overflow: StreamOverflowPolicy.Wait),
+    ConsumeAlgorithmAsync);
+router.RegisterBranch(
+    StreamBranchOptions.Optional(
+        "presentation", "Waveform UI", capacity: 8, overflow: StreamOverflowPolicy.DropOldest),
+    RenderAsync);
+
+await router.StartAsync(cancellationToken);
+
+var publish = await router.PublishAsync(block, cancellationToken);
+if (publish.RequiresStop)
+    throw new InvalidOperationException("A required stream route failed.");
+```
+
+Every branch is bounded. Required branches reject lossy overflow policies; Optional branches reject `Wait` so a slow UI cannot backpressure Required processing. The router preserves its serialized publish sequence per branch, owns consumer tasks and fault observation, exposes branch queue/drop/lag counters, and uses `IStreamItemOwnership<T>` when pooled/shared blocks need retain/release lifetime management. The canonical Raw recorder remains an ingress durability path (#58), not an ordinary Optional Router branch.
 
 Define capacity, backpressure, loss policy and UI downsampling explicitly. Do not use a WPF UI timer as the acquisition clock.
 
